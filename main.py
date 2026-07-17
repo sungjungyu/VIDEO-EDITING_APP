@@ -51,7 +51,7 @@ class VideoEditingPipeline:
         """
         self.gemini_client = None
         self.gemini_model = None
-        self.gemini_model_name = "gemini-2.5-flash"
+        self.gemini_model_name = "gemini-3-flash"
 
         # Gemini API 설정
         if google_genai is not None:
@@ -569,7 +569,7 @@ def main():
             bg = ColorClip(size=(640, 360), color=(64, 128, 255), duration=5)
             
             # 오디오 추가 (무음)
-            bg = bg.set_audio(None)
+            bg = bg.with_audio(None)
             
             bg.write_videofile(input_file, codec='libx264', audio_codec='aac', fps=24, logger=None)
             bg.close()
