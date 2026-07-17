@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cutroom AI — Video editor</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Inter:wght@400;500;600;700&family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+  <main class="editor-shell">
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="Cutroom AI 홈"><span class="brand-mark">C</span><span>cutroom</span><em>AI</em></a>
+      <div class="project-meta"><span class="status-dot"></span><span id="projectName">새 프로젝트</span><span class="slash">/</span><span>편집 준비됨</span></div>
+      <button class="ghost-button" id="resetButton" type="button">새 프로젝트</button>
+    </header>
+
+    <section class="workspace">
+      <section class="preview-panel panel" aria-label="영상 미리보기">
+        <div class="panel-heading"><div><p class="eyebrow">PREVIEW</p><h1>영상 캔버스</h1></div><span class="format-badge" id="videoFormat">16:9</span></div>
+        <div class="video-stage" id="videoStage">
+          <video id="videoPlayer" controls playsinline aria-label="영상 미리보기"></video>
+          <button class="dropzone" id="dropzone" type="button">
+            <span class="drop-icon">↑</span><strong>영상 파일을 여기에 놓으세요</strong>
+            <span>또는 클릭하여 MP4, MOV, AVI 파일 선택</span>
+            <small>AI가 자막·컷 포인트를 분석합니다</small>
+          </button>
+          <input id="fileInput" type="file" accept="video/mp4,video/quicktime,video/x-msvideo,video/x-matroska,video/webm" hidden>
+        </div>
+        <div class="transport"><button type="button" id="playButton" class="icon-button" aria-label="재생 또는 일시 정지">▶</button><span id="timeDisplay" class="mono">00:00 / 00:00</span><input id="scrubber" type="range" min="0" max="100" value="0" aria-label="영상 위치"><span class="mono speed">1.0×</span></div>
+      </section>
+
+      <aside class="controls-panel panel" aria-label="AI 편집 컨트롤">
+        <div class="panel-heading"><div><p class="eyebrow">AI EDITOR</p><h2>편집 컨트롤</h2></div><span class="ai-chip">✦ AI</span></div>
+        <div class="control-section"><label>출력 비율</label><div class="format-grid" role="radiogroup" aria-label="출력 비율">
+          <button type="button" class="format-card selected" data-aspect="16:9" role="radio" aria-checked="true"><span class="frame-icon landscape"></span><strong>와이드</strong><small>16:9 · YouTube</small></button>
+          <button type="button" class="format-card" data-aspect="9:16" role="radio" aria-checked="false"><span class="frame-icon portrait"></span><strong>숏폼</strong><small>9:16 · Reels / Shorts</small></button>
+        </div></div>
+        <div class="control-section"><label>편집 스타일</label><div class="style-grid" role="radiogroup" aria-label="편집 스타일">
+          <button type="button" class="style-card" data-style="매운맛" role="radio" aria-checked="false"><span>🌶</span><strong>매운맛</strong><small>숏폼 · 다이내믹</small></button>
+          <button type="button" class="style-card" data-style="순한맛" role="radio" aria-checked="false"><span>◌</span><strong>순한맛</strong><small>브이로그 · 내추럴</small></button>
+          <button type="button" class="style-card selected" data-style="정석맛" role="radio" aria-checked="true"><span>✦</span><strong>정석맛</strong><small>정보 · 클린</small></button>
+        </div></div>
+        <div class="control-section analysis-state" id="analysisState"><span class="state-icon">◎</span><div><strong>AI 분석 대기 중</strong><p>영상을 업로드하면 편집 초안을 만듭니다.</p></div></div>
+        <div class="control-section segment-inspector" id="segmentInspector" hidden>
+          <label>선택한 자막 클립 <span id="selectedSegmentLabel">#01</span></label>
+          <input id="selectedTextInput" type="text" placeholder="타임라인 클립을 선택하세요" aria-label="선택한 자막 텍스트">
+          <div class="inspector-meta"><span id="selectedTimeRange" class="mono">00:00.0 — 00:00.0</span><button id="selectedCutButton" type="button" class="cut-action">컷 편집 켜기</button></div>
+        </div>
+        <button class="primary-button" id="analyzeButton" type="button" disabled><span>✦</span> AI 편집안 생성</button>
+        <p class="control-note">생성된 자막과 컷 포인트는 아래 타임라인에서 직접 수정할 수 있습니다.</p>
+      </aside>
+    </section>
+
+    <section class="timeline-panel panel" aria-label="타임라인 및 자막 편집">
+      <div class="timeline-header"><div><p class="eyebrow">TIMELINE</p><h2>자막 &amp; 컷 편집</h2><p class="timeline-description" id="timelineDescription">AI 분석 후 수정 가능한 세그먼트가 표시됩니다.</p></div><div class="timeline-actions"><span class="segment-count" id="segmentCount">0 segments</span><button class="secondary-button" id="addSegmentButton" type="button" disabled>+ 세그먼트 추가</button><button class="render-button" id="renderButton" type="button" disabled>최종 렌더링 시작 <span>→</span></button></div></div>
+      <div class="timeline-scroll" id="timelineScroll">
+        <div class="timeline-empty empty-state" id="timelineEmpty"><span>✦</span><strong>아직 편집할 타임라인이 없습니다</strong><p>영상 업로드 → AI 편집안 생성 → 타임라인에서 자막과 컷 수정 순서로 진행하세요.</p></div>
+        <div class="timeline-canvas" id="timelineCanvas" hidden>
+          <div class="ruler-track" id="timelineRuler" aria-label="시간 눈금자"></div>
+          <div class="track-row"><div class="track-label"><span class="track-icon">▣</span>VIDEO</div><div class="track-lane"><div class="source-clip" id="sourceClip"><span>원본 영상</span></div></div></div>
+          <div class="track-row"><div class="track-label subtitle-label"><span class="track-icon">T</span>SUBTITLES</div><div class="track-lane subtitle-lane" id="subtitleTrack"></div></div>
+        </div>
+      </div>
+      <div class="render-progress" id="renderProgress" hidden><div class="progress-copy"><span id="renderMessage">렌더링 준비 중…</span><span id="renderPercent">0%</span></div><div class="progress-track"><div id="progressFill"></div></div></div>
+      <div class="render-result" id="renderResult" hidden><span>✓</span><div><strong>편집 영상이 준비되었습니다.</strong><p>수정한 타임라인 데이터로 렌더링했습니다.</p></div><a id="downloadLink" href="#">결과 다운로드</a></div>
+    </section>
+  </main>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script src="/static/app.js"></script>
+</body>
+</html>

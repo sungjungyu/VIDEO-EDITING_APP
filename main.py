@@ -17,6 +17,9 @@ except ImportError:
     from moviepy import VideoFileClip, TextClip, ImageClip, CompositeVideoClip, concatenate_videoclips
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
+# MoviePy 1.x still references the Pillow constant removed in Pillow 10.
+if not hasattr(Image, "ANTIALIAS"):
+    Image.ANTIALIAS = Image.Resampling.LANCZOS
 # from moviepy.config import change_settings  # 더 이상 사용하지 않음
 # import openai  # 더 이상 사용하지 않음
 # from openai import OpenAI  # 더 이상 사용하지 않음
@@ -52,6 +55,13 @@ class VideoEditingPipeline:
         self.gemini_client = None
         self.gemini_model = None
         self.gemini_model_name = "gemini-2.5-flash"
+        # 정확도를 우선하는 기본값입니다. 처리 속도가 더 중요하면 환경 변수로
+        # WHISPER_MODEL=base 또는 small을 지정할 수 있습니다.
+        self.whisper_model_name = os.getenv("WHISPER_MODEL", "medium")
+        self.whisper_initial_prompt = os.getenv(
+            "WHISPER_INITIAL_PROMPT",
+            "다음은 자연스러운 한국어 영상 자막입니다. 고유명사, 제품명, 숫자와 단위를 정확히 표기하세요.",
+        )
 
         # Gemini API 설정
         if google_genai is not None:
@@ -130,17 +140,28 @@ class VideoEditingPipeline:
         print("🎬 Step 1: 영상에서 오디오 추출 중...")
         
         video = VideoFileClip(input_video_path)
-        audio_path = os.path.join(self.temp_dir, "audio.mp3")
+        # MP3 재압축으로 생길 수 있는 음질 손실을 피하기 위해 Whisper 입력은
+        # 16 kHz 모노 PCM WAV로 저장합니다.
+        audio_path = os.path.join(self.temp_dir, "audio.wav")
         
         # 오디오 추출 또는 무음 대체 생성
         if video.audio is not None:
-            video.audio.write_audiofile(audio_path, logger=None)
+            video.audio.write_audiofile(
+                audio_path,
+                fps=16000,
+                nbytes=2,
+                codec="pcm_s16le",
+                ffmpeg_params=["-ac", "1"],
+                logger=None,
+            )
             print(f"✅ 오디오 추출 완료: {audio_path}")
         else:
             print("⚠️ 영상에 오디오 트랙이 없어 무음 오디오를 생성합니다.")
             from moviepy.audio.AudioClip import AudioClip
             silent_audio = AudioClip(lambda t: np.zeros(1), duration=video.duration)
-            silent_audio.write_audiofile(audio_path, logger=None, fps=16000)
+            silent_audio.write_audiofile(
+                audio_path, fps=16000, nbytes=2, codec="pcm_s16le", logger=None
+            )
             silent_audio.close()
             print(f"✅ 무음 오디오 생성 완료: {audio_path}")
         
@@ -159,13 +180,22 @@ class VideoEditingPipeline:
         """
         print("🎤 Step 2: 로컬 Whisper로 음성 인식 중...")
         
-        # Whisper 모델 로드 (base 모델 사용 - 속도와 정확성의 균형)
-        print("📥 Whisper 모델 로딩 중...")
-        model = whisper.load_model("base")
+        print(f"📥 Whisper {self.whisper_model_name} 모델 로딩 중...")
+        model = whisper.load_model(self.whisper_model_name)
         
         # 오디오 파일 처리
         print("🔊 오디오 처리 중...")
-        result = model.transcribe(audio_path, language="ko", verbose=True)
+        result = model.transcribe(
+            audio_path,
+            language="ko",
+            task="transcribe",
+            initial_prompt=self.whisper_initial_prompt,
+            temperature=0,
+            beam_size=5,
+            best_of=5,
+            condition_on_previous_text=True,
+            verbose=True,
+        )
         
         # 세그먼트 정보 추출
         segments = []
@@ -178,6 +208,54 @@ class VideoEditingPipeline:
         
         print(f"✅ 음성 인식 완료: {len(segments)}개 세그먼트")
         return segments
+
+    def step2_refine_transcript(self, segments: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Gemini로 자막 표기만 교정하고 Whisper 타임스탬프는 그대로 유지합니다."""
+        if not segments:
+            return segments
+
+        print("📝 Step 2-보정: 자막 맞춤법·고유명사 교정 중...")
+        indexed_segments = [
+            {"id": index, "text": segment["text"]}
+            for index, segment in enumerate(segments)
+        ]
+        prompt = f"""
+당신은 한국어 영상 자막 교정자입니다. 아래 Whisper 인식 자막의 맞춤법, 띄어쓰기,
+숫자·단위, 명백한 고유명사 표기만 교정하세요. 발화에 없는 내용을 추가하거나,
+말의 의미·말투를 바꾸거나, 문장을 합치거나 나누지 마세요.
+
+반드시 입력과 같은 id를 하나씩 포함한 순수 JSON 배열만 반환하세요.
+형식: [{{"id": 0, "text": "교정된 자막"}}]
+
+입력:
+{json.dumps(indexed_segments, ensure_ascii=False)}
+"""
+        try:
+            response_text = str(self._call_gemini(prompt) or "").strip()
+            if response_text.startswith("```json"):
+                response_text = response_text[7:]
+            if response_text.endswith("```"):
+                response_text = response_text[:-3]
+            corrected = json.loads(response_text.strip())
+            corrected_texts = {
+                item["id"]: item["text"].strip()
+                for item in corrected
+                if isinstance(item, dict)
+                and isinstance(item.get("id"), int)
+                and isinstance(item.get("text"), str)
+                and item["text"].strip()
+            }
+            if set(corrected_texts) != set(range(len(segments))):
+                raise ValueError("교정 응답의 세그먼트 id가 입력과 일치하지 않습니다.")
+        except Exception as error:
+            print(f"⚠️ 자막 교정을 건너뜁니다: {error}")
+            return segments
+
+        refined_segments = [dict(segment) for segment in segments]
+        for index, segment in enumerate(refined_segments):
+            segment["text"] = corrected_texts[index]
+        print("✅ 자막 표기 교정 완료 (타임스탬프 유지)")
+        return refined_segments
     
     def _build_dummy_commands(self, segments: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """Gemini 호출 실패 시 사용할 기본 편집 명령어"""
@@ -317,6 +395,9 @@ class VideoEditingPipeline:
         - subtitle_color: 자막 색상 (예: "red", "blue", "white", "yellow")
         - fontsize: 자막 크기 (숫자)
 
+        text 필드는 이미 맞춤법과 고유명사 표기가 교정된 자막입니다. text의 문구를
+        임의로 바꾸지 말고 그대로 사용하세요.
+
         예시 출력:
         [{{"start": 0.0, "end": 2.5, "text": "안녕하세요", "cut": false, "subtitle_color": "red", "fontsize": 40}}]
 
@@ -385,7 +466,34 @@ class VideoEditingPipeline:
             
             return self._build_local_commands(segments, style_preset)
     
-    def step5_create_final_video(self, input_video_path: str, edit_commands: List[Dict[str, Any]], output_path: str):
+    def _apply_aspect_ratio(self, clip, aspect_ratio: str):
+        """Center-crop a clip to a standard landscape or short-form canvas."""
+        target_sizes = {"16:9": (1920, 1080), "9:16": (1080, 1920)}
+        if aspect_ratio not in target_sizes:
+            raise ValueError("지원하지 않는 영상 비율입니다. 16:9 또는 9:16을 사용하세요.")
+
+        target_width, target_height = target_sizes[aspect_ratio]
+        scale = max(target_width / clip.w, target_height / clip.h)
+        resized = (
+            clip.resized(new_size=(int(clip.w * scale), int(clip.h * scale)))
+            if hasattr(clip, "resized")
+            else clip.resize(newsize=(int(clip.w * scale), int(clip.h * scale)))
+        )
+        x1 = max(0, (resized.w - target_width) / 2)
+        y1 = max(0, (resized.h - target_height) / 2)
+        return (
+            resized.cropped(x1=x1, y1=y1, width=target_width, height=target_height)
+            if hasattr(resized, "cropped")
+            else resized.crop(x1=x1, y1=y1, width=target_width, height=target_height)
+        )
+
+    def step5_create_final_video(
+        self,
+        input_video_path: str,
+        edit_commands: List[Dict[str, Any]],
+        output_path: str,
+        aspect_ratio: str = "16:9",
+    ):
         """
         Step 5: 최종 영상 생성 (컷 편집 + 자막 합성)
         
@@ -393,11 +501,19 @@ class VideoEditingPipeline:
             input_video_path (str): 입력 영상 경로
             edit_commands (List[Dict]): 편집 명령어
             output_path (str): 출력 영상 경로
+            aspect_ratio (str): 출력 비율 ("16:9" 또는 "9:16")
         """
         print("🎬 Step 5: 최종 영상 생성 중...")
         
         # 원본 영상 로드
         video = VideoFileClip(input_video_path)
+
+        def subclip(source, start, end):
+            return (
+                source.subclipped(start, end)
+                if hasattr(source, "subclipped")
+                else source.subclip(start, end)
+            )
         
         if not edit_commands:
             print("⚠️ 편집 명령이 비어 있어 기본 편집 명령을 생성합니다.")
@@ -417,12 +533,12 @@ class VideoEditingPipeline:
                 start_time = max(0, float(cmd.get("start", 0) or 0))
                 end_time = min(video.duration, float(cmd.get("end", video.duration) or video.duration))
                 if end_time > start_time:
-                    segment = video.subclipped(start_time, end_time)
+                    segment = subclip(video, start_time, end_time)
                     keep_segments.append(segment)
         
         if not keep_segments:
             print("⚠️ 편집 가능한 세그먼트가 없어 전체 영상을 사용합니다.")
-            keep_segments = [video.subclipped(0, video.duration)]
+            keep_segments = [subclip(video, 0, video.duration)]
             edit_commands = [{
                 "start": 0.0,
                 "end": video.duration,
@@ -437,6 +553,9 @@ class VideoEditingPipeline:
             edited_video = keep_segments[0]
         else:
             edited_video = concatenate_videoclips(keep_segments)
+
+        # Short-form output uses a centered 9:16 crop; landscape uses a 16:9 canvas.
+        framed_video = self._apply_aspect_ratio(edited_video, aspect_ratio)
         
         # 자막 클립 생성 (PIL 기반, ImageMagick 불필요)
         subtitle_clips = []
@@ -450,9 +569,13 @@ class VideoEditingPipeline:
                         cmd["text"],
                         cmd["fontsize"],
                         cmd["subtitle_color"],
-                        edited_video.w
+                        framed_video.w
                     )
-                    subtitle = ImageClip(subtitle_img).with_position(('center', 'bottom')).with_start(current_time).with_duration(subtitle_duration)
+                    subtitle = ImageClip(subtitle_img)
+                    if hasattr(subtitle, "with_position"):
+                        subtitle = subtitle.with_position(('center', 'bottom')).with_start(current_time).with_duration(subtitle_duration)
+                    else:
+                        subtitle = subtitle.set_position(('center', 'bottom')).set_start(current_time).set_duration(subtitle_duration)
                     subtitle_clips.append(subtitle)
                     
                     current_time += subtitle_duration
@@ -465,9 +588,9 @@ class VideoEditingPipeline:
         
         # 최종 영상 합성
         if subtitle_clips:
-            final_video = CompositeVideoClip([edited_video] + subtitle_clips)
+            final_video = CompositeVideoClip([framed_video] + subtitle_clips)
         else:
-            final_video = edited_video
+            final_video = framed_video
         
         # 영상 렌더링 (속도 개선)
         print("🎥 영상 렌더링 중...")
@@ -485,8 +608,10 @@ class VideoEditingPipeline:
         
         # 메모리 정리
         video.close()
+        if final_video is not framed_video:
+            final_video.close()
+        framed_video.close()
         edited_video.close()
-        final_video.close()
         for clip in keep_segments:
             clip.close()
         for clip in subtitle_clips:
@@ -514,7 +639,10 @@ class VideoEditingPipeline:
             
             # Step 2: 음성 인식
             segments = self.step2_transcribe_audio(audio_path)
-            
+
+            # Step 2-보정: 자막 표기만 교정 (Whisper 타임스탬프 유지)
+            segments = self.step2_refine_transcript(segments)
+
             # Step 3-4: 문맥 분석
             edit_commands = self.step3_analyze_context(segments, style_preset)
             
