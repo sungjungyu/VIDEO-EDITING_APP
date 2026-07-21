@@ -254,6 +254,26 @@
     }
     .seg-keep .seg-tag { color: var(--keep); }
     .seg-cut  .seg-tag { color: var(--cut); }
+
+    /* ---- inline edit ---- */
+    .seg.editing { cursor: text; }
+    .seg-edit {
+      width: 100%;
+      background: rgba(0, 0, 0, 0.35);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      border-radius: 4px;
+      color: var(--text);
+      font-size: 12px;
+      line-height: 1.35;
+      padding: 4px 6px;
+      outline: none;
+      font-family: inherit;
+      resize: none;
+    }
+    .seg-edit:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px rgba(255, 216, 77, 0.20);
+    }
   </style>
 </head>
 <body>
@@ -356,9 +376,79 @@
           </div>
         `;
 
-        el.addEventListener("click", () => toggleSegment(i, el));
+        // click = toggle cut, dblclick = edit text.
+        // Delay the click so a following dblclick can cancel it.
+        let clickTimer = null;
+        el.addEventListener("click", () => {
+          if (el.classList.contains("editing")) return;
+          if (clickTimer) return;
+          clickTimer = setTimeout(() => {
+            clickTimer = null;
+            toggleSegment(i, el);
+          }, 220);
+        });
+        el.addEventListener("dblclick", () => {
+          if (clickTimer) { clearTimeout(clickTimer); clickTimer = null; }
+          if (el.classList.contains("editing")) return;
+          startEditing(i, el);
+        });
+
         track.appendChild(el);
       });
+    }
+
+    function startEditing(index, el) {
+      const seg = SEGMENTS[index];
+      const textDiv = el.querySelector(".seg-text");
+      if (!textDiv) return;
+
+      el.classList.add("editing");
+
+      const input = document.createElement("input");
+      input.type = "text";
+      input.className = "seg-edit";
+      input.value = seg.text;
+
+      // events on the input must not bubble up to the block
+      input.addEventListener("click",    (e) => e.stopPropagation());
+      input.addEventListener("dblclick", (e) => e.stopPropagation());
+      input.addEventListener("mousedown",(e) => e.stopPropagation());
+
+      let done = false;
+      const finish = (commit) => {
+        if (done) return;
+        done = true;
+        if (commit) {
+          const trimmed = input.value.trim();
+          if (trimmed.length > 0) seg.text = trimmed;
+        }
+        stopEditing(index, el);
+      };
+
+      input.addEventListener("keydown", (e) => {
+        if (e.key === "Enter")  { e.preventDefault(); finish(true);  }
+        else if (e.key === "Escape") { e.preventDefault(); finish(false); }
+      });
+      // clicking outside commits (safer than discarding)
+      input.addEventListener("blur", () => finish(true));
+
+      textDiv.replaceWith(input);
+      input.focus();
+      input.select();
+    }
+
+    function stopEditing(index, el) {
+      const seg = SEGMENTS[index];
+      const input = el.querySelector(".seg-edit");
+      if (!input) { el.classList.remove("editing"); return; }
+
+      const textDiv = document.createElement("div");
+      textDiv.className = "seg-text";
+      textDiv.textContent = seg.text;
+      input.replaceWith(textDiv);
+
+      el.classList.remove("editing");
+      el.title = `${formatTime(seg.start)} – ${formatTime(seg.end)}  |  ${seg.text}`;
     }
 
     function toggleSegment(index, el) {
