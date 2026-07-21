@@ -138,6 +138,25 @@
       font-size: 12px;
       color: var(--muted);
     }
+    .tl-left {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    .tl-title { color: var(--text); font-weight: 500; }
+    .tl-stats {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: var(--muted);
+      font-variant-numeric: tabular-nums;
+    }
+    .stat-keep { color: var(--keep); font-weight: 500; }
+    .stat-cut  { color: var(--cut);  font-weight: 500; }
+    .stat-dur  { color: var(--text); }
+    .stat-sep  { color: #3a4655; }
+
     .legend {
       display: flex;
       gap: 14px;
@@ -198,10 +217,15 @@
       color: #DCE9F8;
     }
     .seg-cut {
-      background: rgba(255, 92, 92, 0.14);
-      border-color: rgba(255, 92, 92, 0.40);
+      background: rgba(255, 92, 92, 0.18);
+      border-color: rgba(255, 92, 92, 0.55);
       color: #F6D6D6;
-      opacity: 0.75;
+      opacity: 0.78;
+    }
+    .seg-cut .seg-text {
+      text-decoration: line-through;
+      text-decoration-color: rgba(255, 92, 92, 0.85);
+      text-decoration-thickness: 1.5px;
     }
 
     .seg-text {
@@ -256,7 +280,16 @@
     <!-- Timeline -->
     <section class="timeline-panel">
       <div class="timeline-header">
-        <span>타임라인</span>
+        <div class="tl-left">
+          <span class="tl-title">타임라인</span>
+          <span class="tl-stats" id="stats">
+            <span class="stat-keep">유지 0개</span>
+            <span class="stat-sep">/</span>
+            <span class="stat-cut">제거 0개</span>
+            <span class="stat-sep">·</span>
+            <span class="stat-dur">예상 길이 0.0초</span>
+          </span>
+        </div>
         <div class="legend">
           <span class="legend-item">
             <span class="legend-dot legend-keep"></span>
@@ -322,11 +355,43 @@
             <span class="seg-tag">${seg.cut ? "cut" : "keep"}</span>
           </div>
         `;
+
+        el.addEventListener("click", () => toggleSegment(i, el));
         track.appendChild(el);
       });
     }
 
+    function toggleSegment(index, el) {
+      const seg = SEGMENTS[index];
+      seg.cut = !seg.cut;
+
+      // update this block in place (no full re-render)
+      el.classList.toggle("seg-cut", seg.cut);
+      el.classList.toggle("seg-keep", !seg.cut);
+      const tag = el.querySelector(".seg-tag");
+      if (tag) tag.textContent = seg.cut ? "cut" : "keep";
+
+      updateStats();
+    }
+
+    function updateStats() {
+      let keepCount = 0, cutCount = 0, keepDuration = 0;
+      for (const seg of SEGMENTS) {
+        const d = Math.max(0, seg.end - seg.start);
+        if (seg.cut) {
+          cutCount++;
+        } else {
+          keepCount++;
+          keepDuration += d;
+        }
+      }
+      document.querySelector("#stats .stat-keep").textContent = `유지 ${keepCount}개`;
+      document.querySelector("#stats .stat-cut").textContent  = `제거 ${cutCount}개`;
+      document.querySelector("#stats .stat-dur").textContent  = `예상 길이 ${keepDuration.toFixed(1)}초`;
+    }
+
     renderTimeline(SEGMENTS);
+    updateStats();
   </script>
 </body>
 </html>
