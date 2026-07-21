@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI 영상 편집기</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    :root {
+      --bg: #12161C;
+      --panel: #1B222B;
+      --border: #2A3340;
+      --text: #E8ECF1;
+      --muted: #9AA6B2;
+      --accent: #FFD84D;
+      --keep: #5CA8FF;
+      --cut: #FF5C5C;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Pretendard",
+                   "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+      overflow: hidden;
+    }
+
+    .app {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+
+    /* ---- Top bar ---- */
+    .topbar {
+      height: 56px;
+      flex: 0 0 56px;
+      background: var(--panel);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 20px;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+    }
+    .brand-mark {
+      width: 26px;
+      height: 26px;
+      border-radius: 7px;
+      background: linear-gradient(135deg, var(--keep), var(--accent));
+      display: grid;
+      place-items: center;
+      font-size: 13px;
+      color: #12161C;
+      font-weight: 800;
+    }
+    .brand-title { font-size: 15px; }
+    .brand-sub {
+      font-size: 12px;
+      color: var(--muted);
+      margin-left: 6px;
+    }
+    .btn-export {
+      background: var(--accent);
+      color: #12161C;
+      font-weight: 600;
+      font-size: 13px;
+      padding: 8px 16px;
+      border-radius: 8px;
+      border: none;
+      cursor: pointer;
+      transition: transform 0.06s ease, filter 0.15s ease;
+    }
+    .btn-export:hover { filter: brightness(1.05); }
+    .btn-export:active { transform: translateY(1px); }
+
+    /* ---- Main (preview) ---- */
+    .main {
+      flex: 1 1 auto;
+      display: flex;
+      min-height: 0;
+    }
+    .preview-wrap {
+      flex: 1 1 auto;
+      display: grid;
+      place-items: center;
+      background: var(--bg);
+      padding: 24px;
+      min-height: 0;
+    }
+    .preview {
+      width: 100%;
+      max-width: 960px;
+      aspect-ratio: 16 / 9;
+      background: #000;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      display: grid;
+      place-items: center;
+      color: var(--muted);
+      font-size: 13px;
+      position: relative;
+      overflow: hidden;
+    }
+    .preview::after {
+      content: "미리보기 영역";
+      color: #4a5563;
+      font-size: 12px;
+      letter-spacing: 0.02em;
+    }
+
+    /* ---- Timeline ---- */
+    .timeline-panel {
+      flex: 0 0 220px;
+      background: var(--panel);
+      border-top: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+    }
+    .timeline-header {
+      height: 40px;
+      padding: 0 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border);
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .legend {
+      display: flex;
+      gap: 14px;
+      align-items: center;
+    }
+    .legend-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .legend-dot {
+      width: 8px; height: 8px; border-radius: 2px;
+    }
+    .legend-keep { background: var(--keep); }
+    .legend-cut  { background: var(--cut); }
+
+    .timeline-scroll {
+      flex: 1 1 auto;
+      overflow-x: auto;
+      overflow-y: hidden;
+      padding: 14px 16px 16px;
+    }
+    .timeline-scroll::-webkit-scrollbar { height: 10px; }
+    .timeline-scroll::-webkit-scrollbar-track { background: transparent; }
+    .timeline-scroll::-webkit-scrollbar-thumb {
+      background: #2A3340; border-radius: 8px;
+    }
+    .timeline-scroll::-webkit-scrollbar-thumb:hover { background: #384454; }
+
+    .track {
+      position: relative;
+      height: 96px;
+      display: flex;
+      gap: 4px;
+      min-width: 100%;
+    }
+
+    .seg {
+      position: relative;
+      height: 100%;
+      border-radius: 8px;
+      padding: 10px 12px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      overflow: hidden;
+      cursor: pointer;
+      transition: transform 0.08s ease, filter 0.15s ease;
+      border: 1px solid transparent;
+      flex-shrink: 0;
+    }
+    .seg:hover { filter: brightness(1.08); }
+    .seg:active { transform: translateY(1px); }
+
+    .seg-keep {
+      background: rgba(92, 168, 255, 0.16);
+      border-color: rgba(92, 168, 255, 0.45);
+      color: #DCE9F8;
+    }
+    .seg-cut {
+      background: rgba(255, 92, 92, 0.14);
+      border-color: rgba(255, 92, 92, 0.40);
+      color: #F6D6D6;
+      opacity: 0.75;
+    }
+
+    .seg-text {
+      font-size: 12px;
+      line-height: 1.35;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .seg-meta {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 10px;
+      color: var(--muted);
+      letter-spacing: 0.02em;
+    }
+    .seg-time { font-variant-numeric: tabular-nums; }
+    .seg-tag {
+      font-size: 9px;
+      padding: 2px 6px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.05);
+    }
+    .seg-keep .seg-tag { color: var(--keep); }
+    .seg-cut  .seg-tag { color: var(--cut); }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <!-- Top bar -->
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark">AI</div>
+        <div>
+          <span class="brand-title">Untitled Editor</span>
+          <span class="brand-sub">· 서비스명 자리표시</span>
+        </div>
+      </div>
+      <button class="btn-export">내보내기</button>
+    </header>
+
+    <!-- Main preview -->
+    <main class="main">
+      <section class="preview-wrap">
+        <div class="preview"></div>
+      </section>
+    </main>
+
+    <!-- Timeline -->
+    <section class="timeline-panel">
+      <div class="timeline-header">
+        <span>타임라인</span>
+        <div class="legend">
+          <span class="legend-item">
+            <span class="legend-dot legend-keep"></span>
+            <span>살리는 구간</span>
+          </span>
+          <span class="legend-item">
+            <span class="legend-dot legend-cut"></span>
+            <span>자르는 구간</span>
+          </span>
+        </div>
+      </div>
+      <div class="timeline-scroll">
+        <div class="track" id="track"></div>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    // -------------------- Mock data --------------------
+    // start, end (초 단위), text (자막), cut (true=자르는 구간)
+    const SEGMENTS = [
+      { start:  0.0, end:  3.2, text: "안녕하세요, 오늘은 AI 영상 편집기에 대해 소개해드리려고 합니다.", cut: false },
+      { start:  3.2, end:  4.1, text: "어...",                                                              cut: true  },
+      { start:  4.1, end:  8.6, text: "이 프로젝트는 긴 촬영본에서 불필요한 부분을 자동으로 제거해줍니다.", cut: false },
+      { start:  8.6, end:  9.9, text: "음... 그러니까,",                                                     cut: true  },
+      { start:  9.9, end: 14.3, text: "말더듬이나 반복되는 문장을 AI가 감지해서 컷 후보로 추천합니다.",     cut: false },
+      { start: 14.3, end: 16.0, text: "반복되는 문장을 AI가 감지해서 컷 후보로 추천해요.",                  cut: true  },
+      { start: 16.0, end: 20.8, text: "사용자는 타임라인에서 각 구간을 클릭해서 살릴지 자를지 결정합니다.", cut: false },
+      { start: 20.8, end: 22.1, text: "어어...",                                                             cut: true  },
+      { start: 22.1, end: 27.5, text: "최종 결과물은 자연스럽게 이어붙여서 하나의 영상으로 내보낼 수 있어요.", cut: false },
+      { start: 27.5, end: 30.4, text: "감사합니다!",                                                         cut: false },
+    ];
+
+    // -------------------- Renderer --------------------
+    const PX_PER_SECOND = 60; // 1초 = 60px
+    const MIN_BLOCK_PX  = 56; // 너무 좁은 블록의 최소 너비
+
+    function formatTime(s) {
+      const m = Math.floor(s / 60);
+      const sec = (s - m * 60);
+      const secStr = sec.toFixed(1).padStart(4, "0");
+      return `${m}:${secStr}`;
+    }
+
+    function renderTimeline(segments) {
+      const track = document.getElementById("track");
+      track.innerHTML = "";
+
+      segments.forEach((seg, i) => {
+        const duration = Math.max(0, seg.end - seg.start);
+        const width = Math.max(MIN_BLOCK_PX, duration * PX_PER_SECOND);
+
+        const el = document.createElement("div");
+        el.className = "seg " + (seg.cut ? "seg-cut" : "seg-keep");
+        el.style.width = `${width}px`;
+        el.title = `${formatTime(seg.start)} – ${formatTime(seg.end)}  |  ${seg.text}`;
+        el.dataset.index = i;
+
+        el.innerHTML = `
+          <div class="seg-text">${seg.text}</div>
+          <div class="seg-meta">
+            <span class="seg-time">${formatTime(seg.start)} – ${formatTime(seg.end)}</span>
+            <span class="seg-tag">${seg.cut ? "cut" : "keep"}</span>
+          </div>
+        `;
+        track.appendChild(el);
+      });
+    }
+
+    renderTimeline(SEGMENTS);
+  </script>
+</body>
+</html>
