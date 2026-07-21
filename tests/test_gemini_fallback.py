@@ -26,6 +26,30 @@ class GeminiFallbackTests(unittest.TestCase):
         self.assertEqual(len(result), 1)
         self.assertEqual(result[0]["text"], "안녕하세요")
 
+    def test_transcript_refinement_preserves_timestamps(self):
+        pipeline = VideoEditingPipeline.__new__(VideoEditingPipeline)
+        segments = [{"start": 0.0, "end": 1.5, "text": "안녕 하세요"}]
+
+        with patch.object(
+            VideoEditingPipeline,
+            "_call_gemini",
+            return_value='[{"id": 0, "text": "안녕하세요"}]',
+        ):
+            result = pipeline.step2_refine_transcript(segments)
+
+        self.assertEqual(result[0]["text"], "안녕하세요")
+        self.assertEqual(result[0]["start"], 0.0)
+        self.assertEqual(result[0]["end"], 1.5)
+
+    def test_transcript_refinement_keeps_original_on_invalid_response(self):
+        pipeline = VideoEditingPipeline.__new__(VideoEditingPipeline)
+        segments = [{"start": 0.0, "end": 1.5, "text": "안녕 하세요"}]
+
+        with patch.object(VideoEditingPipeline, "_call_gemini", return_value='[]'):
+            result = pipeline.step2_refine_transcript(segments)
+
+        self.assertEqual(result, segments)
+
 
 if __name__ == "__main__":
     unittest.main()
