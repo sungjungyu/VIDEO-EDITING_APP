@@ -98,17 +98,67 @@
     }
     .preview-wrap {
       flex: 1 1 auto;
-      display: grid;
-      place-items: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
       background: var(--bg);
-      padding: 24px;
+      padding: 14px 24px 18px;
       min-width: 0;
       min-height: 0;
       overflow: hidden;
     }
-    .preview {
+    .preview-col {
+      display: flex;
+      flex-direction: column;
       width: 100%;
       max-width: 960px;
+      min-width: 0;
+      min-height: 0;
+      flex: 1 1 auto;
+      gap: 10px;
+    }
+    .preview-toolbar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 12px;
+      color: var(--muted);
+      flex: 0 0 auto;
+      min-width: 0;
+    }
+    .btn-file {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--panel);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 6px 12px;
+      font-size: 12.5px;
+      cursor: pointer;
+      transition: border-color 0.15s ease, background 0.15s ease;
+      user-select: none;
+      flex: 0 0 auto;
+    }
+    .btn-file:hover { border-color: #384454; background: #232B36; }
+    .preview-filename {
+      flex: 1 1 auto;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .preview-fit {
+      flex: 1 1 auto;
+      min-height: 0;
+      display: grid;
+      place-items: center;
+      width: 100%;
+    }
+    .preview {
+      width: 100%;
+      max-width: 100%;
       max-height: 100%;
       aspect-ratio: 16 / 9;
       background: #000;
@@ -121,11 +171,67 @@
       position: relative;
       overflow: hidden;
     }
-    .preview::after {
-      content: "미리보기 영역";
+    .preview video {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      display: block;
+      background: #000;
+    }
+    .preview:not(.has-video) video { display: none; }
+    .preview.has-video .preview-empty { display: none; }
+    .preview-empty {
       color: #4a5563;
       font-size: 12px;
       letter-spacing: 0.02em;
+      pointer-events: none;
+    }
+
+    .preview-controls {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      width: 100%;
+      flex: 0 0 auto;
+    }
+    .btn-play {
+      background: var(--panel);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      width: 36px;
+      height: 32px;
+      display: grid;
+      place-items: center;
+      cursor: pointer;
+      transition: border-color 0.15s ease, background 0.15s ease;
+      padding: 0;
+    }
+    .btn-play:hover:not(:disabled) { border-color: #384454; background: #232B36; }
+    .btn-play:disabled { opacity: 0.45; cursor: not-allowed; }
+    .btn-play svg { display: block; }
+    .preview-time {
+      font-size: 12px;
+      color: var(--muted);
+      font-variant-numeric: tabular-nums;
+      min-width: 96px;
+      flex: 0 0 auto;
+    }
+    .preview-progress {
+      flex: 1 1 auto;
+      height: 6px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
+    }
+    .preview-progress-fill {
+      height: 100%;
+      width: 0%;
+      background: var(--accent);
+      pointer-events: none;
     }
 
     /* ---- Timeline ---- */
@@ -194,24 +300,81 @@
     }
     .timeline-scroll::-webkit-scrollbar-thumb:hover { background: #384454; }
 
+    /* wrapper that both ruler and track live inside — shares horizontal
+       scroll and gives the absolutely-positioned playhead a containing block. */
+    .timeline-content {
+      position: relative;
+      min-width: 100%;
+    }
+
+    .ruler {
+      position: relative;
+      height: 22px;
+      min-width: 100%;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 8px;
+      cursor: pointer;
+    }
+    .ruler-tick-major {
+      position: absolute;
+      bottom: 0;
+      width: 1px;
+      height: 8px;
+      background: #4a5563;
+      pointer-events: none;
+    }
+    .ruler-tick-minor {
+      position: absolute;
+      bottom: 0;
+      width: 1px;
+      height: 4px;
+      background: #2A3340;
+      pointer-events: none;
+    }
+    .ruler-label {
+      position: absolute;
+      bottom: 10px;
+      transform: translateX(2px);
+      font-size: 10px;
+      color: var(--muted);
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+      pointer-events: none;
+    }
+
     .track {
       position: relative;
       height: 96px;
-      display: flex;
-      gap: 4px;
       min-width: 100%;
     }
-    /* trailing spacer — a scroll container's padding-right is not part of
-       the scrollable overflow, so we add a real flex item to guarantee the
-       last block has breathing room when scrolled all the way right. */
-    .track::after {
+
+    .playhead {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: 2px;
+      background: var(--accent);
+      left: 0;
+      pointer-events: none;
+      z-index: 5;
+      transform: translateX(-1px);
+      box-shadow: 0 0 6px rgba(255, 216, 77, 0.4);
+    }
+    .playhead::before {
       content: "";
-      flex: 0 0 24px;
-      height: 1px;
+      position: absolute;
+      top: -1px;
+      left: -5px;
+      width: 12px;
+      height: 12px;
+      background: var(--accent);
+      border-radius: 2px;
+      transform: rotate(45deg);
     }
 
     .seg {
-      position: relative;
+      position: absolute;
+      top: 0;
       height: 100%;
       border-radius: 8px;
       padding: 10px 12px;
@@ -222,7 +385,7 @@
       cursor: pointer;
       transition: transform 0.08s ease, filter 0.15s ease;
       border: 1px solid transparent;
-      flex-shrink: 0;
+      box-sizing: border-box;
     }
     .seg:hover { filter: brightness(1.08); }
     .seg:active { transform: translateY(1px); }
@@ -556,7 +719,38 @@
     <!-- Main preview + AI panel -->
     <main class="main">
       <section class="preview-wrap">
-        <div class="preview"></div>
+        <div class="preview-col">
+          <div class="preview-toolbar">
+            <label class="btn-file">
+              영상 선택
+              <input type="file" accept="video/*" id="video-input" hidden />
+            </label>
+            <span class="preview-filename" id="preview-filename">파일을 선택하세요</span>
+          </div>
+
+          <div class="preview-fit">
+            <div class="preview" id="preview">
+              <video id="video" playsinline preload="metadata"></video>
+              <div class="preview-empty" id="preview-empty">영상 파일을 선택하면 여기에 재생됩니다</div>
+            </div>
+          </div>
+
+          <div class="preview-controls">
+            <button class="btn-play" id="btn-play" title="재생/일시정지 (Space)" disabled>
+              <svg class="icon-play" viewBox="0 0 12 12" width="10" height="10" aria-hidden="true">
+                <polygon points="2,1 11,6 2,11" fill="currentColor"/>
+              </svg>
+              <svg class="icon-pause" viewBox="0 0 12 12" width="10" height="10" aria-hidden="true" style="display:none">
+                <rect x="2" y="1" width="3" height="10" fill="currentColor"/>
+                <rect x="7" y="1" width="3" height="10" fill="currentColor"/>
+              </svg>
+            </button>
+            <span class="preview-time" id="preview-time">0:00 / 0:00</span>
+            <div class="preview-progress" id="preview-progress">
+              <div class="preview-progress-fill" id="preview-progress-fill"></div>
+            </div>
+          </div>
+        </div>
       </section>
 
       <aside class="ai-panel">
@@ -626,8 +820,12 @@
           </span>
         </div>
       </div>
-      <div class="timeline-scroll">
-        <div class="track" id="track"></div>
+      <div class="timeline-scroll" id="timeline-scroll">
+        <div class="timeline-content" id="timeline-content">
+          <div class="ruler" id="ruler"></div>
+          <div class="track" id="track"></div>
+          <div class="playhead" id="playhead"></div>
+        </div>
       </div>
     </section>
   </div>
@@ -649,8 +847,8 @@
     ];
 
     // -------------------- Renderer --------------------
-    const PX_PER_SECOND = 60; // 1초 = 60px
-    const MIN_BLOCK_PX  = 56; // 너무 좁은 블록의 최소 너비
+    const PX_PER_SECOND    = 60; // 1초 = 60px — ruler / segments / playhead 모두 이 스케일 공유
+    const TIMELINE_END_PAD = 40; // 스크롤 끝단 여유 공간
 
     function formatTime(s) {
       const m = Math.floor(s / 60);
@@ -658,18 +856,60 @@
       const secStr = sec.toFixed(1).padStart(4, "0");
       return `${m}:${secStr}`;
     }
+    function formatMinSec(s) {
+      s = Math.max(0, Math.floor(s || 0));
+      const m = Math.floor(s / 60);
+      const sec = s % 60;
+      return `${m}:${sec.toString().padStart(2, "0")}`;
+    }
+
+    /** segments의 마지막 end 와 loaded video의 duration 중 큰 값. */
+    function totalDurationSec() {
+      const segMax = SEGMENTS.length ? SEGMENTS[SEGMENTS.length - 1].end : 0;
+      const v = document.getElementById("video");
+      const vidDur = (v && isFinite(v.duration)) ? v.duration : 0;
+      return Math.max(segMax, vidDur);
+    }
+
+    function updateTimelineWidth() {
+      const width = totalDurationSec() * PX_PER_SECOND + TIMELINE_END_PAD;
+      const el = document.getElementById("timeline-content");
+      if (el) el.style.minWidth = `${width}px`;
+    }
+
+    function renderRuler() {
+      const ruler = document.getElementById("ruler");
+      if (!ruler) return;
+      ruler.innerHTML = "";
+      const total = totalDurationSec();
+      const maxTick = Math.ceil(total);
+      for (let t = 0; t <= maxTick; t++) {
+        const x = t * PX_PER_SECOND;
+        const isMajor = (t % 5 === 0);
+        const tick = document.createElement("div");
+        tick.className = isMajor ? "ruler-tick-major" : "ruler-tick-minor";
+        tick.style.left = `${x}px`;
+        ruler.appendChild(tick);
+        if (isMajor) {
+          const label = document.createElement("div");
+          label.className = "ruler-label";
+          label.style.left = `${x}px`;
+          label.textContent = formatMinSec(t);
+          ruler.appendChild(label);
+        }
+      }
+    }
 
     function renderTimeline(segments) {
       const track = document.getElementById("track");
       track.innerHTML = "";
 
       segments.forEach((seg, i) => {
-        const duration = Math.max(0, seg.end - seg.start);
-        const width = Math.max(MIN_BLOCK_PX, duration * PX_PER_SECOND);
-
         const el = document.createElement("div");
         el.className = "seg " + (seg.cut ? "seg-cut" : "seg-keep");
-        el.style.width = `${width}px`;
+        // 절대 위치: start*60 부터 duration*60 만큼 → 눈금·플레이헤드와 정확히 정렬
+        el.style.left  = `${seg.start * PX_PER_SECOND}px`;
+        el.style.width = `${Math.max(0, (seg.end - seg.start) * PX_PER_SECOND)}px`;
         el.title = `${formatTime(seg.start)} – ${formatTime(seg.end)}  |  ${seg.text}`;
         el.dataset.index = i;
 
@@ -700,6 +940,9 @@
 
         track.appendChild(el);
       });
+
+      updateTimelineWidth();
+      renderRuler();
     }
 
     function startEditing(index, el) {
@@ -1025,6 +1268,109 @@
         btnRender.disabled = false;
         btnRender.textContent = "백엔드로 보내기";
       }
+    });
+
+    // -------------------- Video player + playhead --------------------
+    const videoEl        = document.getElementById("video");
+    const videoInput     = document.getElementById("video-input");
+    const previewBoxEl   = document.getElementById("preview");
+    const previewFileEl  = document.getElementById("preview-filename");
+    const btnPlayEl      = document.getElementById("btn-play");
+    const iconPlayEl     = btnPlayEl.querySelector(".icon-play");
+    const iconPauseEl    = btnPlayEl.querySelector(".icon-pause");
+    const previewTimeEl  = document.getElementById("preview-time");
+    const previewProgEl  = document.getElementById("preview-progress");
+    const previewFillEl  = document.getElementById("preview-progress-fill");
+    const playheadEl     = document.getElementById("playhead");
+    const rulerEl        = document.getElementById("ruler");
+
+    function currentDurationSec() {
+      const d = videoEl.duration;
+      return (isFinite(d) && d > 0) ? d : totalDurationSec();
+    }
+
+    function updatePlaybackUI() {
+      const t   = videoEl.currentTime || 0;
+      const dur = currentDurationSec();
+      const pct = dur > 0 ? (t / dur) * 100 : 0;
+      previewTimeEl.textContent = `${formatMinSec(t)} / ${formatMinSec(dur)}`;
+      previewFillEl.style.width = `${pct}%`;
+      playheadEl.style.left     = `${t * PX_PER_SECOND}px`;
+    }
+    // initial paint (before any video loaded)
+    previewTimeEl.textContent = `0:00 / ${formatMinSec(totalDurationSec())}`;
+
+    // ---- File picker ----
+    videoInput.addEventListener("change", (e) => {
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
+      // release previous blob so we don't leak memory across reloads
+      if (videoEl.dataset.blobUrl) URL.revokeObjectURL(videoEl.dataset.blobUrl);
+      const url = URL.createObjectURL(file);
+      videoEl.dataset.blobUrl = url;
+      videoEl.src = url;
+      videoEl.load();
+      previewBoxEl.classList.add("has-video");
+      previewFileEl.textContent = file.name;
+    });
+
+    // ---- Video events ----
+    videoEl.addEventListener("loadedmetadata", () => {
+      btnPlayEl.disabled = false;
+      // video may be longer than SEGMENTS → extend ruler/timeline width
+      updateTimelineWidth();
+      renderRuler();
+      updatePlaybackUI();
+    });
+    videoEl.addEventListener("timeupdate", updatePlaybackUI);
+    videoEl.addEventListener("seeked",     updatePlaybackUI);
+    videoEl.addEventListener("ended",      updatePlaybackUI);
+
+    videoEl.addEventListener("play", () => {
+      iconPlayEl.style.display  = "none";
+      iconPauseEl.style.display = "block";
+    });
+    videoEl.addEventListener("pause", () => {
+      iconPlayEl.style.display  = "block";
+      iconPauseEl.style.display = "none";
+    });
+
+    // ---- Controls ----
+    btnPlayEl.addEventListener("click", () => {
+      if (!videoEl.src) return;
+      if (videoEl.paused) videoEl.play(); else videoEl.pause();
+    });
+
+    // click progress bar → seek
+    previewProgEl.addEventListener("click", (e) => {
+      const dur = videoEl.duration;
+      if (!isFinite(dur) || dur <= 0) return;
+      const rect = previewProgEl.getBoundingClientRect();
+      const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+      videoEl.currentTime = ratio * dur;
+    });
+
+    // click ruler → seek to that time in video (or just move playhead if no video)
+    rulerEl.addEventListener("click", (e) => {
+      const rect = rulerEl.getBoundingClientRect();
+      const x = e.clientX - rect.left + rulerEl.scrollLeft; // ruler itself doesn't scroll, but include for safety
+      const t = Math.max(0, x / PX_PER_SECOND);
+      if (isFinite(videoEl.duration) && videoEl.duration > 0) {
+        videoEl.currentTime = Math.min(videoEl.duration, t);
+      } else {
+        // no video loaded — still show the marker moving so the ruler feels alive
+        playheadEl.style.left = `${t * PX_PER_SECOND}px`;
+        previewTimeEl.textContent = `${formatMinSec(t)} / ${formatMinSec(totalDurationSec())}`;
+      }
+    });
+
+    // Space bar toggles play/pause — skip when typing in an input/textarea
+    document.addEventListener("keydown", (e) => {
+      if (e.code !== "Space") return;
+      if (e.target.matches("input, textarea, [contenteditable=true]")) return;
+      if (!videoEl.src) return;
+      e.preventDefault();
+      if (videoEl.paused) videoEl.play(); else videoEl.pause();
     });
   </script>
 </body>
