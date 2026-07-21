@@ -413,6 +413,114 @@
       opacity: 0.45;
       cursor: not-allowed;
     }
+
+    /* ---- Export modal ---- */
+    .modal[hidden] { display: none; }
+    .modal {
+      position: fixed;
+      inset: 0;
+      z-index: 100;
+      display: grid;
+      place-items: center;
+    }
+    .modal-backdrop {
+      position: absolute;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.65);
+      backdrop-filter: blur(2px);
+    }
+    .modal-panel {
+      position: relative;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      width: min(720px, calc(100vw - 40px));
+      max-height: min(80vh, 720px);
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+      overflow: hidden;
+    }
+    .modal-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      padding: 16px 18px;
+      border-bottom: 1px solid var(--border);
+    }
+    .modal-title { font-size: 14px; font-weight: 600; }
+    .modal-sub {
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 2px;
+      font-variant-numeric: tabular-nums;
+    }
+    .modal-close {
+      background: transparent;
+      border: none;
+      color: var(--muted);
+      font-size: 22px;
+      line-height: 1;
+      cursor: pointer;
+      padding: 0 4px;
+    }
+    .modal-close:hover { color: var(--text); }
+
+    .modal-body {
+      flex: 1 1 auto;
+      overflow: auto;
+      margin: 0;
+      padding: 14px 18px;
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+      font-size: 12px;
+      line-height: 1.5;
+      color: #C7D3E0;
+      background: var(--bg);
+      white-space: pre;
+    }
+    .modal-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 12px 18px;
+      border-top: 1px solid var(--border);
+    }
+    .modal-footer-status {
+      font-size: 12px;
+      color: var(--muted);
+      min-height: 16px;
+    }
+    .modal-footer-status.ok  { color: var(--keep); }
+    .modal-footer-status.err { color: var(--cut); }
+    .modal-footer-actions { display: flex; gap: 8px; }
+
+    .btn-secondary {
+      background: transparent;
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 7px 12px;
+      font-size: 12.5px;
+      cursor: pointer;
+      transition: background 0.15s ease, border-color 0.15s ease;
+    }
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.04);
+      border-color: #384454;
+    }
+    .btn-primary {
+      background: var(--keep);
+      color: #12161C;
+      font-weight: 600;
+      border: none;
+      border-radius: 6px;
+      padding: 7px 14px;
+      font-size: 12.5px;
+      cursor: pointer;
+    }
+    .btn-primary:hover:not(:disabled) { filter: brightness(1.08); }
+    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
   </style>
 </head>
 <body>
@@ -426,7 +534,7 @@
           <span class="brand-sub">· 서비스명 자리표시</span>
         </div>
       </div>
-      <button class="btn-export">내보내기</button>
+      <button class="btn-export" id="btn-export">내보내기</button>
     </header>
 
     <!-- Main preview + AI panel -->
@@ -454,6 +562,29 @@
         </form>
       </aside>
     </main>
+
+    <!-- Export modal -->
+    <div class="modal" id="export-modal" hidden>
+      <div class="modal-backdrop" data-close></div>
+      <div class="modal-panel">
+        <div class="modal-header">
+          <div>
+            <div class="modal-title">내보낼 JSON</div>
+            <div class="modal-sub" id="export-summary"></div>
+          </div>
+          <button class="modal-close" data-close aria-label="닫기">×</button>
+        </div>
+        <pre class="modal-body" id="export-body"></pre>
+        <div class="modal-footer">
+          <div class="modal-footer-status" id="export-status"></div>
+          <div class="modal-footer-actions">
+            <button class="btn-secondary" id="btn-copy-json">JSON 복사</button>
+            <button class="btn-secondary" data-close>닫기</button>
+            <button class="btn-primary" id="btn-render">백엔드로 보내기</button>
+          </div>
+        </div>
+      </div>
+    </div>
 
     <!-- Timeline -->
     <section class="timeline-panel">
@@ -754,6 +885,129 @@
       if (e.key === "Enter" && !e.shiftKey && !e.isComposing) {
         e.preventDefault();
         formEl.requestSubmit();
+      }
+    });
+
+    // -------------------- Export --------------------
+    // Flip USE_MOCK_RENDER to false when /render is live. The fetch below is
+    // the only thing that changes.
+    const USE_MOCK_RENDER = true;
+    const RENDER_ENDPOINT = "/render";
+
+    // Fixed subtitle style for MVP. Move these into per-segment fields later
+    // if the UI lets the user customize them.
+    const SUBTITLE_DEFAULTS = { subtitle_color: "white", fontsize: 36 };
+
+    /** Convert in-memory SEGMENTS into the exact shape the backend expects. */
+    function buildExportPayload(segments) {
+      return segments.map(s => ({
+        start: s.start,
+        end: s.end,
+        text: s.text,
+        cut: s.cut,
+        subtitle_color: SUBTITLE_DEFAULTS.subtitle_color,
+        fontsize:       SUBTITLE_DEFAULTS.fontsize,
+      }));
+    }
+
+    /**
+     * Send the final render payload.
+     * Response contract (mock and real): { ok: boolean, message?: string, jobId?: string }
+     */
+    async function submitRender(payload) {
+      console.log("[submitRender] →", payload);
+
+      if (USE_MOCK_RENDER) {
+        await sleep(600);
+        const mock = {
+          ok: true,
+          message: "(mock) payload가 콘솔에 기록되었습니다. 실제 렌더링은 백엔드 연결 후 동작합니다.",
+        };
+        console.log("[submitRender] ←", mock);
+        return mock;
+      }
+
+      const res = await fetch(RENDER_ENDPOINT, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return await res.json();
+    }
+
+    // ---- Modal wiring ----
+    const modalEl        = document.getElementById("export-modal");
+    const exportBodyEl   = document.getElementById("export-body");
+    const exportSummaryEl= document.getElementById("export-summary");
+    const exportStatusEl = document.getElementById("export-status");
+    const btnExport      = document.getElementById("btn-export");
+    const btnRender      = document.getElementById("btn-render");
+    const btnCopyJson    = document.getElementById("btn-copy-json");
+
+    function setExportStatus(text, kind) {
+      exportStatusEl.textContent = text || "";
+      exportStatusEl.classList.remove("ok", "err");
+      if (kind) exportStatusEl.classList.add(kind);
+    }
+
+    function openExportModal() {
+      const payload = buildExportPayload(SEGMENTS);
+      const keep = payload.filter(s => !s.cut).length;
+      const cut  = payload.length - keep;
+      const keepDuration = payload
+        .filter(s => !s.cut)
+        .reduce((a, s) => a + Math.max(0, s.end - s.start), 0);
+
+      exportBodyEl.textContent   = JSON.stringify(payload, null, 2);
+      exportSummaryEl.textContent = `세그먼트 ${payload.length}개 · 유지 ${keep} / 제거 ${cut} · 예상 길이 ${keepDuration.toFixed(1)}초`;
+      setExportStatus("");
+      btnRender.disabled = false;
+      btnRender.textContent = "백엔드로 보내기";
+      modalEl.hidden = false;
+
+      console.log("[export] payload:", payload);
+    }
+
+    function closeExportModal() {
+      modalEl.hidden = true;
+    }
+
+    btnExport.addEventListener("click", openExportModal);
+
+    // any element with [data-close] inside the modal closes it
+    modalEl.addEventListener("click", (e) => {
+      if (e.target.matches("[data-close]")) closeExportModal();
+    });
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && !modalEl.hidden) closeExportModal();
+    });
+
+    btnCopyJson.addEventListener("click", async () => {
+      try {
+        await navigator.clipboard.writeText(exportBodyEl.textContent);
+        const original = btnCopyJson.textContent;
+        btnCopyJson.textContent = "복사됨 ✓";
+        setTimeout(() => (btnCopyJson.textContent = original), 1400);
+      } catch (err) {
+        setExportStatus(`복사 실패: ${err.message}`, "err");
+      }
+    });
+
+    btnRender.addEventListener("click", async () => {
+      const payload = buildExportPayload(SEGMENTS);
+      btnRender.disabled = true;
+      btnRender.textContent = "전송 중…";
+      setExportStatus("백엔드에 전송 중…");
+      try {
+        const result = await submitRender(payload);
+        setExportStatus(result?.message ?? "전송 완료", "ok");
+      } catch (err) {
+        setExportStatus(`전송 실패: ${err.message}`, "err");
+        console.error("[submitRender] error:", err);
+      } finally {
+        btnRender.disabled = false;
+        btnRender.textContent = "백엔드로 보내기";
       }
     });
   </script>
