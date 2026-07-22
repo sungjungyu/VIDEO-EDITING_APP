@@ -360,17 +360,23 @@
       transform: translateX(-1px);
       box-shadow: 0 0 6px rgba(255, 216, 77, 0.4);
     }
-    .playhead::before {
-      content: "";
+    .playhead-handle {
       position: absolute;
-      top: -1px;
-      left: -5px;
-      width: 12px;
-      height: 12px;
+      top: -3px;
+      left: -8px;
+      width: 18px;
+      height: 18px;
       background: var(--accent);
-      border-radius: 2px;
+      border-radius: 3px;
       transform: rotate(45deg);
+      cursor: grab;
+      pointer-events: auto;
+      touch-action: none;
+      box-shadow: 0 0 6px rgba(255, 216, 77, 0.4);
     }
+    .playhead-handle:hover { filter: brightness(1.08); }
+    .playhead.dragging .playhead-handle,
+    .playhead-handle:active { cursor: grabbing; }
 
     .seg {
       position: absolute;
@@ -824,7 +830,9 @@
         <div class="timeline-content" id="timeline-content">
           <div class="ruler" id="ruler"></div>
           <div class="track" id="track"></div>
-          <div class="playhead" id="playhead"></div>
+          <div class="playhead" id="playhead">
+            <div class="playhead-handle" id="playhead-handle" title="드래그해서 이동"></div>
+          </div>
         </div>
       </div>
     </section>
@@ -1282,7 +1290,10 @@
     const previewProgEl  = document.getElementById("preview-progress");
     const previewFillEl  = document.getElementById("preview-progress-fill");
     const playheadEl     = document.getElementById("playhead");
+    const handleEl       = document.getElementById("playhead-handle");
     const rulerEl        = document.getElementById("ruler");
+    const trackEl        = document.getElementById("track");
+    const contentEl      = document.getElementById("timeline-content");
 
     function currentDurationSec() {
       const d = videoEl.duration;
@@ -1350,19 +1361,69 @@
       videoEl.currentTime = ratio * dur;
     });
 
-    // click ruler → seek to that time in video (or just move playhead if no video)
-    rulerEl.addEventListener("click", (e) => {
-      const rect = rulerEl.getBoundingClientRect();
-      const x = e.clientX - rect.left + rulerEl.scrollLeft; // ruler itself doesn't scroll, but include for safety
-      const t = Math.max(0, x / PX_PER_SECOND);
+    /** Convert a clientX into a clamped { x, t } within the timeline. */
+    function clientXToTimelinePos(clientX) {
+      const rect = contentEl.getBoundingClientRect();
+      const total = totalDurationSec();
+      const maxX = Math.max(0, total * PX_PER_SECOND);
+      const x = Math.max(0, Math.min(maxX, clientX - rect.left));
+      return { x, t: x / PX_PER_SECOND };
+    }
+
+    /** Move playhead to (x px, t sec). Seeks the video when it's loaded. */
+    function seekToTimelinePos(x, t) {
+      playheadEl.style.left = `${x}px`;
+      const dur = currentDurationSec();
+      previewTimeEl.textContent = `${formatMinSec(t)} / ${formatMinSec(dur)}`;
       if (isFinite(videoEl.duration) && videoEl.duration > 0) {
-        videoEl.currentTime = Math.min(videoEl.duration, t);
-      } else {
-        // no video loaded — still show the marker moving so the ruler feels alive
-        playheadEl.style.left = `${t * PX_PER_SECOND}px`;
-        previewTimeEl.textContent = `${formatMinSec(t)} / ${formatMinSec(totalDurationSec())}`;
+        const clampedT = Math.min(videoEl.duration, Math.max(0, t));
+        previewFillEl.style.width = `${(clampedT / videoEl.duration) * 100}%`;
+        videoEl.currentTime = clampedT;
       }
+    }
+
+    // click ruler → seek to that time
+    rulerEl.addEventListener("click", (e) => {
+      const { x, t } = clientXToTimelinePos(e.clientX);
+      seekToTimelinePos(x, t);
     });
+
+    // click empty timeline (track background, not a segment) → seek
+    trackEl.addEventListener("click", (e) => {
+      if (e.target !== trackEl) return; // segments have their own click handler
+      const { x, t } = clientXToTimelinePos(e.clientX);
+      seekToTimelinePos(x, t);
+    });
+
+    // drag playhead handle (pointer events → smooth, works for mouse & touch)
+    let dragActive = false;
+    let dragResumePlay = false;
+
+    handleEl.addEventListener("pointerdown", (e) => {
+      e.preventDefault();
+      dragActive = true;
+      dragResumePlay = !!videoEl.src && !videoEl.paused;
+      if (dragResumePlay) videoEl.pause();
+      playheadEl.classList.add("dragging");
+      try { handleEl.setPointerCapture(e.pointerId); } catch (_) {}
+    });
+
+    handleEl.addEventListener("pointermove", (e) => {
+      if (!dragActive) return;
+      const { x, t } = clientXToTimelinePos(e.clientX);
+      seekToTimelinePos(x, t);
+    });
+
+    const endPlayheadDrag = (e) => {
+      if (!dragActive) return;
+      dragActive = false;
+      playheadEl.classList.remove("dragging");
+      try { handleEl.releasePointerCapture(e.pointerId); } catch (_) {}
+      if (dragResumePlay) videoEl.play().catch(() => {});
+      dragResumePlay = false;
+    };
+    handleEl.addEventListener("pointerup",     endPlayheadDrag);
+    handleEl.addEventListener("pointercancel", endPlayheadDrag);
 
     // Space bar toggles play/pause — skip when typing in an input/textarea
     document.addEventListener("keydown", (e) => {
