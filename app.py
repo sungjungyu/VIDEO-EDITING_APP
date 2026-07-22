@@ -3,6 +3,7 @@
 """Interactive AI video editor web application."""
 
 import asyncio
+import json
 import os
 import shutil
 import uuid
@@ -50,9 +51,38 @@ class RenderRequest(BaseModel):
     style_preset: Literal["매운맛", "순한맛", "정석맛"] = "정석맛"
 
 
+class ReviseRequest(BaseModel):
+    instruction: str = Field(min_length=1, max_length=2000)
+    segments: List[SubtitleSegment] = Field(min_length=1, max_length=1000)
+
+
 @app.get("/", response_class=HTMLResponse)
 async def home() -> HTMLResponse:
-    return HTMLResponse((STATIC_DIR / "index.html").read_text(encoding="utf-8"))
+    return HTMLResponse((STATIC_DIR / "editor.html").read_text(encoding="utf-8"))
+
+
+@app.post("/upload")
+async def upload_video(file: UploadFile = File(...)) -> JSONResponse:
+    """Upload a video file and return a server-side token for later use in /render."""
+    if not (file.content_type or "").startswith("video/"):
+        raise HTTPException(status_code=400, detail="영상 파일만 업로드할 수 있습니다.")
+    stored_name = _safe_upload_name(file.filename or "video.mp4")
+    stored_path = UPLOAD_DIR / stored_name
+    try:
+        content = await file.read()
+        if len(content) > 500 * 1024 * 1024:
+            raise HTTPException(status_code=413, detail="파일 크기는 500MB를 초과할 수 없습니다.")
+        stored_path.write_bytes(content)
+        uploaded_files[stored_name] = stored_path
+        return JSONResponse({"source_file": stored_name, "source_url": f"/media/{stored_name}"})
+    except HTTPException:
+        stored_path.unlink(missing_ok=True)
+        uploaded_files.pop(stored_name, None)
+        raise
+    except Exception as error:
+        stored_path.unlink(missing_ok=True)
+        uploaded_files.pop(stored_name, None)
+        raise HTTPException(status_code=500, detail=f"업로드에 실패했습니다: {error}") from error
 
 
 def _safe_upload_name(filename: str) -> str:
@@ -117,6 +147,48 @@ async def analyze_video(file: UploadFile = File(...), style: str = Form("정석�
         stored_path.unlink(missing_ok=True)
         uploaded_files.pop(stored_name, None)
         raise HTTPException(status_code=500, detail=f"AI 분석에 실패했습니다: {error}") from error
+
+
+def _revise_segments(instruction: str, segments: List[Dict[str, Any]]) -> Dict[str, Any]:
+    pipeline = _load_pipeline()
+    prompt = (
+        "당신은 영상 편집 AI 어시스턴트입니다.\n"
+        "아래 JSON 형식의 세그먼트 목록과 사용자의 편집 지시를 받아,\n"
+        "지시에 따라 세그먼트를 수정하고 수정된 JSON 배열만 반환하세요.\n\n"
+        f"편집 지시: {instruction}\n\n"
+        "세그먼트:\n"
+        f"{json.dumps(segments, ensure_ascii=False, indent=2)}\n\n"
+        "규칙:\n"
+        "- cut이 true이면 해당 구간을 삭제, false이면 유지\n"
+        "- 지시에 따라 cut 값이나 text를 수정할 수 있음\n"
+        "- start/end 시간과 세그먼트 순서는 절대 변경하지 말 것\n"
+        "- JSON 배열만 반환하고 다른 설명 텍스트는 포함하지 말 것\n"
+    )
+    response_text = pipeline._call_gemini(prompt)
+    text = (response_text or "").strip()
+    if text.startswith("```"):
+        lines = text.split("\n")
+        end = -1 if lines[-1].strip() == "```" else len(lines)
+        text = "\n".join(lines[1:end])
+    revised = json.loads(text)
+    if not isinstance(revised, list):
+        raise ValueError("Gemini 응답이 JSON 배열이 아닙니다.")
+    return {"ok": True, "message": "AI 수정 완료", "segments": revised}
+
+
+@app.post("/revise")
+async def revise_segments(request: ReviseRequest) -> JSONResponse:
+    """Use Gemini to apply a natural-language edit instruction to the segment list."""
+    segments_data = [
+        s.model_dump() if hasattr(s, "model_dump") else s.dict()
+        for s in request.segments
+    ]
+    try:
+        result = await asyncio.to_thread(_revise_segments, request.instruction, segments_data)
+        return JSONResponse(result)
+    except Exception as error:
+        traceback.print_exc()
+        return JSONResponse({"ok": False, "message": f"AI 수정 실패: {error}"})
 
 
 def _render_video(

@@ -1056,7 +1056,7 @@
     // -------------------- AI panel --------------------
     // When the backend is ready, flip USE_MOCK_API to false. The fetch call
     // below is the *only* thing that needs to change afterwards.
-    const USE_MOCK_API = true;
+    const USE_MOCK_API = false;
     const AI_ENDPOINT  = "/revise";
 
     function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
@@ -1172,7 +1172,7 @@
     // -------------------- Export --------------------
     // Flip USE_MOCK_RENDER to false when /render is live. The fetch below is
     // the only thing that changes.
-    const USE_MOCK_RENDER = true;
+    const USE_MOCK_RENDER = false;
     const RENDER_ENDPOINT = "/render";
 
     // Fixed subtitle style for MVP. Move these into per-segment fields later
@@ -1192,10 +1192,12 @@
     }
 
     /**
-     * Send the final render payload.
-     * Response contract (mock and real): { ok: boolean, message?: string, jobId?: string }
+     * Send the final render payload and (in real mode) poll until done.
+     * payload shape: { source_file, segments, style_preset }
+     * Calls onProgress(message, percent) while polling.
+     * Returns: { ok, message, outputUrl? }
      */
-    async function submitRender(payload) {
+    async function submitRender(payload, onProgress) {
       console.log("[submitRender] →", payload);
 
       if (USE_MOCK_RENDER) {
@@ -1214,7 +1216,23 @@
         body: JSON.stringify(payload),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      return await res.json();
+      const { job_id } = await res.json();
+      if (!job_id) throw new Error("서버에서 job_id를 받지 못했습니다.");
+
+      // poll /jobs/{job_id} until completed or failed
+      for (;;) {
+        await sleep(1500);
+        const jobRes = await fetch(`/jobs/${job_id}`);
+        if (!jobRes.ok) throw new Error(`HTTP ${jobRes.status}`);
+        const job = await jobRes.json();
+        if (onProgress) onProgress(job.message || "", job.progress || 0);
+        if (job.status === "completed") {
+          return { ok: true, message: "렌더링 완료!", outputUrl: job.output_url };
+        }
+        if (job.status === "failed") {
+          return { ok: false, message: `렌더링 실패: ${job.message}` };
+        }
+      }
     }
 
     // ---- Modal wiring ----
@@ -1276,13 +1294,35 @@
     });
 
     btnRender.addEventListener("click", async () => {
-      const payload = buildExportPayload(SEGMENTS);
+      if (!SOURCE_FILE) {
+        setExportStatus("영상을 먼저 선택하고 업로드를 기다려주세요.", "err");
+        return;
+      }
+      const renderPayload = {
+        source_file: SOURCE_FILE,
+        segments: buildExportPayload(SEGMENTS),
+        style_preset: "정석맛",
+      };
       btnRender.disabled = true;
-      btnRender.textContent = "전송 중…";
-      setExportStatus("백엔드에 전송 중…");
+      btnRender.textContent = "렌더링 중…";
+      setExportStatus("렌더링 요청 중…");
       try {
-        const result = await submitRender(payload);
-        setExportStatus(result?.message ?? "전송 완료", "ok");
+        const result = await submitRender(renderPayload, (msg, pct) => {
+          setExportStatus(`렌더링 중… ${pct}%  ${msg}`);
+        });
+        if (result.outputUrl) {
+          exportStatusEl.innerHTML = "";
+          exportStatusEl.classList.remove("ok", "err");
+          exportStatusEl.classList.add("ok");
+          const link = document.createElement("a");
+          link.href = result.outputUrl;
+          link.download = "";
+          link.textContent = "렌더링 완료! 여기를 클릭해서 다운로드";
+          link.style.color = "inherit";
+          exportStatusEl.appendChild(link);
+        } else {
+          setExportStatus(result?.message ?? "완료", result.ok ? "ok" : "err");
+        }
       } catch (err) {
         setExportStatus(`전송 실패: ${err.message}`, "err");
         console.error("[submitRender] error:", err);
@@ -1326,7 +1366,9 @@
     previewTimeEl.textContent = `0:00 / ${formatMinSec(totalDurationSec())}`;
 
     // ---- File picker ----
-    videoInput.addEventListener("change", (e) => {
+    let SOURCE_FILE = null; // set after server upload succeeds
+
+    videoInput.addEventListener("change", async (e) => {
       const file = e.target.files && e.target.files[0];
       if (!file) return;
       // release previous blob so we don't leak memory across reloads
@@ -1336,7 +1378,22 @@
       videoEl.src = url;
       videoEl.load();
       previewBoxEl.classList.add("has-video");
-      previewFileEl.textContent = file.name;
+
+      // upload to server immediately so /render can access the file
+      SOURCE_FILE = null;
+      previewFileEl.textContent = `${file.name} (업로드 중…)`;
+      try {
+        const fd = new FormData();
+        fd.append("file", file);
+        const res = await fetch("/upload", { method: "POST", body: fd });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        SOURCE_FILE = data.source_file;
+        previewFileEl.textContent = `${file.name} ✓`;
+      } catch (err) {
+        previewFileEl.textContent = `${file.name} (업로드 실패: ${err.message})`;
+        console.error("[upload]", err);
+      }
     });
 
     // ---- Video events ----
