@@ -96,7 +96,7 @@ class VideoEditingPipeline:
         """
         self.gemini_client = None
         self.gemini_model = None
-        self.gemini_model_name = "gemini-2.5-flash"
+        self.gemini_model_name = "gemini-2.5-flash-lite"
         # 정확도를 우선하는 기본값입니다. 처리 속도가 더 중요하면 환경 변수로
         # WHISPER_MODEL=base 또는 small을 지정할 수 있습니다.
         self.whisper_model_name = os.getenv("WHISPER_MODEL", "medium")
