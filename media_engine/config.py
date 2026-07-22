@@ -1,9 +1,26 @@
 import os
+import shutil
 import tempfile
 
+
+def _find_bin(name: str) -> str:
+    """PATH에서 못 찾으면 WinGet 설치 경로를 탐색한다."""
+    if shutil.which(name):
+        return name
+    winget_base = os.path.join(
+        os.environ.get("LOCALAPPDATA", ""),
+        "Microsoft", "WinGet", "Packages",
+    )
+    if os.path.isdir(winget_base):
+        for root, _, files in os.walk(winget_base):
+            if f"{name}.exe" in files:
+                return os.path.join(root, f"{name}.exe")
+    return name
+
+
 # FFmpeg
-FFMPEG_BIN = os.environ.get("FFMPEG_BIN", "ffmpeg")
-FFPROBE_BIN = os.environ.get("FFPROBE_BIN", "ffprobe")
+FFMPEG_BIN = os.environ.get("FFMPEG_BIN", _find_bin("ffmpeg"))
+FFPROBE_BIN = os.environ.get("FFPROBE_BIN", _find_bin("ffprobe"))
 
 # 출력 해상도 (None이면 원본 유지)
 OUTPUT_WIDTH = None

@@ -2,10 +2,10 @@
 편집 JSON + 스타일 프리셋 → .ass 자막 파일 생성
 
 ASS 포맷 참고:
-  - \k<centiseconds>  : 카라오케 타이밍 (100분의 1초 단위)
-  - \fad(<in>,<out>)  : 페이드인/아웃 (밀리초)
-  - BorderStyle=3     : 불투명 배경 박스(필박스)
-  - BorderStyle=1     : 외곽선 + 그림자
+  - \\k<centiseconds>  : 카라오케 타이밍 (100분의 1초 단위)
+  - \\fad(<in>,<out>)  : 페이드인/아웃 (밀리초)
+  - BorderStyle=3      : 불투명 배경 박스(필박스)
+  - BorderStyle=1      : 외곽선 + 그림자
 """
 import math
 from .style_presets import get_preset
@@ -26,8 +26,8 @@ def _seconds_to_ass(seconds: float) -> str:
 
 def _build_karaoke_text(words: list[dict], sub_start: float) -> str:
     """
-    words 리스트로 카라오케 \k 태그 텍스트를 생성한다.
-    \k 값은 이전 단어 끝~현재 단어 끝까지의 길이(centiseconds).
+    words 리스트로 카라오케 \\k 태그 텍스트를 생성한다.
+    \\k 값은 이전 단어 끝~현재 단어 끝까지의 길이(centiseconds).
     """
     parts = []
     prev_end = sub_start
