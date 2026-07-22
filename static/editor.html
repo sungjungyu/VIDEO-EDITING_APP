@@ -142,6 +142,31 @@
       flex: 0 0 auto;
     }
     .btn-file:hover { border-color: #384454; background: #232B36; }
+    .style-select {
+      background: var(--panel);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 5px 8px;
+      font-size: 12.5px;
+      cursor: pointer;
+      flex: 0 0 auto;
+    }
+    .btn-analyze {
+      display: inline-flex;
+      align-items: center;
+      background: var(--accent);
+      color: #12161C;
+      border: none;
+      border-radius: 6px;
+      padding: 6px 14px;
+      font-size: 12.5px;
+      font-weight: 600;
+      cursor: pointer;
+      flex: 0 0 auto;
+      transition: opacity 0.15s;
+    }
+    .btn-analyze:disabled { opacity: 0.4; cursor: not-allowed; }
     .preview-filename {
       flex: 1 1 auto;
       min-width: 0;
@@ -745,6 +770,12 @@
               영상 선택
               <input type="file" accept="video/*" id="video-input" hidden />
             </label>
+            <select class="style-select" id="style-select">
+              <option value="정석맛">정석맛</option>
+              <option value="매운맛">매운맛</option>
+              <option value="순한맛">순한맛</option>
+            </select>
+            <button class="btn-analyze" id="btn-analyze" disabled>AI 분석 시작</button>
             <span class="preview-filename" id="preview-filename">파일을 선택하세요</span>
           </div>
 
@@ -855,7 +886,7 @@
   <script>
     // -------------------- Mock data --------------------
     // start, end (초 단위), text (자막), cut (true=자르는 구간)
-    const SEGMENTS = [
+    let SEGMENTS = [
       { start:  0.0, end:  3.2, text: "안녕하세요, 오늘은 AI 영상 편집기에 대해 소개해드리려고 합니다.", cut: false },
       { start:  3.2, end:  4.1, text: "어...",                                                              cut: true  },
       { start:  4.1, end:  8.6, text: "이 프로젝트는 긴 촬영본에서 불필요한 부분을 자동으로 제거해줍니다.", cut: false },
@@ -1366,35 +1397,60 @@
     previewTimeEl.textContent = `0:00 / ${formatMinSec(totalDurationSec())}`;
 
     // ---- File picker ----
-    let SOURCE_FILE = null; // set after server upload succeeds
+    let SOURCE_FILE = null;
+    let currentFile  = null;
 
-    videoInput.addEventListener("change", async (e) => {
+    const btnAnalyzeEl  = document.getElementById("btn-analyze");
+    const styleSelectEl = document.getElementById("style-select");
+
+    videoInput.addEventListener("change", (e) => {
       const file = e.target.files && e.target.files[0];
       if (!file) return;
-      // release previous blob so we don't leak memory across reloads
       if (videoEl.dataset.blobUrl) URL.revokeObjectURL(videoEl.dataset.blobUrl);
       const url = URL.createObjectURL(file);
       videoEl.dataset.blobUrl = url;
       videoEl.src = url;
       videoEl.load();
       previewBoxEl.classList.add("has-video");
+      previewFileEl.textContent = file.name;
+      currentFile  = file;
+      SOURCE_FILE  = null;
+      btnAnalyzeEl.disabled = false;
+    });
 
-      // upload to server immediately so /render can access the file
-      SOURCE_FILE = null;
-      previewFileEl.textContent = `${file.name} (업로드 중…)`;
+    // ---- AI 분석 ----
+    async function analyzeVideo() {
+      if (!currentFile) return;
+      btnAnalyzeEl.disabled = true;
+      btnAnalyzeEl.textContent = "분석 중…";
+      previewFileEl.textContent = `${currentFile.name} (AI 분석 중…)`;
       try {
         const fd = new FormData();
-        fd.append("file", file);
-        const res = await fetch("/upload", { method: "POST", body: fd });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        fd.append("file", currentFile);
+        fd.append("style", styleSelectEl.value);
+        const res = await fetch("/analyze", { method: "POST", body: fd });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.detail || `HTTP ${res.status}`);
+        }
         const data = await res.json();
         SOURCE_FILE = data.source_file;
-        previewFileEl.textContent = `${file.name} ✓`;
+        SEGMENTS    = data.segments;
+        renderTimeline(SEGMENTS);
+        updateStats();
+        updateTimelineWidth();
+        renderRuler();
+        previewFileEl.textContent = `${currentFile.name} ✓ 분석 완료`;
       } catch (err) {
-        previewFileEl.textContent = `${file.name} (업로드 실패: ${err.message})`;
-        console.error("[upload]", err);
+        previewFileEl.textContent = `${currentFile.name} (분석 실패: ${err.message})`;
+        console.error("[analyze]", err);
+      } finally {
+        btnAnalyzeEl.disabled = false;
+        btnAnalyzeEl.textContent = "AI 분석 시작";
       }
-    });
+    }
+
+    btnAnalyzeEl.addEventListener("click", analyzeVideo);
 
     // ---- Video events ----
     videoEl.addEventListener("loadedmetadata", () => {
