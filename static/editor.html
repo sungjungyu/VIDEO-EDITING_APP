@@ -292,13 +292,19 @@
       overflow-x: auto;
       overflow-y: hidden;
       padding: 14px 16px 16px;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(255, 255, 255, 0.14) transparent;
+      overscroll-behavior-x: contain;
     }
-    .timeline-scroll::-webkit-scrollbar { height: 10px; }
+    .timeline-scroll::-webkit-scrollbar { height: 8px; }
     .timeline-scroll::-webkit-scrollbar-track { background: transparent; }
     .timeline-scroll::-webkit-scrollbar-thumb {
-      background: #2A3340; border-radius: 8px;
+      background: rgba(255, 255, 255, 0.12);
+      border-radius: 8px;
     }
-    .timeline-scroll::-webkit-scrollbar-thumb:hover { background: #384454; }
+    .timeline-scroll::-webkit-scrollbar-thumb:hover {
+      background: rgba(255, 255, 255, 0.22);
+    }
 
     /* wrapper that both ruler and track live inside — shares horizontal
        scroll and gives the absolutely-positioned playhead a containing block. */
@@ -313,7 +319,7 @@
       min-width: 100%;
       border-bottom: 1px solid var(--border);
       margin-bottom: 8px;
-      cursor: pointer;
+      cursor: grab;
     }
     .ruler-tick-major {
       position: absolute;
@@ -346,6 +352,14 @@
       position: relative;
       height: 96px;
       min-width: 100%;
+      cursor: grab;
+    }
+    .timeline-content.panning,
+    .timeline-content.panning .ruler,
+    .timeline-content.panning .track,
+    .timeline-content.panning .seg {
+      cursor: grabbing !important;
+      user-select: none;
     }
 
     .playhead {
@@ -1424,6 +1438,74 @@
     };
     handleEl.addEventListener("pointerup",     endPlayheadDrag);
     handleEl.addEventListener("pointercancel", endPlayheadDrag);
+
+    // -------------------- Timeline horizontal scroll + pan --------------------
+    const timelineScrollEl = document.getElementById("timeline-scroll");
+
+    // Mouse wheel → horizontal scroll. Trackpad horizontal swipes come in as
+    // deltaX and are handled natively; only redirect a dominant vertical wheel.
+    timelineScrollEl.addEventListener("wheel", (e) => {
+      if (Math.abs(e.deltaX) >= Math.abs(e.deltaY)) return; // let native handle
+      if (e.deltaY === 0) return;
+      timelineScrollEl.scrollLeft += e.deltaY;
+      e.preventDefault();
+    }, { passive: false });
+
+    // Click-drag panning on empty timeline background. Only starts when the
+    // pointer lands on the ruler/track background itself — segments and the
+    // playhead handle keep their own behavior because their pointerdown
+    // targets are the child elements, not these backgrounds.
+    let panActive = false;
+    let panMoved  = false;
+    let panStartX = 0;
+    let panStartScrollLeft = 0;
+    const PAN_THRESHOLD_PX = 4;
+
+    function isPanBackground(target) {
+      return target === trackEl || target === rulerEl || target === contentEl;
+    }
+
+    contentEl.addEventListener("pointerdown", (e) => {
+      if (e.button !== 0) return;
+      if (!isPanBackground(e.target)) return;
+      panActive = true;
+      panMoved  = false;
+      panStartX = e.clientX;
+      panStartScrollLeft = timelineScrollEl.scrollLeft;
+      try { contentEl.setPointerCapture(e.pointerId); } catch (_) {}
+    });
+
+    contentEl.addEventListener("pointermove", (e) => {
+      if (!panActive) return;
+      const dx = e.clientX - panStartX;
+      if (!panMoved && Math.abs(dx) < PAN_THRESHOLD_PX) return;
+      if (!panMoved) {
+        panMoved = true;
+        contentEl.classList.add("panning");
+      }
+      timelineScrollEl.scrollLeft = panStartScrollLeft - dx;
+    });
+
+    const endPan = (e) => {
+      if (!panActive) return;
+      const moved = panMoved;
+      panActive = false;
+      panMoved  = false;
+      contentEl.classList.remove("panning");
+      try { contentEl.releasePointerCapture(e.pointerId); } catch (_) {}
+      // If a pan actually happened, swallow the trailing click so the
+      // ruler/track seek handlers don't fire at the drop location.
+      if (moved) {
+        const swallow = (ev) => {
+          ev.stopPropagation();
+          ev.preventDefault();
+          document.removeEventListener("click", swallow, true);
+        };
+        document.addEventListener("click", swallow, true);
+      }
+    };
+    contentEl.addEventListener("pointerup",     endPan);
+    contentEl.addEventListener("pointercancel", endPan);
 
     // Space bar toggles play/pause — skip when typing in an input/textarea
     document.addEventListener("keydown", (e) => {
