@@ -1423,8 +1423,9 @@
       if (!currentFile) return;
       btnAnalyzeEl.disabled = true;
       btnAnalyzeEl.textContent = "분석 중…";
-      previewFileEl.textContent = `${currentFile.name} (AI 분석 중…)`;
+      previewFileEl.textContent = `${currentFile.name} — 업로드 중…`;
       try {
+        // 1) 파일 업로드 + 분석 시작 → job_id 수신
         const fd = new FormData();
         fd.append("file", currentFile);
         fd.append("style", styleSelectEl.value);
@@ -1433,16 +1434,35 @@
           const err = await res.json().catch(() => ({}));
           throw new Error(err.detail || `HTTP ${res.status}`);
         }
-        const data = await res.json();
-        SOURCE_FILE = data.source_file;
-        SEGMENTS    = data.segments;
-        renderTimeline(SEGMENTS);
-        updateStats();
-        updateTimelineWidth();
-        renderRuler();
-        previewFileEl.textContent = `${currentFile.name} ✓ 분석 완료`;
+        const { job_id } = await res.json();
+
+        // 2) 단계별 진행률 폴링
+        for (;;) {
+          await sleep(1500);
+          const jobRes = await fetch(`/analyze_jobs/${job_id}`);
+          if (!jobRes.ok) throw new Error(`HTTP ${jobRes.status}`);
+          const job = await jobRes.json();
+
+          const pct  = job.progress ?? 0;
+          const bar  = "█".repeat(Math.floor(pct / 10)) + "░".repeat(10 - Math.floor(pct / 10));
+          previewFileEl.textContent = `[${bar}] ${pct}%  ${job.stage ?? ""}`;
+
+          if (job.status === "completed") {
+            SOURCE_FILE = job.source_file;
+            SEGMENTS    = job.segments;
+            renderTimeline(SEGMENTS);
+            updateStats();
+            updateTimelineWidth();
+            renderRuler();
+            previewFileEl.textContent = `${currentFile.name} ✓ 분석 완료 (${SEGMENTS.length}개 구간)`;
+            break;
+          }
+          if (job.status === "failed") {
+            throw new Error(job.message || "알 수 없는 오류");
+          }
+        }
       } catch (err) {
-        previewFileEl.textContent = `${currentFile.name} (분석 실패: ${err.message})`;
+        previewFileEl.textContent = `분석 실패: ${err.message}`;
         console.error("[analyze]", err);
       } finally {
         btnAnalyzeEl.disabled = false;

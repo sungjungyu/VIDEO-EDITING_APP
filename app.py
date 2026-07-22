@@ -40,6 +40,7 @@ app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 uploaded_files: Dict[str, Path] = {}
 render_jobs: Dict[str, Dict[str, Any]] = {}
+analyze_jobs: Dict[str, Dict[str, Any]] = {}
 
 
 class SubtitleSegment(BaseModel):
@@ -111,21 +112,47 @@ def _load_pipeline() -> VideoEditingPipeline:
     return pipeline
 
 
-def _analyze_video(input_path: Path, style: str) -> List[Dict[str, Any]]:
+def _analyze_video_with_progress(
+    job_id: str, input_path: Path, stored_name: str, style: str
+) -> None:
+    def stage(msg: str, pct: int) -> None:
+        analyze_jobs[job_id].update(stage=msg, progress=pct)
+
     pipeline = _load_pipeline()
     try:
+        stage("영상 정보 수집 중...", 5)
         video_context = pipeline.step0_collect_video_context(str(input_path))
+
+        stage("음성 추출 중...", 10)
         audio_path = pipeline.step1_extract_audio(str(input_path))
+
+        stage("음성 인식(Whisper) 처리 중... (가장 오래 걸립니다)", 15)
         segments = pipeline.step2_transcribe_audio(audio_path)
+
+        stage("자막 교정 중...", 65)
         segments = pipeline.step2_refine_transcript(segments)
-        return pipeline.step3_analyze_context(segments, style, video_context)
+
+        stage("AI 문맥 분석(Gemini) 중...", 75)
+        segments = pipeline.step3_analyze_context(segments, style, video_context)
+
+        analyze_jobs[job_id].update(
+            status="completed",
+            stage="분석 완료",
+            progress=100,
+            segments=segments,
+            source_file=stored_name,
+            source_url=f"/media/{stored_name}",
+        )
+    except Exception as error:
+        traceback.print_exc()
+        analyze_jobs[job_id].update(status="failed", stage="분석 실패", message=str(error))
     finally:
         shutil.rmtree(pipeline.temp_dir, ignore_errors=True)
 
 
 @app.post("/analyze")
 async def analyze_video(file: UploadFile = File(...), style: str = Form("정석맛")) -> JSONResponse:
-    """Upload a video and return AI-produced, user-editable subtitle segments."""
+    """Upload a video, start AI analysis in background, return job_id for polling."""
     if style not in {"매운맛", "순한맛", "정석맛"}:
         raise HTTPException(status_code=400, detail="지원하지 않는 스타일입니다.")
     if not (file.content_type or "").startswith("video/"):
@@ -139,21 +166,29 @@ async def analyze_video(file: UploadFile = File(...), style: str = Form("정석�
             raise HTTPException(status_code=413, detail="파일 크기는 500MB를 초과할 수 없습니다.")
         stored_path.write_bytes(content)
         uploaded_files[stored_name] = stored_path
-        segments = await asyncio.to_thread(_analyze_video, stored_path, style)
-        return JSONResponse({
-            "source_file": stored_name,
-            "source_url": f"/media/{stored_name}",
-            "segments": segments,
-        })
     except HTTPException:
         stored_path.unlink(missing_ok=True)
         uploaded_files.pop(stored_name, None)
         raise
     except Exception as error:
-        traceback.print_exc()
         stored_path.unlink(missing_ok=True)
         uploaded_files.pop(stored_name, None)
-        raise HTTPException(status_code=500, detail=f"AI 분석에 실패했습니다: {error}") from error
+        raise HTTPException(status_code=500, detail=f"업로드에 실패했습니다: {error}") from error
+
+    job_id = uuid.uuid4().hex
+    analyze_jobs[job_id] = {"status": "processing", "stage": "업로드 완료, 분석 시작...", "progress": 2}
+    asyncio.create_task(
+        asyncio.to_thread(_analyze_video_with_progress, job_id, stored_path, stored_name, style)
+    )
+    return JSONResponse({"job_id": job_id, "status": "processing"})
+
+
+@app.get("/analyze_jobs/{job_id}")
+async def get_analyze_job(job_id: str) -> JSONResponse:
+    job = analyze_jobs.get(job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail="분석 작업을 찾을 수 없습니다.")
+    return JSONResponse(job)
 
 
 def _revise_segments(instruction: str, segments: List[Dict[str, Any]]) -> Dict[str, Any]:
