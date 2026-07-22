@@ -1,0 +1,17 @@
+INFO:     Started server process [3433]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+✅ 파일에서 API 키를 찾았습니다.
+🚀 AI 영상 편집 웹 서버 시작!
+🌐 http://localhost:8000 에서 접속하세요
+INFO:     127.0.0.1:52334 - "GET /download/edited_KakaoTalk_Video_2026-07-08-16-13-27.mp4 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56847 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56847 - "GET /favicon.ico HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:50338 - "GET / HTTP/1.1" 200 OK
+Fatal Python error: init_sys_streams: can't initialize sys standard streams
+Python runtime state: core initialized
+OSError: [Errno 9] Bad file descriptor
+
+Current thread 0x00000001f012de80 (most recent call first):
+  <no Python frame>

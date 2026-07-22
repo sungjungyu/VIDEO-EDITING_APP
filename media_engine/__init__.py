@@ -1,4 +1,5 @@
 from .main import render_video
+from .adapter import segments_to_edit_data
 from .exceptions import (
     MediaEngineError,
     InvalidCutRangeError,
@@ -9,6 +10,7 @@ from .exceptions import (
 
 __all__ = [
     "render_video",
+    "segments_to_edit_data",
     "MediaEngineError",
     "InvalidCutRangeError",
     "FFmpegCuttingError",
