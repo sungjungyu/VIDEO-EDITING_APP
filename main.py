@@ -8,14 +8,26 @@ Main Pipeline Script
 import os
 import json
 import tempfile
+import subprocess
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 import numpy as np
 try:
-    from moviepy.editor import VideoFileClip, TextClip, ImageClip, CompositeVideoClip, concatenate_videoclips
+    import imageio_ffmpeg
+except Exception:
+    imageio_ffmpeg = None
+
+if imageio_ffmpeg is not None:
+    ffmpeg_exe = imageio_ffmpeg.get_ffmpeg_exe()
+    ffmpeg_dir = os.path.dirname(ffmpeg_exe)
+    os.environ.setdefault("IMAGEIO_FFMPEG_EXE", ffmpeg_exe)
+    if ffmpeg_dir and ffmpeg_dir not in os.environ.get("PATH", ""):
+        os.environ["PATH"] = f"{ffmpeg_dir};{os.environ.get('PATH', '')}"
+
+try:
+    from moviepy.editor import VideoFileClip, ImageClip, CompositeVideoClip, concatenate_videoclips  # type: ignore[reportMissingImports]
 except ImportError:
-    from moviepy import VideoFileClip, TextClip, ImageClip, CompositeVideoClip, concatenate_videoclips
-import numpy as np
+    from moviepy import VideoFileClip, ImageClip, CompositeVideoClip, concatenate_videoclips
 from PIL import Image, ImageDraw, ImageFont
 # MoviePy 1.x still references the Pillow constant removed in Pillow 10.
 if not hasattr(Image, "ANTIALIAS"):
@@ -24,6 +36,36 @@ if not hasattr(Image, "ANTIALIAS"):
 # import openai  # 더 이상 사용하지 않음
 # from openai import OpenAI  # 더 이상 사용하지 않음
 import whisper
+
+if imageio_ffmpeg is not None:
+    def _load_audio_with_absolute_ffmpeg(file: str, sr: int = 16000):
+        cmd = [
+            ffmpeg_exe,
+            "-nostdin",
+            "-threads", "0",
+            "-i", file,
+            "-f", "s16le",
+            "-ac", "1",
+            "-acodec", "pcm_s16le",
+            "-ar", str(sr),
+            "-",
+        ]
+        try:
+            out = subprocess.run(cmd, capture_output=True, check=True).stdout
+        except subprocess.CalledProcessError as error:
+            stderr_text = error.stderr.decode(errors="replace") if error.stderr else str(error)
+            raise RuntimeError(f"Failed to load audio: {stderr_text}") from error
+
+        return np.frombuffer(out, np.int16).flatten().astype(np.float32) / 32768.0
+
+    try:
+        import whisper.audio as whisper_audio
+        import whisper.transcribe as whisper_transcribe
+
+        whisper_audio.load_audio = _load_audio_with_absolute_ffmpeg
+        whisper_transcribe.load_audio = _load_audio_with_absolute_ffmpeg
+    except Exception:
+        pass
 
 try:
     from google import genai as google_genai
@@ -54,7 +96,7 @@ class VideoEditingPipeline:
         """
         self.gemini_client = None
         self.gemini_model = None
-        self.gemini_model_name = "gemini-3-flash"
+        self.gemini_model_name = "gemini-2.5-flash"
         # 정확도를 우선하는 기본값입니다. 처리 속도가 더 중요하면 환경 변수로
         # WHISPER_MODEL=base 또는 small을 지정할 수 있습니다.
         self.whisper_model_name = os.getenv("WHISPER_MODEL", "medium")
@@ -74,6 +116,149 @@ class VideoEditingPipeline:
 
         self.temp_dir = tempfile.mkdtemp()
         print(f"📁 임시 디렉토리 생성: {self.temp_dir}")
+
+    def verify_gemini_connection(self) -> None:
+        """Gemini 연결이 가능한지 아주 짧은 요청으로 확인합니다."""
+        try:
+            response_text = self._call_gemini("Return only: OK")
+            if not str(response_text or "").strip():
+                raise RuntimeError("Gemini가 빈 응답을 반환했습니다.")
+        except Exception as error:
+            raise RuntimeError(
+                "Gemini 연결에 실패했습니다. API 키가 올바른지, Gemini API가 활성화되어 있는지, "
+                "그리고 인터넷 연결이 가능한지 확인하세요."
+            ) from error
+
+    def step0_collect_video_context(self, input_video_path: str, sample_count: int = 12) -> Dict[str, Any]:
+        """영상에서 문맥 판단에 도움이 되는 가벼운 시각 신호를 추출합니다."""
+        print("🎞️ Step 0: 영상 문맥 신호 수집 중...")
+        video = VideoFileClip(input_video_path)
+        try:
+            duration = float(getattr(video, "duration", 0) or 0)
+            if duration <= 0:
+                return {
+                    "duration": 0.0,
+                    "sample_count": 0,
+                    "average_luma": 0.0,
+                    "average_motion": 0.0,
+                    "scene_change_points": [],
+                    "dominant_pace": "slow",
+                }
+
+            sample_total = max(2, min(sample_count, max(2, int(duration) + 2)))
+            sample_times = np.linspace(0.0, max(duration - 0.01, 0.0), num=sample_total)
+            previous_frame = None
+            frame_means = []
+            frame_deltas = []
+            scene_change_points = []
+
+            for sample_time in sample_times:
+                frame = video.get_frame(float(sample_time))
+                frame_array = np.asarray(frame, dtype=np.float32)
+                frame_mean = float(frame_array.mean())
+                frame_means.append(frame_mean)
+
+                if previous_frame is not None:
+                    delta = float(np.mean(np.abs(frame_array - previous_frame))) / 255.0
+                    frame_deltas.append(delta)
+                    if delta >= 0.14:
+                        scene_change_points.append(round(float(sample_time), 2))
+                previous_frame = frame_array
+
+            average_luma = float(np.mean(frame_means)) if frame_means else 0.0
+            average_motion = float(np.mean(frame_deltas)) if frame_deltas else 0.0
+            if average_motion >= 0.11:
+                dominant_pace = "fast"
+            elif average_motion >= 0.05:
+                dominant_pace = "medium"
+            else:
+                dominant_pace = "slow"
+
+            return {
+                "duration": round(duration, 3),
+                "sample_count": len(sample_times),
+                "average_luma": round(average_luma, 3),
+                "average_motion": round(average_motion, 3),
+                "scene_change_points": scene_change_points[:12],
+                "dominant_pace": dominant_pace,
+            }
+        finally:
+            video.close()
+
+    def _normalize_edit_command(self, command: Dict[str, Any], default_index: int = 0) -> Dict[str, Any]:
+        """편집 명령 필드를 렌더러가 안정적으로 쓸 수 있도록 보정합니다."""
+        if not isinstance(command, dict):
+            command = {}
+        normalized = dict(command or {})
+        text = str(normalized.get("text", f"문장 {default_index + 1}")).strip() or f"문장 {default_index + 1}"
+        start = float(normalized.get("start", default_index * 2.0) or 0.0)
+        end = float(normalized.get("end", start + 2.0) or (start + 2.0))
+        if end <= start:
+            end = start + 1.0
+
+        normalized.update({
+            "start": start,
+            "end": end,
+            "text": text,
+            "cut": bool(normalized.get("cut", False)),
+            "subtitle_color": str(normalized.get("subtitle_color", "white")),
+            "fontsize": int(normalized.get("fontsize", 36) or 36),
+            "scene_type": str(normalized.get("scene_type", "dialogue")),
+            "emphasis": bool(normalized.get("emphasis", False)),
+            "punch_in": bool(normalized.get("punch_in", False)),
+            "transition_type": str(normalized.get("transition_type", "cut")),
+            "subtitle_mode": str(normalized.get("subtitle_mode", "caption")),
+            "retain_pause": bool(normalized.get("retain_pause", False)),
+            "broll_needed": bool(normalized.get("broll_needed", False)),
+        })
+        return normalized
+
+    def _apply_punch_in(self, clip, enabled: bool):
+        """강조 구간에 약한 줌인을 적용합니다."""
+        if not enabled:
+            return clip
+
+        scale = 1.06
+        resized = (
+            clip.resized(new_size=(int(clip.w * scale), int(clip.h * scale)))
+            if hasattr(clip, "resized")
+            else clip.resize(newsize=(int(clip.w * scale), int(clip.h * scale)))
+        )
+        x1 = max(0, (resized.w - clip.w) / 2)
+        y1 = max(0, (resized.h - clip.h) / 2)
+        return (
+            resized.cropped(x1=x1, y1=y1, width=clip.w, height=clip.h)
+            if hasattr(resized, "cropped")
+            else resized.crop(x1=x1, y1=y1, width=clip.w, height=clip.h)
+        )
+
+    def _build_subtitle_clip(self, subtitle_img, start_time: float, duration: float, video_width: int):
+        """RGBA 자막 이미지를 비디오에 안전하게 올리기 위한 클립으로 변환합니다."""
+        subtitle_array = np.asarray(subtitle_img)
+        if subtitle_array.ndim == 3 and subtitle_array.shape[2] == 4:
+            rgb = subtitle_array[:, :, :3]
+            alpha = subtitle_array[:, :, 3].astype(np.float32) / 255.0
+            subtitle = ImageClip(rgb)
+            try:
+                mask = ImageClip(alpha, is_mask=True)
+                subtitle = subtitle.with_mask(mask) if hasattr(subtitle, "with_mask") else subtitle.set_mask(mask)
+            except Exception:
+                pass
+        else:
+            subtitle = ImageClip(subtitle_array)
+
+        if hasattr(subtitle, "with_position"):
+            subtitle = subtitle.with_position(("center", "bottom")).with_start(start_time).with_duration(duration)
+        else:
+            subtitle = subtitle.set_position(("center", "bottom")).set_start(start_time).set_duration(duration)
+
+        # 바닥에 너무 붙지 않게 약간 위로 띄워 줍니다.
+        try:
+            subtitle = subtitle.with_margin(bottom=18) if hasattr(subtitle, "with_margin") else subtitle.margin(bottom=18)
+        except Exception:
+            pass
+
+        return subtitle
     
     def _create_subtitle_image(self, text: str, fontsize: int, color: str, video_width: int):
         """
@@ -90,6 +275,10 @@ class VideoEditingPipeline:
         """
         # 한국어 지원 폰트 로드
         font_candidates = [
+            "C:/Windows/Fonts/malgun.ttf",
+            "C:/Windows/Fonts/malgunbd.ttf",
+            "C:/Windows/Fonts/gulim.ttc",
+            "C:/Windows/Fonts/batang.ttc",
             "/System/Library/Fonts/Supplemental/AppleGothic.ttf",
             "/System/Library/Fonts/Supplemental/AppleSDGothicNeo.ttc",
             "/Library/Fonts/Arial Unicode.ttf",
@@ -267,7 +456,14 @@ class VideoEditingPipeline:
                 "text": segment["text"],
                 "cut": i % 2 == 1,
                 "subtitle_color": "yellow" if i % 2 == 0 else "red",
-                "fontsize": 45
+                "fontsize": 45,
+                "scene_type": "hook" if i == 0 else "dialogue",
+                "emphasis": i == 0,
+                "punch_in": i == 0,
+                "transition_type": "fade" if i == 0 else "cut",
+                "subtitle_mode": "headline" if i == 0 else "caption",
+                "retain_pause": False,
+                "broll_needed": False,
             })
         return dummy_commands
 
@@ -281,6 +477,13 @@ class VideoEditingPipeline:
                 "cut": False,
                 "subtitle_color": "white",
                 "fontsize": 36,
+                "scene_type": "intro",
+                "emphasis": True,
+                "punch_in": True,
+                "transition_type": "fade",
+                "subtitle_mode": "headline",
+                "retain_pause": False,
+                "broll_needed": False,
             }]
 
         style_colors = {
@@ -304,6 +507,13 @@ class VideoEditingPipeline:
                 "cut": cut,
                 "subtitle_color": color,
                 "fontsize": fontsize,
+                "scene_type": "hook" if i == 0 else ("reaction" if len(text) <= 10 else "dialogue"),
+                "emphasis": len(text) <= 10 or "!" in text or "?" in text,
+                "punch_in": i == 0 or len(text) <= 10,
+                "transition_type": "fade" if i == 0 else "cut",
+                "subtitle_mode": "headline" if len(text) <= 10 else "caption",
+                "retain_pause": duration >= 2.8,
+                "broll_needed": style_preset == "정석맛" and duration >= 3.5,
             })
         return commands
 
@@ -343,7 +553,12 @@ class VideoEditingPipeline:
                 future.cancel()
                 raise TimeoutError("Gemini request timed out") from exc
 
-    def step3_analyze_context(self, segments: List[Dict[str, Any]], style_preset: str) -> List[Dict[str, Any]]:
+    def step3_analyze_context(
+        self,
+        segments: List[Dict[str, Any]],
+        style_preset: str,
+        video_context: Optional[Dict[str, Any]] = None,
+    ) -> List[Dict[str, Any]]:
         """
         Step 3-4: Gemini로 문맥 분석 및 편집 명령어 생성
         
@@ -380,10 +595,17 @@ class VideoEditingPipeline:
         
         # Gemini 프롬프트 구성
         full_prompt = f"""
-        당신은 AI 기반 영상 편집 전문가입니다. 주어진 음성 인식 데이터를 분석하여
-        각 문장별로 최적의 편집 명령어를 생성하세요.
+        당신은 AI 기반 영상 편집 전문가입니다. 주어진 음성 인식 데이터와 영상 문맥 메모를 분석하여
+        각 문장별로 최적의 편집 명령어와 화면 연출 계획을 생성하세요.
 
         {style_prompts.get(style_preset, style_prompts["정석맛"])}
+
+        추가 출력 규칙:
+        - 단순 컷 여부뿐 아니라 scene_type, emphasis, punch_in, transition_type,
+          subtitle_mode, retain_pause, broll_needed를 포함하세요.
+        - 강조가 필요한 구간에는 punch_in=true, subtitle_mode="headline"를 우선 고려하세요.
+        - 설명 구간에는 retain_pause와 subtitle_mode="caption"을 우선 고려하세요.
+        - 영상 문맥 메모가 주어지면 이를 편집 판단에 반영하세요.
 
         출력 형식:
         반드시 순수한 JSON 배열만 반환하세요. 다른 텍스트나 설명을 포함하지 마세요.
@@ -394,6 +616,13 @@ class VideoEditingPipeline:
         - cut: 컷 편집 여부 (true/false)
         - subtitle_color: 자막 색상 (예: "red", "blue", "white", "yellow")
         - fontsize: 자막 크기 (숫자)
+        - scene_type: 장면 유형 (intro, hook, dialogue, reaction, explanation, closing)
+        - emphasis: 강조 여부 (true/false)
+        - punch_in: 약한 줌인 여부 (true/false)
+        - transition_type: 전환 방식 (cut, fade)
+        - subtitle_mode: 자막 스타일 (headline, caption, clean)
+        - retain_pause: 호흡 유지 여부 (true/false)
+        - broll_needed: 보조 화면 필요 여부 (true/false)
 
         text 필드는 이미 맞춤법과 고유명사 표기가 교정된 자막입니다. text의 문구를
         임의로 바꾸지 말고 그대로 사용하세요.
@@ -404,6 +633,9 @@ class VideoEditingPipeline:
         다음 음성 인식 데이터를 분석하여 편집 명령어를 생성해주세요:
 
         {json.dumps(segments, ensure_ascii=False, indent=2)}
+
+        영상 문맥 메모:
+        {json.dumps(video_context or {}, ensure_ascii=False, indent=2)}
 
         스타일 프리셋: {style_preset}
         """
@@ -454,6 +686,9 @@ class VideoEditingPipeline:
                 response_text += ']'
             
             result = json.loads(response_text)
+            if not isinstance(result, list):
+                raise ValueError("Gemini 응답이 JSON 배열이 아닙니다.")
+            result = [self._normalize_edit_command(command, index) for index, command in enumerate(result)]
             print(f"✅ 문맥 분석 완료: {len(result)}개 편집 명령어")
             if not result:
                 return self._build_local_commands(segments, style_preset)
@@ -524,28 +759,44 @@ class VideoEditingPipeline:
                 "cut": False,
                 "subtitle_color": "white",
                 "fontsize": 36,
+                "scene_type": "closing",
+                "emphasis": True,
+                "punch_in": True,
+                "transition_type": "fade",
+                "subtitle_mode": "headline",
+                "retain_pause": True,
+                "broll_needed": False,
             }]
         
         # 컷 편집 적용 (cut=false인 세그먼트만 유지)
         keep_segments = []
-        for cmd in edit_commands:
+        normalized_commands = [self._normalize_edit_command(command, index) for index, command in enumerate(edit_commands)]
+        for cmd in normalized_commands:
             if not cmd.get("cut", False):
                 start_time = max(0, float(cmd.get("start", 0) or 0))
                 end_time = min(video.duration, float(cmd.get("end", video.duration) or video.duration))
                 if end_time > start_time:
                     segment = subclip(video, start_time, end_time)
+                    segment = self._apply_punch_in(segment, cmd.get("punch_in", False) or cmd.get("emphasis", False))
                     keep_segments.append(segment)
         
         if not keep_segments:
             print("⚠️ 편집 가능한 세그먼트가 없어 전체 영상을 사용합니다.")
             keep_segments = [subclip(video, 0, video.duration)]
-            edit_commands = [{
+            normalized_commands = [{
                 "start": 0.0,
                 "end": video.duration,
                 "text": "영상 편집 완료",
                 "cut": False,
                 "subtitle_color": "white",
                 "fontsize": 36,
+                "scene_type": "closing",
+                "emphasis": True,
+                "punch_in": True,
+                "transition_type": "fade",
+                "subtitle_mode": "headline",
+                "retain_pause": True,
+                "broll_needed": False,
             }]
         
         # 편집된 영상 생성
@@ -561,21 +812,22 @@ class VideoEditingPipeline:
         subtitle_clips = []
         current_time = 0
         
-        for i, cmd in enumerate(edit_commands):
+        for i, cmd in enumerate(normalized_commands):
             if not cmd.get("cut", False):
                 try:
                     subtitle_duration = max(0.1, float(cmd.get("end", 0) or 0) - float(cmd.get("start", 0) or 0))
+                    font_size = int(cmd.get("fontsize", 36) or 36)
+                    if cmd.get("subtitle_mode") == "headline":
+                        font_size = max(font_size, 40)
+                    elif cmd.get("subtitle_mode") == "clean":
+                        font_size = max(28, font_size - 2)
                     subtitle_img = self._create_subtitle_image(
                         cmd["text"],
-                        cmd["fontsize"],
+                        font_size,
                         cmd["subtitle_color"],
                         framed_video.w
                     )
-                    subtitle = ImageClip(subtitle_img)
-                    if hasattr(subtitle, "with_position"):
-                        subtitle = subtitle.with_position(('center', 'bottom')).with_start(current_time).with_duration(subtitle_duration)
-                    else:
-                        subtitle = subtitle.set_position(('center', 'bottom')).set_start(current_time).set_duration(subtitle_duration)
+                    subtitle = self._build_subtitle_clip(subtitle_img, current_time, subtitle_duration, framed_video.w)
                     subtitle_clips.append(subtitle)
                     
                     current_time += subtitle_duration
@@ -590,6 +842,7 @@ class VideoEditingPipeline:
         if subtitle_clips:
             final_video = CompositeVideoClip([framed_video] + subtitle_clips)
         else:
+            print("⚠️ 생성된 자막 클립이 없어 영상만 렌더링합니다.")
             final_video = framed_video
         
         # 영상 렌더링 (속도 개선)
@@ -635,6 +888,7 @@ class VideoEditingPipeline:
             print("=" * 50)
             
             # Step 1: 오디오 추출
+            video_context = self.step0_collect_video_context(input_video_path)
             audio_path = self.step1_extract_audio(input_video_path)
             
             # Step 2: 음성 인식
@@ -644,7 +898,7 @@ class VideoEditingPipeline:
             segments = self.step2_refine_transcript(segments)
 
             # Step 3-4: 문맥 분석
-            edit_commands = self.step3_analyze_context(segments, style_preset)
+            edit_commands = self.step3_analyze_context(segments, style_preset, video_context)
             
             # Step 5: 최종 영상 생성
             self.step5_create_final_video(input_video_path, edit_commands, output_path)
@@ -661,7 +915,7 @@ class VideoEditingPipeline:
             import shutil
             if os.path.exists(self.temp_dir):
                 shutil.rmtree(self.temp_dir)
-                print(f"🧹 임시 파일 정리 완료")
+                print("🧹 임시 파일 정리 완료")
 
 def main():
     """
@@ -687,17 +941,16 @@ def main():
         # 테스트용 샘플 영상 생성
         try:
             try:
-                from moviepy.editor import ColorClip
+                from moviepy.editor import ColorClip  # type: ignore[reportMissingImports]
             except ImportError:
                 from moviepy import ColorClip
-            import numpy as np
             
             # 5초짜리 테스트 영상 생성 (텍스트 없이)
             print("🎬 테스트 영상 생성 중...")
             bg = ColorClip(size=(640, 360), color=(64, 128, 255), duration=5)
             
             # 오디오 추가 (무음)
-            bg = bg.with_audio(None)
+            bg = bg.set_audio(None)
             
             bg.write_videofile(input_file, codec='libx264', audio_codec='aac', fps=24, logger=None)
             bg.close()
@@ -751,6 +1004,7 @@ def main():
     
     # 파이프라인 실행
     pipeline = VideoEditingPipeline(api_key)
+    pipeline.verify_gemini_connection()
     pipeline.run_pipeline(input_file, style_preset, "output.mp4")
 
 if __name__ == "__main__":

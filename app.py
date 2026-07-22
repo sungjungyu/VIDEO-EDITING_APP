@@ -6,6 +6,7 @@ import asyncio
 import os
 import shutil
 import uuid
+import traceback
 from pathlib import Path
 from typing import Any, Dict, List, Literal
 
@@ -17,6 +18,7 @@ import uvicorn
 
 from config import config
 from main import VideoEditingPipeline
+from media_engine import render_video as me_render_video, segments_to_edit_data
 
 BASE_DIR = Path(__file__).resolve().parent
 STATIC_DIR = BASE_DIR / "static"
@@ -28,7 +30,6 @@ for directory in (STATIC_DIR, UPLOAD_DIR, OUTPUT_DIR):
 app = FastAPI(title="Cutroom AI", version="2.0.0")
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
-# A lightweight in-memory store is sufficient for the single-process local app.
 uploaded_files: Dict[str, Path] = {}
 render_jobs: Dict[str, Dict[str, Any]] = {}
 
@@ -46,6 +47,7 @@ class RenderRequest(BaseModel):
     source_file: str
     segments: List[SubtitleSegment] = Field(min_length=1, max_length=1000)
     aspect_ratio: Literal["16:9", "9:16"] = "16:9"
+    style_preset: Literal["매운맛", "순한맛", "정석맛"] = "정석맛"
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -64,16 +66,22 @@ def _load_pipeline() -> VideoEditingPipeline:
     api_key = config.load_api_key()
     if not api_key:
         raise RuntimeError("Gemini API 키가 설정되지 않았습니다. GEMINI_API_KEY 또는 gemini_key.txt를 확인하세요.")
-    return VideoEditingPipeline(api_key)
+    pipeline = VideoEditingPipeline(api_key)
+    try:
+        pipeline.verify_gemini_connection()
+    except Exception as error:
+        print(f"Gemini 연결 확인 실패, 로컬 fallback으로 계속 진행합니다: {error}")
+    return pipeline
 
 
 def _analyze_video(input_path: Path, style: str) -> List[Dict[str, Any]]:
     pipeline = _load_pipeline()
     try:
+        video_context = pipeline.step0_collect_video_context(str(input_path))
         audio_path = pipeline.step1_extract_audio(str(input_path))
         segments = pipeline.step2_transcribe_audio(audio_path)
         segments = pipeline.step2_refine_transcript(segments)
-        return pipeline.step3_analyze_context(segments, style)
+        return pipeline.step3_analyze_context(segments, style, video_context)
     finally:
         shutil.rmtree(pipeline.temp_dir, ignore_errors=True)
 
@@ -105,6 +113,7 @@ async def analyze_video(file: UploadFile = File(...), style: str = Form("정석�
         uploaded_files.pop(stored_name, None)
         raise
     except Exception as error:
+        traceback.print_exc()
         stored_path.unlink(missing_ok=True)
         uploaded_files.pop(stored_name, None)
         raise HTTPException(status_code=500, detail=f"AI 분석에 실패했습니다: {error}") from error
@@ -114,19 +123,19 @@ def _render_video(
     job_id: str,
     input_path: Path,
     segments: List[Dict[str, Any]],
-    aspect_ratio: str,
+    style_preset: str,
 ) -> None:
     output_name = f"cutroom_{job_id}.mp4"
     output_path = OUTPUT_DIR / output_name
     try:
-        render_jobs[job_id].update(progress=20, message="타임라인을 정리하는 중…")
-        # Rendering itself does not call Gemini, so no API key is needed at this stage.
-        pipeline = VideoEditingPipeline.__new__(VideoEditingPipeline)
-        pipeline.temp_dir = ""
-        render_jobs[job_id].update(progress=55, message=f"{aspect_ratio} 캔버스에 자막과 컷을 렌더링하는 중…")
-        pipeline.step5_create_final_video(
-            str(input_path), segments, str(output_path), aspect_ratio=aspect_ratio
-        )
+        def _progress(stage: str, pct: int) -> None:
+            render_jobs[job_id].update(progress=pct, message=f"{stage}...")
+
+        render_jobs[job_id].update(progress=10, message="렌더링을 준비하는 중...")
+        edit_data = segments_to_edit_data(segments, style_preset=style_preset)
+        final_path = me_render_video(str(input_path), edit_data, _progress)
+        shutil.copy2(final_path, str(output_path))
+
         render_jobs[job_id].update(
             status="completed",
             progress=100,
@@ -135,6 +144,7 @@ def _render_video(
             output_url=f"/download/{output_name}",
         )
     except Exception as error:
+        traceback.print_exc()
         render_jobs[job_id].update(status="failed", message=str(error))
 
 
@@ -154,10 +164,10 @@ async def render_video(request: RenderRequest) -> JSONResponse:
         )
 
     job_id = uuid.uuid4().hex
-    render_jobs[job_id] = {"status": "processing", "progress": 5, "message": "렌더링을 준비하는 중…"}
+    render_jobs[job_id] = {"status": "processing", "progress": 5, "message": "렌더링을 준비하는 중..."}
     asyncio.create_task(
         asyncio.to_thread(
-            _render_video, job_id, input_path, normalized_segments, request.aspect_ratio
+            _render_video, job_id, input_path, normalized_segments, request.style_preset
         )
     )
     return JSONResponse({"job_id": job_id, **render_jobs[job_id]})
@@ -188,5 +198,5 @@ async def download_file(filename: str) -> FileResponse:
 
 
 if __name__ == "__main__":
-    print("🚀 Cutroom AI 서버 시작: http://localhost:8000")
+    print("Cutroom AI 서버 시작: http://localhost:8000")
     uvicorn.run(app, host="0.0.0.0", port=8000)
