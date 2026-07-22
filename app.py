@@ -6,10 +6,17 @@ import asyncio
 import json
 import os
 import shutil
+import sys
 import uuid
 import traceback
 from pathlib import Path
 from typing import Any, Dict, List, Literal
+
+# Windows cp949 터미널에서 이모지 print 시 UnicodeEncodeError 방지
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+if hasattr(sys.stderr, "reconfigure"):
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
