@@ -454,6 +454,61 @@
     .seg-keep .seg-tag { color: var(--keep); }
     .seg-cut  .seg-tag { color: var(--cut); }
 
+    /* per-segment keep/cut toggle button (top-right corner of the block) */
+    .seg-toggle {
+      position: absolute;
+      top: 5px;
+      right: 5px;
+      width: 22px;
+      height: 22px;
+      padding: 0;
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      background: rgba(0, 0, 0, 0.35);
+      color: inherit;
+      border-radius: 4px;
+      cursor: pointer;
+      display: grid;
+      place-items: center;
+      z-index: 2;
+      transition: background 0.15s ease, border-color 0.15s ease;
+    }
+    .seg-toggle:hover {
+      background: rgba(0, 0, 0, 0.6);
+      border-color: rgba(255, 255, 255, 0.32);
+    }
+    .seg-toggle svg { display: block; width: 14px; height: 14px; }
+    .seg-keep .seg-toggle { color: var(--keep); }
+    .seg-cut  .seg-toggle { color: var(--cut); }
+    /* keep segment text out from under the toggle button */
+    .seg-text { padding-right: 24px; }
+
+    /* Floating timeline hover thumbnail */
+    .tl-thumb {
+      position: fixed;
+      z-index: 60;
+      pointer-events: none;
+      background: rgba(18, 22, 28, 0.95);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 4px 4px 2px;
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.55);
+    }
+    .tl-thumb[hidden] { display: none; }
+    .tl-thumb canvas {
+      display: block;
+      width: 160px;
+      height: 90px;
+      border-radius: 3px;
+      background: #000;
+    }
+    .tl-thumb-time {
+      font-size: 11px;
+      color: var(--muted);
+      text-align: center;
+      padding: 4px 0 2px;
+      font-variant-numeric: tabular-nums;
+    }
+
     /* ---- inline edit ---- */
     .seg.editing { cursor: text; }
     .seg-edit {
@@ -872,6 +927,19 @@
     const PX_PER_SECOND    = 60; // 1초 = 60px — ruler / segments / playhead 모두 이 스케일 공유
     const TIMELINE_END_PAD = 40; // 스크롤 끝단 여유 공간
 
+    // Icons for the per-segment keep/cut toggle button
+    const ICON_KEEP_SVG =
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" ' +
+      'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+      '<polyline points="20 6 9 17 4 12"/></svg>';
+    const ICON_CUT_SVG =
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" ' +
+      'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+      '<circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/>' +
+      '<line x1="20" y1="4" x2="8.12" y2="15.88"/>' +
+      '<line x1="14.47" y1="14.48" x2="20" y2="20"/>' +
+      '<line x1="8.12" y1="8.12" x2="12" y2="12"/></svg>';
+
     function formatTime(s) {
       const m = Math.floor(s / 60);
       const sec = (s - m * 60);
@@ -936,6 +1004,7 @@
         el.dataset.index = i;
 
         el.innerHTML = `
+          <button class="seg-toggle" type="button" title="${seg.cut ? '유지로 되돌리기' : '컷으로 표시'}" aria-label="유지/컷 토글">${seg.cut ? ICON_CUT_SVG : ICON_KEEP_SVG}</button>
           <div class="seg-text">${seg.text}</div>
           <div class="seg-meta">
             <span class="seg-time">${formatTime(seg.start)} – ${formatTime(seg.end)}</span>
@@ -943,15 +1012,16 @@
           </div>
         `;
 
-        // click = toggle cut, dblclick = edit text.
-        // Delay the click so a following dblclick can cancel it.
+        // Single click on the block body = seek to seg.start (delayed 220ms so
+        // a following dblclick can cancel the seek and open the text editor).
+        // Keep/cut toggling now lives on the dedicated top-right button below.
         let clickTimer = null;
         el.addEventListener("click", () => {
           if (el.classList.contains("editing")) return;
           if (clickTimer) return;
           clickTimer = setTimeout(() => {
             clickTimer = null;
-            toggleSegment(i, el);
+            seekToTimelinePos(seg.start * PX_PER_SECOND, seg.start);
           }, 220);
         });
         el.addEventListener("dblclick", () => {
@@ -959,6 +1029,17 @@
           if (el.classList.contains("editing")) return;
           startEditing(i, el);
         });
+
+        // Toggle button: keep ↔ cut. Kept isolated from the block's own
+        // click/dblclick so seek/edit don't fire when the user toggles.
+        const toggleBtn = el.querySelector(".seg-toggle");
+        toggleBtn.addEventListener("click", (ev) => {
+          ev.stopPropagation();
+          if (clickTimer) { clearTimeout(clickTimer); clickTimer = null; }
+          toggleSegment(i, el);
+        });
+        toggleBtn.addEventListener("dblclick",  (ev) => ev.stopPropagation());
+        toggleBtn.addEventListener("mousedown", (ev) => ev.stopPropagation());
 
         track.appendChild(el);
       });
@@ -1030,6 +1111,11 @@
       el.classList.toggle("seg-keep", !seg.cut);
       const tag = el.querySelector(".seg-tag");
       if (tag) tag.textContent = seg.cut ? "cut" : "keep";
+      const toggleBtn = el.querySelector(".seg-toggle");
+      if (toggleBtn) {
+        toggleBtn.innerHTML = seg.cut ? ICON_CUT_SVG : ICON_KEEP_SVG;
+        toggleBtn.title = seg.cut ? "유지로 되돌리기" : "컷으로 표시";
+      }
 
       updateStats();
     }
@@ -1557,6 +1643,103 @@
       };
       edgeScrollRafId = requestAnimationFrame(step);
     }
+
+    // -------------------- Timeline hover thumbnail preview --------------------
+    // A hidden helper <video> is kept in sync with the main video's src. On
+    // hover we seek it to the pointer's time and draw that frame into a small
+    // floating canvas positioned near the cursor.
+    const thumbVideo = document.createElement("video");
+    thumbVideo.muted = true;
+    thumbVideo.playsInline = true;
+    thumbVideo.preload = "auto";
+    thumbVideo.style.cssText =
+      "position:fixed;left:-10000px;top:-10000px;width:1px;height:1px;opacity:0;pointer-events:none;";
+    document.body.appendChild(thumbVideo);
+
+    const thumbEl = document.createElement("div");
+    thumbEl.className = "tl-thumb";
+    thumbEl.hidden = true;
+    thumbEl.innerHTML =
+      '<canvas width="160" height="90"></canvas>' +
+      '<div class="tl-thumb-time"></div>';
+    document.body.appendChild(thumbEl);
+    const thumbCanvas = thumbEl.querySelector("canvas");
+    const thumbCtx    = thumbCanvas.getContext("2d");
+    const thumbTimeEl = thumbEl.querySelector(".tl-thumb-time");
+
+    let thumbSeekBusy    = false;
+    let thumbPendingTime = null;
+    let thumbLastDrawnT  = -1;
+    let thumbLastClientX = 0;
+    let thumbLastClientY = 0;
+
+    // Mirror the main video's src into the hidden helper whenever a new file
+    // is loaded. The same blob URL is safe to share across <video> elements.
+    videoEl.addEventListener("loadedmetadata", () => {
+      if (videoEl.src && thumbVideo.src !== videoEl.src) {
+        thumbVideo.src = videoEl.src;
+        try { thumbVideo.load(); } catch (_) {}
+      }
+    });
+
+    thumbVideo.addEventListener("seeked", () => {
+      try {
+        thumbCtx.drawImage(thumbVideo, 0, 0, thumbCanvas.width, thumbCanvas.height);
+        thumbLastDrawnT = thumbVideo.currentTime;
+      } catch (_) { /* CORS-taint or not-ready — leave last frame */ }
+      thumbSeekBusy = false;
+      if (thumbPendingTime != null) {
+        const next = thumbPendingTime;
+        thumbPendingTime = null;
+        thumbSeekBusy = true;
+        thumbVideo.currentTime = next;
+      }
+    });
+
+    function requestThumbAt(t) {
+      if (!thumbVideo.src) return;
+      if (!isFinite(thumbVideo.duration) || thumbVideo.duration <= 0) return;
+      const clamped = Math.max(0, Math.min(thumbVideo.duration, t));
+      if (thumbSeekBusy) { thumbPendingTime = clamped; return; }
+      if (Math.abs(clamped - thumbLastDrawnT) < 0.05) return; // already showing
+      thumbSeekBusy = true;
+      thumbVideo.currentTime = clamped;
+    }
+
+    function positionThumb(clientX, clientY) {
+      const w = 168; // canvas 160 + padding
+      const h = 118; // canvas 90 + time label + padding
+      let left = clientX - w / 2;
+      let top  = clientY - h - 12; // above the pointer by default
+      if (top < 4) top = clientY + 20; // flip below when there's no headroom
+      left = Math.max(4, Math.min(window.innerWidth - w - 4, left));
+      thumbEl.style.left = `${left}px`;
+      thumbEl.style.top  = `${top}px`;
+    }
+
+    contentEl.addEventListener("pointermove", (e) => {
+      if (!videoEl.src) { thumbEl.hidden = true; return; }
+      // Get out of the way while the user is actively panning or dragging
+      if (panActive || dragActive) { thumbEl.hidden = true; return; }
+      thumbLastClientX = e.clientX;
+      thumbLastClientY = e.clientY;
+      const { t } = clientXToTimelinePos(e.clientX);
+      thumbEl.hidden = false;
+      thumbTimeEl.textContent = formatMinSec(t);
+      positionThumb(e.clientX, e.clientY);
+      requestThumbAt(t);
+    });
+    contentEl.addEventListener("pointerleave", () => { thumbEl.hidden = true; });
+
+    // If the timeline scrolls under a stationary pointer, the same clientX now
+    // maps to a different time — refresh the preview to match.
+    timelineScrollEl.addEventListener("scroll", () => {
+      if (thumbEl.hidden) return;
+      const { t } = clientXToTimelinePos(thumbLastClientX);
+      thumbTimeEl.textContent = formatMinSec(t);
+      positionThumb(thumbLastClientX, thumbLastClientY);
+      requestThumbAt(t);
+    });
 
     // Space bar toggles play/pause — skip when typing in an input/textarea
     document.addEventListener("keydown", (e) => {
