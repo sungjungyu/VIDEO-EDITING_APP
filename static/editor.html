@@ -1416,14 +1416,17 @@
     handleEl.addEventListener("pointerdown", (e) => {
       e.preventDefault();
       dragActive = true;
+      dragLastClientX = e.clientX;
       dragResumePlay = !!videoEl.src && !videoEl.paused;
       if (dragResumePlay) videoEl.pause();
       playheadEl.classList.add("dragging");
       try { handleEl.setPointerCapture(e.pointerId); } catch (_) {}
+      startEdgeScrollLoop();
     });
 
     handleEl.addEventListener("pointermove", (e) => {
       if (!dragActive) return;
+      dragLastClientX = e.clientX;
       const { x, t } = clientXToTimelinePos(e.clientX);
       seekToTimelinePos(x, t);
     });
@@ -1431,6 +1434,10 @@
     const endPlayheadDrag = (e) => {
       if (!dragActive) return;
       dragActive = false;
+      if (edgeScrollRafId) {
+        cancelAnimationFrame(edgeScrollRafId);
+        edgeScrollRafId = 0;
+      }
       playheadEl.classList.remove("dragging");
       try { handleEl.releasePointerCapture(e.pointerId); } catch (_) {}
       if (dragResumePlay) videoEl.play().catch(() => {});
@@ -1506,6 +1513,50 @@
     };
     contentEl.addEventListener("pointerup",     endPan);
     contentEl.addEventListener("pointercancel", endPan);
+
+    // -------------------- Auto-scroll while dragging playhead --------------------
+    // When the dragged playhead nears the visible timeline's edge, keep
+    // scrolling the container so the user can drag past what's on screen.
+    // The playhead is re-seeked each frame so it stays under the cursor.
+    const EDGE_ZONE_PX  = 40; // start scrolling when pointer is within this
+    const EDGE_MAX_STEP = 20; // max px scrolled per frame at the very edge
+    let dragLastClientX = 0;
+    let edgeScrollRafId = 0;
+
+    function tickEdgeScroll() {
+      const rect = timelineScrollEl.getBoundingClientRect();
+      const leftDist  = dragLastClientX - rect.left;
+      const rightDist = rect.right - dragLastClientX;
+      let dx = 0;
+      if (leftDist < EDGE_ZONE_PX) {
+        const s = Math.max(0, Math.min(1, (EDGE_ZONE_PX - leftDist) / EDGE_ZONE_PX));
+        dx = -s * EDGE_MAX_STEP;
+      } else if (rightDist < EDGE_ZONE_PX) {
+        const s = Math.max(0, Math.min(1, (EDGE_ZONE_PX - rightDist) / EDGE_ZONE_PX));
+        dx = s * EDGE_MAX_STEP;
+      }
+      if (dx === 0) return;
+      const maxScroll = Math.max(0, timelineScrollEl.scrollWidth - timelineScrollEl.clientWidth);
+      const before = timelineScrollEl.scrollLeft;
+      const next   = Math.max(0, Math.min(maxScroll, before + dx));
+      if (next === before) return; // already at the timeline edge
+      timelineScrollEl.scrollLeft = next;
+      // Content shifted under a (possibly stationary) pointer, so the same
+      // clientX now maps to a different time — re-seek to keep the playhead
+      // pinned to the cursor.
+      const { x, t } = clientXToTimelinePos(dragLastClientX);
+      seekToTimelinePos(x, t);
+    }
+
+    function startEdgeScrollLoop() {
+      if (edgeScrollRafId) return;
+      const step = () => {
+        if (!dragActive) { edgeScrollRafId = 0; return; }
+        tickEdgeScroll();
+        edgeScrollRafId = requestAnimationFrame(step);
+      };
+      edgeScrollRafId = requestAnimationFrame(step);
+    }
 
     // Space bar toggles play/pause — skip when typing in an input/textarea
     document.addEventListener("keydown", (e) => {
