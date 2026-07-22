@@ -1,0 +1,1571 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI 영상 편집기</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    :root {
+      --bg: #12161C;
+      --panel: #1B222B;
+      --border: #2A3340;
+      --text: #E8ECF1;
+      --muted: #9AA6B2;
+      --accent: #FFD84D;
+      --keep: #5CA8FF;
+      --cut: #FF5C5C;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Pretendard",
+                   "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+      overflow: hidden;
+    }
+
+    .app {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+
+    /* ---- Top bar ---- */
+    .topbar {
+      height: 56px;
+      flex: 0 0 56px;
+      background: var(--panel);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 20px;
+      /* keep the bar above any overflow from .main (e.g. tall preview) */
+      position: relative;
+      z-index: 20;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+    }
+    .brand-mark {
+      width: 26px;
+      height: 26px;
+      border-radius: 7px;
+      background: linear-gradient(135deg, var(--keep), var(--accent));
+      display: grid;
+      place-items: center;
+      font-size: 13px;
+      color: #12161C;
+      font-weight: 800;
+    }
+    .brand-title { font-size: 15px; }
+    .brand-sub {
+      font-size: 12px;
+      color: var(--muted);
+      margin-left: 6px;
+    }
+    .btn-export {
+      background: var(--accent);
+      color: #12161C;
+      font-weight: 600;
+      font-size: 13px;
+      padding: 8px 16px;
+      border-radius: 8px;
+      border: none;
+      cursor: pointer;
+      transition: transform 0.06s ease, filter 0.15s ease;
+    }
+    .btn-export:hover { filter: brightness(1.05); }
+    .btn-export:active { transform: translateY(1px); }
+
+    /* ---- Main (preview) ---- */
+    .main {
+      flex: 1 1 auto;
+      display: flex;
+      min-height: 0;
+      /* clip any preview overflow so it can never bleed into the topbar */
+      overflow: hidden;
+    }
+    .preview-wrap {
+      flex: 1 1 auto;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      background: var(--bg);
+      padding: 14px 24px 18px;
+      min-width: 0;
+      min-height: 0;
+      overflow: hidden;
+    }
+    .preview-col {
+      display: flex;
+      flex-direction: column;
+      width: 100%;
+      max-width: 960px;
+      min-width: 0;
+      min-height: 0;
+      flex: 1 1 auto;
+      gap: 10px;
+    }
+    .preview-toolbar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 12px;
+      color: var(--muted);
+      flex: 0 0 auto;
+      min-width: 0;
+    }
+    .btn-file {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--panel);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 6px 12px;
+      font-size: 12.5px;
+      cursor: pointer;
+      transition: border-color 0.15s ease, background 0.15s ease;
+      user-select: none;
+      flex: 0 0 auto;
+    }
+    .btn-file:hover { border-color: #384454; background: #232B36; }
+    .preview-filename {
+      flex: 1 1 auto;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .preview-fit {
+      flex: 1 1 auto;
+      min-height: 0;
+      display: grid;
+      place-items: center;
+      width: 100%;
+    }
+    .preview {
+      width: 100%;
+      max-width: 100%;
+      max-height: 100%;
+      aspect-ratio: 16 / 9;
+      background: #000;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      display: grid;
+      place-items: center;
+      color: var(--muted);
+      font-size: 13px;
+      position: relative;
+      overflow: hidden;
+    }
+    .preview video {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      display: block;
+      background: #000;
+    }
+    .preview:not(.has-video) video { display: none; }
+    .preview.has-video .preview-empty { display: none; }
+    .preview-empty {
+      color: #4a5563;
+      font-size: 12px;
+      letter-spacing: 0.02em;
+      pointer-events: none;
+    }
+
+    .preview-controls {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      width: 100%;
+      flex: 0 0 auto;
+    }
+    .btn-play {
+      background: var(--panel);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      width: 36px;
+      height: 32px;
+      display: grid;
+      place-items: center;
+      cursor: pointer;
+      transition: border-color 0.15s ease, background 0.15s ease;
+      padding: 0;
+    }
+    .btn-play:hover:not(:disabled) { border-color: #384454; background: #232B36; }
+    .btn-play:disabled { opacity: 0.45; cursor: not-allowed; }
+    .btn-play svg { display: block; }
+    .preview-time {
+      font-size: 12px;
+      color: var(--muted);
+      font-variant-numeric: tabular-nums;
+      min-width: 96px;
+      flex: 0 0 auto;
+    }
+    .preview-progress {
+      flex: 1 1 auto;
+      height: 6px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
+    }
+    .preview-progress-fill {
+      height: 100%;
+      width: 0%;
+      background: var(--accent);
+      pointer-events: none;
+    }
+
+    /* ---- Timeline ---- */
+    .timeline-panel {
+      flex: 0 0 220px;
+      background: var(--panel);
+      border-top: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+    }
+    .timeline-header {
+      height: 40px;
+      padding: 0 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border);
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .tl-left {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    .tl-title { color: var(--text); font-weight: 500; }
+    .tl-stats {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: var(--muted);
+      font-variant-numeric: tabular-nums;
+    }
+    .stat-keep { color: var(--keep); font-weight: 500; }
+    .stat-cut  { color: var(--cut);  font-weight: 500; }
+    .stat-dur  { color: var(--text); }
+    .stat-sep  { color: #3a4655; }
+
+    .legend {
+      display: flex;
+      gap: 14px;
+      align-items: center;
+    }
+    .legend-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .legend-dot {
+      width: 8px; height: 8px; border-radius: 2px;
+    }
+    .legend-keep { background: var(--keep); }
+    .legend-cut  { background: var(--cut); }
+
+    .timeline-scroll {
+      flex: 1 1 auto;
+      overflow-x: auto;
+      overflow-y: hidden;
+      padding: 14px 16px 16px;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(255, 255, 255, 0.14) transparent;
+      overscroll-behavior-x: contain;
+    }
+    .timeline-scroll::-webkit-scrollbar { height: 8px; }
+    .timeline-scroll::-webkit-scrollbar-track { background: transparent; }
+    .timeline-scroll::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.12);
+      border-radius: 8px;
+    }
+    .timeline-scroll::-webkit-scrollbar-thumb:hover {
+      background: rgba(255, 255, 255, 0.22);
+    }
+
+    /* wrapper that both ruler and track live inside — shares horizontal
+       scroll and gives the absolutely-positioned playhead a containing block. */
+    .timeline-content {
+      position: relative;
+      min-width: 100%;
+    }
+
+    .ruler {
+      position: relative;
+      height: 22px;
+      min-width: 100%;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 8px;
+      cursor: grab;
+    }
+    .ruler-tick-major {
+      position: absolute;
+      bottom: 0;
+      width: 1px;
+      height: 8px;
+      background: #4a5563;
+      pointer-events: none;
+    }
+    .ruler-tick-minor {
+      position: absolute;
+      bottom: 0;
+      width: 1px;
+      height: 4px;
+      background: #2A3340;
+      pointer-events: none;
+    }
+    .ruler-label {
+      position: absolute;
+      bottom: 10px;
+      transform: translateX(2px);
+      font-size: 10px;
+      color: var(--muted);
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+      pointer-events: none;
+    }
+
+    .track {
+      position: relative;
+      height: 96px;
+      min-width: 100%;
+      cursor: grab;
+    }
+    .timeline-content.panning,
+    .timeline-content.panning .ruler,
+    .timeline-content.panning .track,
+    .timeline-content.panning .seg {
+      cursor: grabbing !important;
+      user-select: none;
+    }
+
+    .playhead {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: 2px;
+      background: var(--accent);
+      left: 0;
+      pointer-events: none;
+      z-index: 5;
+      transform: translateX(-1px);
+      box-shadow: 0 0 6px rgba(255, 216, 77, 0.4);
+    }
+    .playhead-handle {
+      position: absolute;
+      top: -3px;
+      left: -8px;
+      width: 18px;
+      height: 18px;
+      background: var(--accent);
+      border-radius: 3px;
+      transform: rotate(45deg);
+      cursor: grab;
+      pointer-events: auto;
+      touch-action: none;
+      box-shadow: 0 0 6px rgba(255, 216, 77, 0.4);
+    }
+    .playhead-handle:hover { filter: brightness(1.08); }
+    .playhead.dragging .playhead-handle,
+    .playhead-handle:active { cursor: grabbing; }
+
+    .seg {
+      position: absolute;
+      top: 0;
+      height: 100%;
+      border-radius: 8px;
+      padding: 10px 12px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      overflow: hidden;
+      cursor: pointer;
+      transition: transform 0.08s ease, filter 0.15s ease;
+      border: 1px solid transparent;
+      box-sizing: border-box;
+    }
+    .seg:hover { filter: brightness(1.08); }
+    .seg:active { transform: translateY(1px); }
+
+    .seg-keep {
+      background: rgba(92, 168, 255, 0.16);
+      border-color: rgba(92, 168, 255, 0.45);
+      color: #DCE9F8;
+    }
+    .seg-cut {
+      background: rgba(255, 92, 92, 0.18);
+      border-color: rgba(255, 92, 92, 0.55);
+      color: #F6D6D6;
+      opacity: 0.78;
+    }
+    .seg-cut .seg-text {
+      text-decoration: line-through;
+      text-decoration-color: rgba(255, 92, 92, 0.85);
+      text-decoration-thickness: 1.5px;
+    }
+
+    .seg-text {
+      font-size: 12px;
+      line-height: 1.35;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .seg-meta {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 10px;
+      color: var(--muted);
+      letter-spacing: 0.02em;
+    }
+    .seg-time { font-variant-numeric: tabular-nums; }
+    .seg-tag {
+      font-size: 9px;
+      padding: 2px 6px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.05);
+    }
+    .seg-keep .seg-tag { color: var(--keep); }
+    .seg-cut  .seg-tag { color: var(--cut); }
+
+    /* ---- inline edit ---- */
+    .seg.editing { cursor: text; }
+    .seg-edit {
+      width: 100%;
+      background: rgba(0, 0, 0, 0.35);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      border-radius: 4px;
+      color: var(--text);
+      font-size: 12px;
+      line-height: 1.35;
+      padding: 4px 6px;
+      outline: none;
+      font-family: inherit;
+      resize: none;
+    }
+    .seg-edit:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px rgba(255, 216, 77, 0.20);
+    }
+
+    /* ---- AI panel (right side) ---- */
+    .ai-panel {
+      flex: 0 0 340px;
+      background: var(--panel);
+      border-left: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+    .ai-header {
+      height: 44px;
+      padding: 0 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border);
+      font-size: 13px;
+    }
+    .ai-title { font-weight: 500; }
+    .ai-status {
+      font-size: 11px;
+      color: var(--muted);
+      font-variant-numeric: tabular-nums;
+    }
+    .ai-status.busy { color: var(--accent); }
+
+    .ai-messages {
+      flex: 1 1 auto;
+      overflow-y: auto;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .ai-messages::-webkit-scrollbar { width: 8px; }
+    .ai-messages::-webkit-scrollbar-thumb {
+      background: #2A3340; border-radius: 8px;
+    }
+
+    .msg {
+      max-width: 92%;
+      padding: 8px 10px;
+      border-radius: 8px;
+      font-size: 12.5px;
+      line-height: 1.45;
+      word-wrap: break-word;
+      white-space: pre-wrap;
+    }
+    .msg-user {
+      align-self: flex-end;
+      background: rgba(92, 168, 255, 0.16);
+      border: 1px solid rgba(92, 168, 255, 0.40);
+      color: #DCE9F8;
+    }
+    .msg-ai {
+      align-self: flex-start;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--border);
+      color: var(--text);
+    }
+    .msg-hint {
+      align-self: stretch;
+      text-align: center;
+      color: var(--muted);
+      background: transparent;
+      border: 1px dashed var(--border);
+      font-size: 11.5px;
+    }
+    .msg-loading {
+      align-self: flex-start;
+      color: var(--muted);
+      font-size: 12px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 10px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.03);
+    }
+    .msg-loading .dots { display: inline-flex; gap: 3px; }
+    .msg-loading .dot {
+      width: 4px; height: 4px; border-radius: 50%;
+      background: var(--muted);
+      animation: aiPulse 1.2s infinite ease-in-out;
+    }
+    .msg-loading .dot:nth-child(2) { animation-delay: 0.15s; }
+    .msg-loading .dot:nth-child(3) { animation-delay: 0.30s; }
+    @keyframes aiPulse {
+      0%, 80%, 100% { opacity: 0.25; transform: scale(0.9); }
+      40%           { opacity: 1;    transform: scale(1); }
+    }
+
+    .ai-input-row {
+      padding: 10px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      gap: 8px;
+      align-items: flex-end;
+    }
+    .ai-input {
+      flex: 1 1 auto;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 6px;
+      padding: 8px 10px;
+      font-size: 12.5px;
+      font-family: inherit;
+      resize: none;
+      outline: none;
+      min-height: 42px;
+      max-height: 120px;
+      line-height: 1.4;
+    }
+    .ai-input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px rgba(255, 216, 77, 0.15);
+    }
+    .ai-input::placeholder { color: #55606f; }
+
+    .ai-send {
+      background: var(--keep);
+      color: #12161C;
+      font-weight: 600;
+      font-size: 12.5px;
+      border: none;
+      border-radius: 6px;
+      padding: 0 14px;
+      height: 40px;
+      cursor: pointer;
+      transition: filter 0.15s ease;
+    }
+    .ai-send:hover:not(:disabled) { filter: brightness(1.08); }
+    .ai-send:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+    /* ---- Export modal ---- */
+    .modal[hidden] { display: none; }
+    .modal {
+      position: fixed;
+      inset: 0;
+      z-index: 100;
+      display: grid;
+      place-items: center;
+    }
+    .modal-backdrop {
+      position: absolute;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.65);
+      backdrop-filter: blur(2px);
+    }
+    .modal-panel {
+      position: relative;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      width: min(720px, calc(100vw - 40px));
+      max-height: min(80vh, 720px);
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+      overflow: hidden;
+    }
+    .modal-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      padding: 16px 18px;
+      border-bottom: 1px solid var(--border);
+    }
+    .modal-title { font-size: 14px; font-weight: 600; }
+    .modal-sub {
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 2px;
+      font-variant-numeric: tabular-nums;
+    }
+    .modal-close {
+      background: transparent;
+      border: none;
+      color: var(--muted);
+      font-size: 22px;
+      line-height: 1;
+      cursor: pointer;
+      padding: 0 4px;
+    }
+    .modal-close:hover { color: var(--text); }
+
+    .modal-body {
+      flex: 1 1 auto;
+      overflow: auto;
+      margin: 0;
+      padding: 14px 18px;
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+      font-size: 12px;
+      line-height: 1.5;
+      color: #C7D3E0;
+      background: var(--bg);
+      white-space: pre;
+    }
+    .modal-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 12px 18px;
+      border-top: 1px solid var(--border);
+    }
+    .modal-footer-status {
+      font-size: 12px;
+      color: var(--muted);
+      min-height: 16px;
+    }
+    .modal-footer-status.ok  { color: var(--keep); }
+    .modal-footer-status.err { color: var(--cut); }
+    .modal-footer-actions { display: flex; gap: 8px; }
+
+    .btn-secondary {
+      background: transparent;
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 7px 12px;
+      font-size: 12.5px;
+      cursor: pointer;
+      transition: background 0.15s ease, border-color 0.15s ease;
+    }
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.04);
+      border-color: #384454;
+    }
+    .btn-primary {
+      background: var(--keep);
+      color: #12161C;
+      font-weight: 600;
+      border: none;
+      border-radius: 6px;
+      padding: 7px 14px;
+      font-size: 12.5px;
+      cursor: pointer;
+    }
+    .btn-primary:hover:not(:disabled) { filter: brightness(1.08); }
+    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <!-- Top bar -->
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark">AI</div>
+        <div>
+          <span class="brand-title">Untitled Editor</span>
+          <span class="brand-sub">· 서비스명 자리표시</span>
+        </div>
+      </div>
+      <button class="btn-export" id="btn-export">내보내기</button>
+    </header>
+
+    <!-- Main preview + AI panel -->
+    <main class="main">
+      <section class="preview-wrap">
+        <div class="preview-col">
+          <div class="preview-toolbar">
+            <label class="btn-file">
+              영상 선택
+              <input type="file" accept="video/*" id="video-input" hidden />
+            </label>
+            <span class="preview-filename" id="preview-filename">파일을 선택하세요</span>
+          </div>
+
+          <div class="preview-fit">
+            <div class="preview" id="preview">
+              <video id="video" playsinline preload="metadata"></video>
+              <div class="preview-empty" id="preview-empty">영상 파일을 선택하면 여기에 재생됩니다</div>
+            </div>
+          </div>
+
+          <div class="preview-controls">
+            <button class="btn-play" id="btn-play" title="재생/일시정지 (Space)" disabled>
+              <svg class="icon-play" viewBox="0 0 12 12" width="10" height="10" aria-hidden="true">
+                <polygon points="2,1 11,6 2,11" fill="currentColor"/>
+              </svg>
+              <svg class="icon-pause" viewBox="0 0 12 12" width="10" height="10" aria-hidden="true" style="display:none">
+                <rect x="2" y="1" width="3" height="10" fill="currentColor"/>
+                <rect x="7" y="1" width="3" height="10" fill="currentColor"/>
+              </svg>
+            </button>
+            <span class="preview-time" id="preview-time">0:00 / 0:00</span>
+            <div class="preview-progress" id="preview-progress">
+              <div class="preview-progress-fill" id="preview-progress-fill"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <aside class="ai-panel">
+        <div class="ai-header">
+          <span class="ai-title">AI 수정 요청</span>
+          <span class="ai-status" id="ai-status"></span>
+        </div>
+        <div class="ai-messages" id="ai-messages">
+          <div class="msg msg-hint">자연어로 지시하세요.
+예) "말더듬 다 잘라줘", "3번 자막 자연스럽게 다듬어줘"</div>
+        </div>
+        <form class="ai-input-row" id="ai-form">
+          <textarea
+            class="ai-input"
+            id="ai-input"
+            rows="2"
+            placeholder="AI에게 수정을 지시하세요… (Enter=전송, Shift+Enter=줄바꿈)"></textarea>
+          <button type="submit" class="ai-send" id="ai-send">보내기</button>
+        </form>
+      </aside>
+    </main>
+
+    <!-- Export modal -->
+    <div class="modal" id="export-modal" hidden>
+      <div class="modal-backdrop" data-close></div>
+      <div class="modal-panel">
+        <div class="modal-header">
+          <div>
+            <div class="modal-title">내보낼 JSON</div>
+            <div class="modal-sub" id="export-summary"></div>
+          </div>
+          <button class="modal-close" data-close aria-label="닫기">×</button>
+        </div>
+        <pre class="modal-body" id="export-body"></pre>
+        <div class="modal-footer">
+          <div class="modal-footer-status" id="export-status"></div>
+          <div class="modal-footer-actions">
+            <button class="btn-secondary" id="btn-copy-json">JSON 복사</button>
+            <button class="btn-secondary" data-close>닫기</button>
+            <button class="btn-primary" id="btn-render">백엔드로 보내기</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Timeline -->
+    <section class="timeline-panel">
+      <div class="timeline-header">
+        <div class="tl-left">
+          <span class="tl-title">타임라인</span>
+          <span class="tl-stats" id="stats">
+            <span class="stat-keep">유지 0개</span>
+            <span class="stat-sep">/</span>
+            <span class="stat-cut">제거 0개</span>
+            <span class="stat-sep">·</span>
+            <span class="stat-dur">예상 길이 0.0초</span>
+          </span>
+        </div>
+        <div class="legend">
+          <span class="legend-item">
+            <span class="legend-dot legend-keep"></span>
+            <span>살리는 구간</span>
+          </span>
+          <span class="legend-item">
+            <span class="legend-dot legend-cut"></span>
+            <span>자르는 구간</span>
+          </span>
+        </div>
+      </div>
+      <div class="timeline-scroll" id="timeline-scroll">
+        <div class="timeline-content" id="timeline-content">
+          <div class="ruler" id="ruler"></div>
+          <div class="track" id="track"></div>
+          <div class="playhead" id="playhead">
+            <div class="playhead-handle" id="playhead-handle" title="드래그해서 이동"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    // -------------------- Mock data --------------------
+    // start, end (초 단위), text (자막), cut (true=자르는 구간)
+    const SEGMENTS = [
+      { start:  0.0, end:  3.2, text: "안녕하세요, 오늘은 AI 영상 편집기에 대해 소개해드리려고 합니다.", cut: false },
+      { start:  3.2, end:  4.1, text: "어...",                                                              cut: true  },
+      { start:  4.1, end:  8.6, text: "이 프로젝트는 긴 촬영본에서 불필요한 부분을 자동으로 제거해줍니다.", cut: false },
+      { start:  8.6, end:  9.9, text: "음... 그러니까,",                                                     cut: true  },
+      { start:  9.9, end: 14.3, text: "말더듬이나 반복되는 문장을 AI가 감지해서 컷 후보로 추천합니다.",     cut: false },
+      { start: 14.3, end: 16.0, text: "반복되는 문장을 AI가 감지해서 컷 후보로 추천해요.",                  cut: true  },
+      { start: 16.0, end: 20.8, text: "사용자는 타임라인에서 각 구간을 클릭해서 살릴지 자를지 결정합니다.", cut: false },
+      { start: 20.8, end: 22.1, text: "어어...",                                                             cut: true  },
+      { start: 22.1, end: 27.5, text: "최종 결과물은 자연스럽게 이어붙여서 하나의 영상으로 내보낼 수 있어요.", cut: false },
+      { start: 27.5, end: 30.4, text: "감사합니다!",                                                         cut: false },
+    ];
+
+    // -------------------- Renderer --------------------
+    const PX_PER_SECOND    = 60; // 1초 = 60px — ruler / segments / playhead 모두 이 스케일 공유
+    const TIMELINE_END_PAD = 40; // 스크롤 끝단 여유 공간
+
+    function formatTime(s) {
+      const m = Math.floor(s / 60);
+      const sec = (s - m * 60);
+      const secStr = sec.toFixed(1).padStart(4, "0");
+      return `${m}:${secStr}`;
+    }
+    function formatMinSec(s) {
+      s = Math.max(0, Math.floor(s || 0));
+      const m = Math.floor(s / 60);
+      const sec = s % 60;
+      return `${m}:${sec.toString().padStart(2, "0")}`;
+    }
+
+    /** segments의 마지막 end 와 loaded video의 duration 중 큰 값. */
+    function totalDurationSec() {
+      const segMax = SEGMENTS.length ? SEGMENTS[SEGMENTS.length - 1].end : 0;
+      const v = document.getElementById("video");
+      const vidDur = (v && isFinite(v.duration)) ? v.duration : 0;
+      return Math.max(segMax, vidDur);
+    }
+
+    function updateTimelineWidth() {
+      const width = totalDurationSec() * PX_PER_SECOND + TIMELINE_END_PAD;
+      const el = document.getElementById("timeline-content");
+      if (el) el.style.minWidth = `${width}px`;
+    }
+
+    function renderRuler() {
+      const ruler = document.getElementById("ruler");
+      if (!ruler) return;
+      ruler.innerHTML = "";
+      const total = totalDurationSec();
+      const maxTick = Math.ceil(total);
+      for (let t = 0; t <= maxTick; t++) {
+        const x = t * PX_PER_SECOND;
+        const isMajor = (t % 5 === 0);
+        const tick = document.createElement("div");
+        tick.className = isMajor ? "ruler-tick-major" : "ruler-tick-minor";
+        tick.style.left = `${x}px`;
+        ruler.appendChild(tick);
+        if (isMajor) {
+          const label = document.createElement("div");
+          label.className = "ruler-label";
+          label.style.left = `${x}px`;
+          label.textContent = formatMinSec(t);
+          ruler.appendChild(label);
+        }
+      }
+    }
+
+    function renderTimeline(segments) {
+      const track = document.getElementById("track");
+      track.innerHTML = "";
+
+      segments.forEach((seg, i) => {
+        const el = document.createElement("div");
+        el.className = "seg " + (seg.cut ? "seg-cut" : "seg-keep");
+        // 절대 위치: start*60 부터 duration*60 만큼 → 눈금·플레이헤드와 정확히 정렬
+        el.style.left  = `${seg.start * PX_PER_SECOND}px`;
+        el.style.width = `${Math.max(0, (seg.end - seg.start) * PX_PER_SECOND)}px`;
+        el.title = `${formatTime(seg.start)} – ${formatTime(seg.end)}  |  ${seg.text}`;
+        el.dataset.index = i;
+
+        el.innerHTML = `
+          <div class="seg-text">${seg.text}</div>
+          <div class="seg-meta">
+            <span class="seg-time">${formatTime(seg.start)} – ${formatTime(seg.end)}</span>
+            <span class="seg-tag">${seg.cut ? "cut" : "keep"}</span>
+          </div>
+        `;
+
+        // click = toggle cut, dblclick = edit text.
+        // Delay the click so a following dblclick can cancel it.
+        let clickTimer = null;
+        el.addEventListener("click", () => {
+          if (el.classList.contains("editing")) return;
+          if (clickTimer) return;
+          clickTimer = setTimeout(() => {
+            clickTimer = null;
+            toggleSegment(i, el);
+          }, 220);
+        });
+        el.addEventListener("dblclick", () => {
+          if (clickTimer) { clearTimeout(clickTimer); clickTimer = null; }
+          if (el.classList.contains("editing")) return;
+          startEditing(i, el);
+        });
+
+        track.appendChild(el);
+      });
+
+      updateTimelineWidth();
+      renderRuler();
+    }
+
+    function startEditing(index, el) {
+      const seg = SEGMENTS[index];
+      const textDiv = el.querySelector(".seg-text");
+      if (!textDiv) return;
+
+      el.classList.add("editing");
+
+      const input = document.createElement("input");
+      input.type = "text";
+      input.className = "seg-edit";
+      input.value = seg.text;
+
+      // events on the input must not bubble up to the block
+      input.addEventListener("click",    (e) => e.stopPropagation());
+      input.addEventListener("dblclick", (e) => e.stopPropagation());
+      input.addEventListener("mousedown",(e) => e.stopPropagation());
+
+      let done = false;
+      const finish = (commit) => {
+        if (done) return;
+        done = true;
+        if (commit) {
+          const trimmed = input.value.trim();
+          if (trimmed.length > 0) seg.text = trimmed;
+        }
+        stopEditing(index, el);
+      };
+
+      input.addEventListener("keydown", (e) => {
+        if (e.key === "Enter")  { e.preventDefault(); finish(true);  }
+        else if (e.key === "Escape") { e.preventDefault(); finish(false); }
+      });
+      // clicking outside commits (safer than discarding)
+      input.addEventListener("blur", () => finish(true));
+
+      textDiv.replaceWith(input);
+      input.focus();
+      input.select();
+    }
+
+    function stopEditing(index, el) {
+      const seg = SEGMENTS[index];
+      const input = el.querySelector(".seg-edit");
+      if (!input) { el.classList.remove("editing"); return; }
+
+      const textDiv = document.createElement("div");
+      textDiv.className = "seg-text";
+      textDiv.textContent = seg.text;
+      input.replaceWith(textDiv);
+
+      el.classList.remove("editing");
+      el.title = `${formatTime(seg.start)} – ${formatTime(seg.end)}  |  ${seg.text}`;
+    }
+
+    function toggleSegment(index, el) {
+      const seg = SEGMENTS[index];
+      seg.cut = !seg.cut;
+
+      // update this block in place (no full re-render)
+      el.classList.toggle("seg-cut", seg.cut);
+      el.classList.toggle("seg-keep", !seg.cut);
+      const tag = el.querySelector(".seg-tag");
+      if (tag) tag.textContent = seg.cut ? "cut" : "keep";
+
+      updateStats();
+    }
+
+    function updateStats() {
+      let keepCount = 0, cutCount = 0, keepDuration = 0;
+      for (const seg of SEGMENTS) {
+        const d = Math.max(0, seg.end - seg.start);
+        if (seg.cut) {
+          cutCount++;
+        } else {
+          keepCount++;
+          keepDuration += d;
+        }
+      }
+      document.querySelector("#stats .stat-keep").textContent = `유지 ${keepCount}개`;
+      document.querySelector("#stats .stat-cut").textContent  = `제거 ${cutCount}개`;
+      document.querySelector("#stats .stat-dur").textContent  = `예상 길이 ${keepDuration.toFixed(1)}초`;
+    }
+
+    renderTimeline(SEGMENTS);
+    updateStats();
+
+    // -------------------- AI panel --------------------
+    // When the backend is ready, flip USE_MOCK_API to false. The fetch call
+    // below is the *only* thing that needs to change afterwards.
+    const USE_MOCK_API = true;
+    const AI_ENDPOINT  = "/revise";
+
+    function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+    /**
+     * Send a natural-language edit instruction to the AI backend.
+     * Contract (also used by mock):
+     *   request : { instruction: string, segments: Segment[] }
+     *   response: { ok: boolean, message?: string, segments?: Segment[] }
+     * When `segments` is present in the response, caller should replace
+     * SEGMENTS and re-render the timeline.
+     */
+    async function requestAiEdit(instruction) {
+      const payload = { instruction, segments: SEGMENTS };
+      console.log("[requestAiEdit] →", payload);
+
+      if (USE_MOCK_API) {
+        await sleep(1200);
+        const mock = {
+          ok: true,
+          message:
+            "(백엔드 없음) 요청은 콘솔에 기록되었습니다.\n" +
+            "실제 연결 시 응답의 segments로 타임라인을 갱신합니다.",
+        };
+        console.log("[requestAiEdit] ←", mock);
+        return mock;
+      }
+
+      const res = await fetch(AI_ENDPOINT, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return await res.json();
+    }
+
+    // ---- chat UI helpers ----
+    const messagesEl = document.getElementById("ai-messages");
+    const statusEl   = document.getElementById("ai-status");
+    const inputEl    = document.getElementById("ai-input");
+    const sendEl     = document.getElementById("ai-send");
+    const formEl     = document.getElementById("ai-form");
+
+    function addMessage(kind, text) {
+      const el = document.createElement("div");
+      el.className = `msg msg-${kind}`;
+      el.textContent = text;
+      messagesEl.appendChild(el);
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+      return el;
+    }
+
+    function addLoadingMessage() {
+      const el = document.createElement("div");
+      el.className = "msg-loading";
+      el.innerHTML =
+        `<span>AI가 처리 중</span>` +
+        `<span class="dots"><span class="dot"></span><span class="dot"></span><span class="dot"></span></span>`;
+      messagesEl.appendChild(el);
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+      return el;
+    }
+
+    function setSending(isSending) {
+      inputEl.disabled = isSending;
+      sendEl.disabled  = isSending;
+      statusEl.textContent = isSending ? "처리 중…" : "";
+      statusEl.classList.toggle("busy", isSending);
+    }
+
+    async function submitAiInstruction(text) {
+      addMessage("user", text);
+      const loading = addLoadingMessage();
+      setSending(true);
+      try {
+        const result = await requestAiEdit(text);
+        loading.remove();
+        addMessage("ai", result?.message ?? "완료되었습니다.");
+
+        // Hook for later: when backend returns updated segments, apply them.
+        if (Array.isArray(result?.segments)) {
+          SEGMENTS.splice(0, SEGMENTS.length, ...result.segments);
+          renderTimeline(SEGMENTS);
+          updateStats();
+        }
+      } catch (err) {
+        loading.remove();
+        addMessage("ai", `요청 실패: ${err.message}`);
+        console.error("[requestAiEdit] error:", err);
+      } finally {
+        setSending(false);
+        inputEl.focus();
+      }
+    }
+
+    formEl.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const text = inputEl.value.trim();
+      if (!text || sendEl.disabled) return;
+      inputEl.value = "";
+      submitAiInstruction(text);
+    });
+
+    // Enter=send, Shift+Enter=newline
+    inputEl.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && !e.shiftKey && !e.isComposing) {
+        e.preventDefault();
+        formEl.requestSubmit();
+      }
+    });
+
+    // -------------------- Export --------------------
+    // Flip USE_MOCK_RENDER to false when /render is live. The fetch below is
+    // the only thing that changes.
+    const USE_MOCK_RENDER = true;
+    const RENDER_ENDPOINT = "/render";
+
+    // Fixed subtitle style for MVP. Move these into per-segment fields later
+    // if the UI lets the user customize them.
+    const SUBTITLE_DEFAULTS = { subtitle_color: "white", fontsize: 36 };
+
+    /** Convert in-memory SEGMENTS into the exact shape the backend expects. */
+    function buildExportPayload(segments) {
+      return segments.map(s => ({
+        start: s.start,
+        end: s.end,
+        text: s.text,
+        cut: s.cut,
+        subtitle_color: SUBTITLE_DEFAULTS.subtitle_color,
+        fontsize:       SUBTITLE_DEFAULTS.fontsize,
+      }));
+    }
+
+    /**
+     * Send the final render payload.
+     * Response contract (mock and real): { ok: boolean, message?: string, jobId?: string }
+     */
+    async function submitRender(payload) {
+      console.log("[submitRender] →", payload);
+
+      if (USE_MOCK_RENDER) {
+        await sleep(600);
+        const mock = {
+          ok: true,
+          message: "(mock) payload가 콘솔에 기록되었습니다. 실제 렌더링은 백엔드 연결 후 동작합니다.",
+        };
+        console.log("[submitRender] ←", mock);
+        return mock;
+      }
+
+      const res = await fetch(RENDER_ENDPOINT, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return await res.json();
+    }
+
+    // ---- Modal wiring ----
+    const modalEl        = document.getElementById("export-modal");
+    const exportBodyEl   = document.getElementById("export-body");
+    const exportSummaryEl= document.getElementById("export-summary");
+    const exportStatusEl = document.getElementById("export-status");
+    const btnExport      = document.getElementById("btn-export");
+    const btnRender      = document.getElementById("btn-render");
+    const btnCopyJson    = document.getElementById("btn-copy-json");
+
+    function setExportStatus(text, kind) {
+      exportStatusEl.textContent = text || "";
+      exportStatusEl.classList.remove("ok", "err");
+      if (kind) exportStatusEl.classList.add(kind);
+    }
+
+    function openExportModal() {
+      const payload = buildExportPayload(SEGMENTS);
+      const keep = payload.filter(s => !s.cut).length;
+      const cut  = payload.length - keep;
+      const keepDuration = payload
+        .filter(s => !s.cut)
+        .reduce((a, s) => a + Math.max(0, s.end - s.start), 0);
+
+      exportBodyEl.textContent   = JSON.stringify(payload, null, 2);
+      exportSummaryEl.textContent = `세그먼트 ${payload.length}개 · 유지 ${keep} / 제거 ${cut} · 예상 길이 ${keepDuration.toFixed(1)}초`;
+      setExportStatus("");
+      btnRender.disabled = false;
+      btnRender.textContent = "백엔드로 보내기";
+      modalEl.hidden = false;
+
+      console.log("[export] payload:", payload);
+    }
+
+    function closeExportModal() {
+      modalEl.hidden = true;
+    }
+
+    btnExport.addEventListener("click", openExportModal);
+
+    // any element with [data-close] inside the modal closes it
+    modalEl.addEventListener("click", (e) => {
+      if (e.target.matches("[data-close]")) closeExportModal();
+    });
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && !modalEl.hidden) closeExportModal();
+    });
+
+    btnCopyJson.addEventListener("click", async () => {
+      try {
+        await navigator.clipboard.writeText(exportBodyEl.textContent);
+        const original = btnCopyJson.textContent;
+        btnCopyJson.textContent = "복사됨 ✓";
+        setTimeout(() => (btnCopyJson.textContent = original), 1400);
+      } catch (err) {
+        setExportStatus(`복사 실패: ${err.message}`, "err");
+      }
+    });
+
+    btnRender.addEventListener("click", async () => {
+      const payload = buildExportPayload(SEGMENTS);
+      btnRender.disabled = true;
+      btnRender.textContent = "전송 중…";
+      setExportStatus("백엔드에 전송 중…");
+      try {
+        const result = await submitRender(payload);
+        setExportStatus(result?.message ?? "전송 완료", "ok");
+      } catch (err) {
+        setExportStatus(`전송 실패: ${err.message}`, "err");
+        console.error("[submitRender] error:", err);
+      } finally {
+        btnRender.disabled = false;
+        btnRender.textContent = "백엔드로 보내기";
+      }
+    });
+
+    // -------------------- Video player + playhead --------------------
+    const videoEl        = document.getElementById("video");
+    const videoInput     = document.getElementById("video-input");
+    const previewBoxEl   = document.getElementById("preview");
+    const previewFileEl  = document.getElementById("preview-filename");
+    const btnPlayEl      = document.getElementById("btn-play");
+    const iconPlayEl     = btnPlayEl.querySelector(".icon-play");
+    const iconPauseEl    = btnPlayEl.querySelector(".icon-pause");
+    const previewTimeEl  = document.getElementById("preview-time");
+    const previewProgEl  = document.getElementById("preview-progress");
+    const previewFillEl  = document.getElementById("preview-progress-fill");
+    const playheadEl     = document.getElementById("playhead");
+    const handleEl       = document.getElementById("playhead-handle");
+    const rulerEl        = document.getElementById("ruler");
+    const trackEl        = document.getElementById("track");
+    const contentEl      = document.getElementById("timeline-content");
+
+    function currentDurationSec() {
+      const d = videoEl.duration;
+      return (isFinite(d) && d > 0) ? d : totalDurationSec();
+    }
+
+    function updatePlaybackUI() {
+      const t   = videoEl.currentTime || 0;
+      const dur = currentDurationSec();
+      const pct = dur > 0 ? (t / dur) * 100 : 0;
+      previewTimeEl.textContent = `${formatMinSec(t)} / ${formatMinSec(dur)}`;
+      previewFillEl.style.width = `${pct}%`;
+      playheadEl.style.left     = `${t * PX_PER_SECOND}px`;
+    }
+    // initial paint (before any video loaded)
+    previewTimeEl.textContent = `0:00 / ${formatMinSec(totalDurationSec())}`;
+
+    // ---- File picker ----
+    videoInput.addEventListener("change", (e) => {
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
+      // release previous blob so we don't leak memory across reloads
+      if (videoEl.dataset.blobUrl) URL.revokeObjectURL(videoEl.dataset.blobUrl);
+      const url = URL.createObjectURL(file);
+      videoEl.dataset.blobUrl = url;
+      videoEl.src = url;
+      videoEl.load();
+      previewBoxEl.classList.add("has-video");
+      previewFileEl.textContent = file.name;
+    });
+
+    // ---- Video events ----
+    videoEl.addEventListener("loadedmetadata", () => {
+      btnPlayEl.disabled = false;
+      // video may be longer than SEGMENTS → extend ruler/timeline width
+      updateTimelineWidth();
+      renderRuler();
+      updatePlaybackUI();
+    });
+    videoEl.addEventListener("timeupdate", updatePlaybackUI);
+    videoEl.addEventListener("seeked",     updatePlaybackUI);
+    videoEl.addEventListener("ended",      updatePlaybackUI);
+
+    videoEl.addEventListener("play", () => {
+      iconPlayEl.style.display  = "none";
+      iconPauseEl.style.display = "block";
+    });
+    videoEl.addEventListener("pause", () => {
+      iconPlayEl.style.display  = "block";
+      iconPauseEl.style.display = "none";
+    });
+
+    // ---- Controls ----
+    btnPlayEl.addEventListener("click", () => {
+      if (!videoEl.src) return;
+      if (videoEl.paused) videoEl.play(); else videoEl.pause();
+    });
+
+    // click progress bar → seek
+    previewProgEl.addEventListener("click", (e) => {
+      const dur = videoEl.duration;
+      if (!isFinite(dur) || dur <= 0) return;
+      const rect = previewProgEl.getBoundingClientRect();
+      const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+      videoEl.currentTime = ratio * dur;
+    });
+
+    /** Convert a clientX into a clamped { x, t } within the timeline. */
+    function clientXToTimelinePos(clientX) {
+      const rect = contentEl.getBoundingClientRect();
+      const total = totalDurationSec();
+      const maxX = Math.max(0, total * PX_PER_SECOND);
+      const x = Math.max(0, Math.min(maxX, clientX - rect.left));
+      return { x, t: x / PX_PER_SECOND };
+    }
+
+    /** Move playhead to (x px, t sec). Seeks the video when it's loaded. */
+    function seekToTimelinePos(x, t) {
+      playheadEl.style.left = `${x}px`;
+      const dur = currentDurationSec();
+      previewTimeEl.textContent = `${formatMinSec(t)} / ${formatMinSec(dur)}`;
+      if (isFinite(videoEl.duration) && videoEl.duration > 0) {
+        const clampedT = Math.min(videoEl.duration, Math.max(0, t));
+        previewFillEl.style.width = `${(clampedT / videoEl.duration) * 100}%`;
+        videoEl.currentTime = clampedT;
+      }
+    }
+
+    // click ruler → seek to that time
+    rulerEl.addEventListener("click", (e) => {
+      const { x, t } = clientXToTimelinePos(e.clientX);
+      seekToTimelinePos(x, t);
+    });
+
+    // click empty timeline (track background, not a segment) → seek
+    trackEl.addEventListener("click", (e) => {
+      if (e.target !== trackEl) return; // segments have their own click handler
+      const { x, t } = clientXToTimelinePos(e.clientX);
+      seekToTimelinePos(x, t);
+    });
+
+    // drag playhead handle (pointer events → smooth, works for mouse & touch)
+    let dragActive = false;
+    let dragResumePlay = false;
+
+    handleEl.addEventListener("pointerdown", (e) => {
+      e.preventDefault();
+      dragActive = true;
+      dragLastClientX = e.clientX;
+      dragResumePlay = !!videoEl.src && !videoEl.paused;
+      if (dragResumePlay) videoEl.pause();
+      playheadEl.classList.add("dragging");
+      try { handleEl.setPointerCapture(e.pointerId); } catch (_) {}
+      startEdgeScrollLoop();
+    });
+
+    handleEl.addEventListener("pointermove", (e) => {
+      if (!dragActive) return;
+      dragLastClientX = e.clientX;
+      const { x, t } = clientXToTimelinePos(e.clientX);
+      seekToTimelinePos(x, t);
+    });
+
+    const endPlayheadDrag = (e) => {
+      if (!dragActive) return;
+      dragActive = false;
+      if (edgeScrollRafId) {
+        cancelAnimationFrame(edgeScrollRafId);
+        edgeScrollRafId = 0;
+      }
+      playheadEl.classList.remove("dragging");
+      try { handleEl.releasePointerCapture(e.pointerId); } catch (_) {}
+      if (dragResumePlay) videoEl.play().catch(() => {});
+      dragResumePlay = false;
+    };
+    handleEl.addEventListener("pointerup",     endPlayheadDrag);
+    handleEl.addEventListener("pointercancel", endPlayheadDrag);
+
+    // -------------------- Timeline horizontal scroll + pan --------------------
+    const timelineScrollEl = document.getElementById("timeline-scroll");
+
+    // Mouse wheel → horizontal scroll. Trackpad horizontal swipes come in as
+    // deltaX and are handled natively; only redirect a dominant vertical wheel.
+    timelineScrollEl.addEventListener("wheel", (e) => {
+      if (Math.abs(e.deltaX) >= Math.abs(e.deltaY)) return; // let native handle
+      if (e.deltaY === 0) return;
+      timelineScrollEl.scrollLeft += e.deltaY;
+      e.preventDefault();
+    }, { passive: false });
+
+    // Click-drag panning on empty timeline background. Only starts when the
+    // pointer lands on the ruler/track background itself — segments and the
+    // playhead handle keep their own behavior because their pointerdown
+    // targets are the child elements, not these backgrounds.
+    let panActive = false;
+    let panMoved  = false;
+    let panStartX = 0;
+    let panStartScrollLeft = 0;
+    const PAN_THRESHOLD_PX = 4;
+
+    function isPanBackground(target) {
+      return target === trackEl || target === rulerEl || target === contentEl;
+    }
+
+    contentEl.addEventListener("pointerdown", (e) => {
+      if (e.button !== 0) return;
+      if (!isPanBackground(e.target)) return;
+      panActive = true;
+      panMoved  = false;
+      panStartX = e.clientX;
+      panStartScrollLeft = timelineScrollEl.scrollLeft;
+      try { contentEl.setPointerCapture(e.pointerId); } catch (_) {}
+    });
+
+    contentEl.addEventListener("pointermove", (e) => {
+      if (!panActive) return;
+      const dx = e.clientX - panStartX;
+      if (!panMoved && Math.abs(dx) < PAN_THRESHOLD_PX) return;
+      if (!panMoved) {
+        panMoved = true;
+        contentEl.classList.add("panning");
+      }
+      timelineScrollEl.scrollLeft = panStartScrollLeft - dx;
+    });
+
+    const endPan = (e) => {
+      if (!panActive) return;
+      const moved = panMoved;
+      panActive = false;
+      panMoved  = false;
+      contentEl.classList.remove("panning");
+      try { contentEl.releasePointerCapture(e.pointerId); } catch (_) {}
+      // If a pan actually happened, swallow the trailing click so the
+      // ruler/track seek handlers don't fire at the drop location.
+      if (moved) {
+        const swallow = (ev) => {
+          ev.stopPropagation();
+          ev.preventDefault();
+          document.removeEventListener("click", swallow, true);
+        };
+        document.addEventListener("click", swallow, true);
+      }
+    };
+    contentEl.addEventListener("pointerup",     endPan);
+    contentEl.addEventListener("pointercancel", endPan);
+
+    // -------------------- Auto-scroll while dragging playhead --------------------
+    // When the dragged playhead nears the visible timeline's edge, keep
+    // scrolling the container so the user can drag past what's on screen.
+    // The playhead is re-seeked each frame so it stays under the cursor.
+    const EDGE_ZONE_PX  = 40; // start scrolling when pointer is within this
+    const EDGE_MAX_STEP = 20; // max px scrolled per frame at the very edge
+    let dragLastClientX = 0;
+    let edgeScrollRafId = 0;
+
+    function tickEdgeScroll() {
+      const rect = timelineScrollEl.getBoundingClientRect();
+      const leftDist  = dragLastClientX - rect.left;
+      const rightDist = rect.right - dragLastClientX;
+      let dx = 0;
+      if (leftDist < EDGE_ZONE_PX) {
+        const s = Math.max(0, Math.min(1, (EDGE_ZONE_PX - leftDist) / EDGE_ZONE_PX));
+        dx = -s * EDGE_MAX_STEP;
+      } else if (rightDist < EDGE_ZONE_PX) {
+        const s = Math.max(0, Math.min(1, (EDGE_ZONE_PX - rightDist) / EDGE_ZONE_PX));
+        dx = s * EDGE_MAX_STEP;
+      }
+      if (dx === 0) return;
+      const maxScroll = Math.max(0, timelineScrollEl.scrollWidth - timelineScrollEl.clientWidth);
+      const before = timelineScrollEl.scrollLeft;
+      const next   = Math.max(0, Math.min(maxScroll, before + dx));
+      if (next === before) return; // already at the timeline edge
+      timelineScrollEl.scrollLeft = next;
+      // Content shifted under a (possibly stationary) pointer, so the same
+      // clientX now maps to a different time — re-seek to keep the playhead
+      // pinned to the cursor.
+      const { x, t } = clientXToTimelinePos(dragLastClientX);
+      seekToTimelinePos(x, t);
+    }
+
+    function startEdgeScrollLoop() {
+      if (edgeScrollRafId) return;
+      const step = () => {
+        if (!dragActive) { edgeScrollRafId = 0; return; }
+        tickEdgeScroll();
+        edgeScrollRafId = requestAnimationFrame(step);
+      };
+      edgeScrollRafId = requestAnimationFrame(step);
+    }
+
+    // Space bar toggles play/pause — skip when typing in an input/textarea
+    document.addEventListener("keydown", (e) => {
+      if (e.code !== "Space") return;
+      if (e.target.matches("input, textarea, [contenteditable=true]")) return;
+      if (!videoEl.src) return;
+      e.preventDefault();
+      if (videoEl.paused) videoEl.play(); else videoEl.pause();
+    });
+  </script>
+</body>
+</html>
