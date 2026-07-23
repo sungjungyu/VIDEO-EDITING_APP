@@ -1,74 +1,1362 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Cutroom AI — Video editor</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Inter:wght@400;500;600;700&family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/static/app.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cutroom AI</title>
+  <style>
+    /* ── Design tokens ─────────────────────────────────────── */
+    :root {
+      --bg:        #12161C;
+      --panel:     #1B222B;
+      --panel2:    #222A35;
+      --border:    #2A3340;
+      --text:      #E8ECF1;
+      --muted:     #7A8899;
+      --accent:    #FFD84D;
+      --keep:      #5CA8FF;
+      --cut:       #FF5C5C;
+      --analyzing: #A78BFA;
+      --radius:    8px;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; background: var(--bg); color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Pretendard",
+                   "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+      font-size: 13px; overflow: hidden; }
+
+    /* ── Shell ─────────────────────────────────────────────── */
+    .app { display: flex; flex-direction: column; height: 100vh; }
+
+    /* ── Topbar ────────────────────────────────────────────── */
+    .topbar {
+      flex: 0 0 52px; display: flex; align-items: center;
+      justify-content: space-between; padding: 0 18px;
+      background: var(--panel); border-bottom: 1px solid var(--border);
+      position: relative; z-index: 30;
+    }
+    .brand { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 14px; }
+    .brand-mark {
+      width: 24px; height: 24px; border-radius: 6px; display: grid; place-items: center;
+      background: linear-gradient(135deg, var(--keep), var(--accent));
+      font-size: 12px; font-weight: 900; color: #12161C;
+    }
+    .topbar-center { color: var(--muted); font-size: 12px; }
+    .btn-export {
+      background: var(--accent); color: #12161C; font-weight: 700; font-size: 12px;
+      padding: 7px 16px; border: none; border-radius: 6px; cursor: pointer;
+      transition: filter .15s;
+    }
+    .btn-export:hover { filter: brightness(1.08); }
+    .btn-export:disabled { opacity: .4; cursor: not-allowed; filter: none; }
+
+    /* ── Workspace (3 columns) ─────────────────────────────── */
+    .workspace {
+      flex: 1 1 auto; display: flex; min-height: 0; overflow: hidden;
+    }
+
+    /* ── Left panel ────────────────────────────────────────── */
+    .left-panel {
+      flex: 0 0 30%; display: flex; flex-direction: column;
+      border-right: 1px solid var(--border); background: var(--panel); min-width: 0;
+    }
+    .panel-tabs {
+      display: flex; border-bottom: 1px solid var(--border); flex: 0 0 auto;
+    }
+    .tab-btn {
+      flex: 1; padding: 10px 0; background: none; border: none; color: var(--muted);
+      font-size: 12px; font-weight: 600; cursor: pointer; border-bottom: 2px solid transparent;
+      transition: color .15s, border-color .15s;
+    }
+    .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+    .tab-pane { display: none; flex-direction: column; flex: 1 1 auto; min-height: 0; overflow: hidden; }
+    .tab-pane.active { display: flex; }
+
+    /* Media tab */
+    .upload-zone {
+      flex: 0 0 auto; margin: 12px; border: 2px dashed var(--border); border-radius: var(--radius);
+      padding: 18px 12px; text-align: center; cursor: pointer; transition: border-color .2s;
+    }
+    .upload-zone:hover, .upload-zone.drag-over { border-color: var(--accent); }
+    .upload-zone-text { color: var(--muted); font-size: 12px; line-height: 1.6; }
+    .upload-zone-text strong { display: block; color: var(--accent); font-size: 13px; margin-bottom: 4px; }
+    .storyline-wrap { flex: 0 0 auto; padding: 0 12px 10px; }
+    .storyline-label { font-size: 11px; color: var(--muted); margin-bottom: 4px; }
+    .storyline-input {
+      width: 100%; background: var(--panel2); border: 1px solid var(--border);
+      border-radius: 6px; padding: 7px 10px; color: var(--text); font-size: 12px;
+      resize: none; line-height: 1.5; outline: none;
+    }
+    .storyline-input:focus { border-color: var(--accent); }
+    .clip-list-label { padding: 6px 12px 4px; font-size: 11px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .05em; flex: 0 0 auto; }
+    .clip-list { flex: 1 1 auto; overflow-y: auto; padding: 0 8px 8px; }
+    .clip-item {
+      display: flex; align-items: center; gap: 10px; padding: 8px 10px;
+      border-radius: 7px; cursor: grab; user-select: none; margin-bottom: 4px;
+      border: 2px solid transparent; transition: background .15s, border-color .15s;
+    }
+    .clip-item:hover { background: var(--panel2); }
+    .clip-item.on-timeline { border-color: var(--keep); }
+    .clip-thumb-wrap {
+      flex: 0 0 56px; height: 36px; border-radius: 4px; overflow: hidden;
+      background: #0a0d12;
+    }
+    .clip-thumb { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .clip-info { flex: 1 1 auto; min-width: 0; }
+    .clip-name { font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 3px; }
+    .clip-meta { display: flex; align-items: center; gap: 8px; }
+    .clip-dur { font-size: 11px; color: var(--muted); }
+    .clip-status-badge {
+      font-size: 10px; padding: 1px 6px; border-radius: 10px; font-weight: 600;
+    }
+    .badge-uploading { background: #2a3340; color: var(--muted); }
+    .badge-ready     { background: #1a2a1a; color: #5ca85c; }
+    .badge-analyzed  { background: #1a2035; color: var(--keep); }
+    .badge-analyzing { background: #221a35; color: var(--analyzing); }
+    .badge-failed    { background: #351a1a; color: var(--cut); }
+    .clip-add-btn {
+      flex: 0 0 auto; background: none; border: 1px solid var(--border);
+      border-radius: 5px; color: var(--muted); font-size: 11px; padding: 3px 7px;
+      cursor: pointer; transition: border-color .15s, color .15s;
+    }
+    .clip-add-btn:hover { border-color: var(--keep); color: var(--keep); }
+
+    /* Style tab */
+    .style-tab-inner { padding: 16px 16px; }
+    .style-tab-label { font-size: 11px; color: var(--muted); margin-bottom: 10px; text-transform: uppercase; letter-spacing: .05em; }
+    .style-option {
+      display: flex; align-items: flex-start; gap: 10px; padding: 12px 14px;
+      border-radius: 8px; border: 2px solid var(--border); margin-bottom: 8px;
+      cursor: pointer; transition: border-color .15s;
+    }
+    .style-option:has(input:checked) { border-color: var(--accent); }
+    .style-option input { accent-color: var(--accent); margin-top: 2px; flex: 0 0 auto; }
+    .style-option-name { font-weight: 700; font-size: 13px; margin-bottom: 3px; }
+    .style-option-desc { font-size: 11px; color: var(--muted); line-height: 1.5; }
+
+    /* ── Center panel ──────────────────────────────────────── */
+    .center-panel {
+      flex: 0 0 30%; display: flex; flex-direction: column; min-width: 0;
+      background: var(--bg); padding: 14px;
+    }
+    .preview-area {
+      flex: 1 1 auto; min-height: 0; display: flex; align-items: center;
+      justify-content: center; position: relative;
+    }
+    .preview-box {
+      width: 100%; max-height: 100%; aspect-ratio: 16/9; background: #0a0d12;
+      border-radius: var(--radius); overflow: hidden; position: relative;
+      display: flex; align-items: center; justify-content: center;
+    }
+    #video { width: 100%; height: 100%; object-fit: contain; }
+    .preview-empty {
+      position: absolute; inset: 0; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; color: var(--muted);
+      font-size: 12px; text-align: center; line-height: 1.8; pointer-events: none;
+    }
+    .preview-empty.hidden { display: none; }
+    .preview-controls {
+      flex: 0 0 auto; display: flex; align-items: center; gap: 10px; padding-top: 10px;
+    }
+    .btn-play {
+      flex: 0 0 32px; height: 32px; background: var(--panel); border: 1px solid var(--border);
+      border-radius: 50%; display: grid; place-items: center; cursor: pointer;
+      transition: background .15s;
+    }
+    .btn-play:hover { background: var(--panel2); }
+    .btn-play:disabled { opacity: .3; cursor: not-allowed; }
+    .preview-time { flex: 0 0 auto; font-size: 11px; color: var(--muted); white-space: nowrap; }
+    .preview-progress {
+      flex: 1 1 auto; height: 4px; background: var(--border); border-radius: 2px;
+      cursor: pointer; position: relative;
+    }
+    .preview-progress-fill { height: 100%; background: var(--accent); border-radius: 2px; width: 0; }
+
+    /* ── Right AI panel ────────────────────────────────────── */
+    .right-panel {
+      flex: 0 0 40%; display: flex; flex-direction: column;
+      border-left: 1px solid var(--border); background: var(--panel); min-width: 0;
+    }
+
+    /* Analyze section */
+    .analyze-section {
+      flex: 0 0 auto; padding: 14px 16px 12px;
+      border-bottom: 1px solid var(--border);
+    }
+    .section-label { font-size: 11px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 10px; }
+    .btn-analyze {
+      width: 100%; padding: 9px; background: var(--accent); color: #12161C;
+      font-weight: 700; font-size: 13px; border: none; border-radius: 7px;
+      cursor: pointer; transition: filter .15s;
+    }
+    .btn-analyze:hover:not(:disabled) { filter: brightness(1.08); }
+    .btn-analyze:disabled { opacity: .35; cursor: not-allowed; filter: none; }
+    .analyze-progress { margin-top: 10px; }
+    .analyze-progress.hidden { display: none; }
+    .progress-stage { font-size: 11px; color: var(--muted); margin-bottom: 5px; }
+    .progress-bar-track {
+      height: 6px; background: var(--border); border-radius: 3px; overflow: hidden;
+    }
+    .progress-bar-fill { height: 100%; background: var(--analyzing); border-radius: 3px; width: 0; transition: width .4s; }
+
+    /* Quick commands */
+    .quick-section {
+      flex: 0 0 auto; padding: 12px 16px; border-bottom: 1px solid var(--border);
+    }
+    .quick-btns { display: flex; gap: 8px; flex-wrap: wrap; }
+    .btn-quick {
+      padding: 6px 14px; background: var(--panel2); border: 1px solid var(--border);
+      border-radius: 20px; color: var(--text); font-size: 12px; cursor: pointer;
+      transition: border-color .15s, color .15s;
+    }
+    .btn-quick:hover { border-color: var(--keep); color: var(--keep); }
+
+    /* AI chat */
+    .ai-chat { flex: 1 1 auto; display: flex; flex-direction: column; min-height: 0; }
+    .chat-header {
+      flex: 0 0 auto; padding: 10px 16px 8px;
+      border-bottom: 1px solid var(--border); font-size: 11px;
+      color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .05em;
+    }
+    .chat-messages {
+      flex: 1 1 auto; overflow-y: auto; padding: 12px 16px; display: flex;
+      flex-direction: column; gap: 8px;
+    }
+    .msg { padding: 9px 12px; border-radius: 8px; font-size: 12px; line-height: 1.6; max-width: 90%; }
+    .msg-hint { background: var(--panel2); color: var(--muted); align-self: center; text-align: center; max-width: 100%; }
+    .msg-user { background: #1e3050; color: var(--text); align-self: flex-end; }
+    .msg-ai   { background: var(--panel2); color: var(--text); align-self: flex-start; }
+    .msg-err  { background: #3d1a1a; color: var(--cut); align-self: flex-start; }
+    .chat-form { flex: 0 0 auto; display: flex; gap: 8px; padding: 10px 12px; border-top: 1px solid var(--border); }
+    .chat-input {
+      flex: 1; background: var(--panel2); border: 1px solid var(--border);
+      border-radius: 7px; padding: 8px 10px; color: var(--text); font-size: 12px;
+      resize: none; outline: none; line-height: 1.5; font-family: inherit;
+    }
+    .chat-input:focus { border-color: var(--keep); }
+    .btn-send {
+      flex: 0 0 auto; padding: 8px 14px; background: var(--keep); color: #fff;
+      border: none; border-radius: 7px; font-size: 12px; font-weight: 600;
+      cursor: pointer; transition: filter .15s; align-self: flex-end;
+    }
+    .btn-send:hover { filter: brightness(1.1); }
+
+    /* ── Timeline panel ────────────────────────────────────── */
+    .timeline-panel {
+      flex: 0 0 210px; border-top: 1px solid var(--border);
+      background: var(--panel); display: flex; flex-direction: column;
+    }
+    .tl-toolbar {
+      flex: 0 0 34px; display: flex; align-items: center; gap: 12px;
+      padding: 0 14px; border-bottom: 1px solid var(--border);
+    }
+    .tl-title { font-size: 12px; font-weight: 600; }
+    .tl-stats { flex: 1; font-size: 11px; color: var(--muted); }
+    .btn-snap {
+      padding: 4px 10px; border: 1px solid var(--border); border-radius: 5px;
+      background: none; color: var(--muted); font-size: 11px; cursor: pointer;
+      transition: border-color .15s, color .15s;
+    }
+    .btn-snap.active { border-color: var(--accent); color: var(--accent); }
+    .tl-scroll { flex: 1 1 auto; overflow: auto; position: relative; }
+    .tl-content {
+      position: relative; min-height: 100%;
+    }
+
+    /* Track rows */
+    .tl-row { display: flex; align-items: stretch; }
+    .tl-row-label {
+      flex: 0 0 52px; display: flex; align-items: center; justify-content: flex-end;
+      padding-right: 8px; font-size: 10px; color: var(--muted); font-weight: 600;
+      text-transform: uppercase; letter-spacing: .04em; border-right: 1px solid var(--border);
+      background: var(--panel); position: sticky; left: 0; z-index: 5;
+    }
+    .tl-row-body { flex: 1 1 auto; position: relative; min-height: 52px; }
+    .ruler-row .tl-row-body { min-height: 28px; background: var(--panel2); border-bottom: 1px solid var(--border); }
+    .video-row .tl-row-body { min-height: 64px; border-bottom: 1px solid var(--border); }
+    .sub-row .tl-row-body   { min-height: 48px; }
+
+    /* Ruler */
+    .ruler-tick { position: absolute; bottom: 0; width: 1px; background: var(--border); }
+    .ruler-tick.major { background: #3a4455; height: 14px; }
+    .ruler-tick.minor { height: 7px; }
+    .ruler-label {
+      position: absolute; bottom: 14px; font-size: 9px; color: var(--muted);
+      transform: translateX(-50%); white-space: nowrap;
+    }
+
+    /* Timeline clip (video track) */
+    .tl-clip {
+      position: absolute; top: 6px; height: 52px; border-radius: 5px;
+      background: #1e3050; border: 2px solid #2a4070;
+      display: flex; align-items: center; overflow: hidden;
+      cursor: pointer; user-select: none; transition: border-color .15s;
+    }
+    .tl-clip:hover  { border-color: var(--keep); }
+    .tl-clip.selected { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+    .tl-clip.analyzing { border-color: var(--analyzing); }
+    .tl-clip.analyzed  { border-color: var(--keep); background: #1a2a40; }
+    .tl-clip-inner { padding: 0 30px 0 8px; overflow: hidden; width: 100%; }
+    .tl-clip-name  { font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .tl-clip-dur   { font-size: 10px; color: var(--muted); }
+    .tl-clip-spinner { font-size: 10px; color: var(--analyzing); }
+
+    /* Trim handles */
+    .trim-handle {
+      position: absolute; top: 0; bottom: 0; width: 10px; cursor: col-resize;
+      background: rgba(255,255,255,.15); z-index: 2;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .trim-handle::after { content: ""; width: 2px; height: 20px; background: rgba(255,255,255,.5); border-radius: 1px; }
+    .trim-left  { left: 0; border-radius: 5px 0 0 5px; }
+    .trim-right { right: 0; border-radius: 0 5px 5px 0; }
+
+    /* Subtitle segments (subtitle track) */
+    .sub-seg {
+      position: absolute; top: 6px; height: 36px; border-radius: 4px;
+      cursor: pointer; overflow: hidden; border: 1px solid transparent;
+      transition: filter .1s;
+    }
+    .sub-seg:hover { filter: brightness(1.2); }
+    .sub-keep { background: rgba(92, 168, 255, .25); border-color: rgba(92, 168, 255, .5); }
+    .sub-cut  { background: rgba(255,  92,  92, .2);  border-color: rgba(255,  92,  92, .4); }
+    .sub-seg-text {
+      font-size: 10px; padding: 3px 5px; white-space: nowrap;
+      overflow: hidden; text-overflow: ellipsis; display: block;
+      color: var(--text); line-height: 1.3;
+    }
+    .sub-seg-tag {
+      position: absolute; right: 4px; bottom: 3px;
+      font-size: 9px; font-weight: 700;
+    }
+    .sub-keep .sub-seg-tag { color: var(--keep); }
+    .sub-cut  .sub-seg-tag { color: var(--cut); }
+
+    /* Playhead */
+    .playhead {
+      position: absolute; top: 0; bottom: 0; width: 1px;
+      background: var(--accent); pointer-events: none; z-index: 10; left: 52px;
+    }
+    .playhead-handle {
+      position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+      width: 12px; height: 16px; background: var(--accent);
+      clip-path: polygon(0 0, 100% 0, 100% 60%, 50% 100%, 0 60%);
+      cursor: pointer; pointer-events: all;
+    }
+
+    /* Empty timeline hint */
+    .tl-empty-hint {
+      position: absolute; inset: 0; display: flex; align-items: center;
+      justify-content: center; color: var(--muted); font-size: 12px;
+      pointer-events: none;
+    }
+
+    /* Export modal */
+    .modal { position: fixed; inset: 0; z-index: 100; display: flex; align-items: center; justify-content: center; }
+    .modal.hidden { display: none; }
+    .modal-backdrop { position: absolute; inset: 0; background: rgba(0,0,0,.6); }
+    .modal-panel {
+      position: relative; background: var(--panel); border: 1px solid var(--border);
+      border-radius: 12px; width: 520px; max-width: 90vw; max-height: 80vh;
+      display: flex; flex-direction: column; overflow: hidden;
+    }
+    .modal-header { padding: 18px 20px 14px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: flex-start; }
+    .modal-title { font-size: 15px; font-weight: 700; }
+    .modal-sub  { font-size: 12px; color: var(--muted); margin-top: 4px; }
+    .modal-close { background: none; border: none; color: var(--muted); font-size: 20px; cursor: pointer; line-height: 1; }
+    .modal-body { flex: 1 1 auto; overflow: auto; padding: 14px 20px; font-family: monospace; font-size: 11px; color: var(--text); white-space: pre-wrap; }
+    .modal-footer { padding: 14px 20px; border-top: 1px solid var(--border); display: flex; align-items: center; gap: 10px; }
+    .modal-status { flex: 1; font-size: 12px; }
+    .modal-status.ok  { color: #5ca85c; }
+    .modal-status.err { color: var(--cut); }
+    .btn-secondary { padding: 7px 14px; background: var(--panel2); border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-size: 12px; cursor: pointer; }
+    .btn-primary   { padding: 7px 16px; background: var(--accent); color: #12161C; border: none; border-radius: 6px; font-size: 12px; font-weight: 700; cursor: pointer; transition: filter .15s; }
+    .btn-primary:hover { filter: brightness(1.08); }
+    .btn-primary:disabled { opacity: .4; cursor: not-allowed; filter: none; }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  </style>
 </head>
 <body>
-  <main class="editor-shell">
-    <header class="topbar">
-      <a class="brand" href="/" aria-label="Cutroom AI 홈"><span class="brand-mark">C</span><span>cutroom</span><em>AI</em></a>
-      <div class="project-meta"><span class="status-dot"></span><span id="projectName">새 프로젝트</span><span class="slash">/</span><span>편집 준비됨</span></div>
-      <button class="ghost-button" id="resetButton" type="button">새 프로젝트</button>
-    </header>
+<div class="app">
 
-    <section class="workspace">
-      <section class="preview-panel panel" aria-label="영상 미리보기">
-        <div class="panel-heading"><div><p class="eyebrow">PREVIEW</p><h1>영상 캔버스</h1></div><span class="format-badge" id="videoFormat">16:9</span></div>
-        <div class="video-stage" id="videoStage">
-          <video id="videoPlayer" controls playsinline aria-label="영상 미리보기"></video>
-          <button class="dropzone" id="dropzone" type="button">
-            <span class="drop-icon">↑</span><strong>영상 파일을 여기에 놓으세요</strong>
-            <span>또는 클릭하여 MP4, MOV, AVI 파일 선택</span>
-            <small>AI가 자막·컷 포인트를 분석합니다</small>
-          </button>
-          <input id="fileInput" type="file" accept="video/mp4,video/quicktime,video/x-msvideo,video/x-matroska,video/webm" hidden>
+  <!-- ── Topbar ─────────────────────────────────────────────── -->
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-mark">C</div>
+      <span>Cutroom</span><span style="color:var(--accent);margin-left:2px">AI</span>
+    </div>
+    <div class="topbar-center" id="topbar-status">타임라인에 영상을 추가하세요</div>
+    <button class="btn-export" id="btn-export" disabled>내보내기</button>
+  </header>
+
+  <!-- ── Workspace ──────────────────────────────────────────── -->
+  <div class="workspace">
+
+    <!-- Left panel -->
+    <aside class="left-panel">
+      <div class="panel-tabs">
+        <button class="tab-btn active" data-tab="media">미디어</button>
+        <button class="tab-btn"        data-tab="style">스타일</button>
+      </div>
+
+      <!-- Media tab -->
+      <div class="tab-pane active" id="pane-media">
+        <div class="upload-zone" id="upload-zone">
+          <input type="file" id="file-input" accept="video/*" multiple hidden />
+          <div class="upload-zone-text">
+            <strong>영상 추가</strong>
+            클릭 또는 파일을 여기에 드래그<br>
+            MP4 · MOV · AVI · MKV · WEBM
+          </div>
         </div>
-        <div class="transport"><button type="button" id="playButton" class="icon-button" aria-label="재생 또는 일시 정지">▶</button><span id="timeDisplay" class="mono">00:00 / 00:00</span><input id="scrubber" type="range" min="0" max="100" value="0" aria-label="영상 위치"><span class="mono speed">1.0×</span></div>
-      </section>
-
-      <aside class="controls-panel panel" aria-label="AI 편집 컨트롤">
-        <div class="panel-heading"><div><p class="eyebrow">AI EDITOR</p><h2>편집 컨트롤</h2></div><span class="ai-chip">✦ AI</span></div>
-        <div class="control-section"><label>출력 비율</label><div class="format-grid" role="radiogroup" aria-label="출력 비율">
-          <button type="button" class="format-card selected" data-aspect="16:9" role="radio" aria-checked="true"><span class="frame-icon landscape"></span><strong>와이드</strong><small>16:9 · YouTube</small></button>
-          <button type="button" class="format-card" data-aspect="9:16" role="radio" aria-checked="false"><span class="frame-icon portrait"></span><strong>숏폼</strong><small>9:16 · Reels / Shorts</small></button>
-        </div></div>
-        <div class="control-section"><label>편집 스타일</label><div class="style-grid" role="radiogroup" aria-label="편집 스타일">
-          <button type="button" class="style-card" data-style="매운맛" role="radio" aria-checked="false"><span>🌶</span><strong>매운맛</strong><small>숏폼 · 다이내믹</small></button>
-          <button type="button" class="style-card" data-style="순한맛" role="radio" aria-checked="false"><span>◌</span><strong>순한맛</strong><small>브이로그 · 내추럴</small></button>
-          <button type="button" class="style-card selected" data-style="정석맛" role="radio" aria-checked="true"><span>✦</span><strong>정석맛</strong><small>정보 · 클린</small></button>
-        </div></div>
-        <div class="control-section analysis-state" id="analysisState"><span class="state-icon">◎</span><div><strong>AI 분석 대기 중</strong><p>영상을 업로드하면 편집 초안을 만듭니다.</p></div></div>
-        <div class="control-section segment-inspector" id="segmentInspector" hidden>
-          <label>선택한 자막 클립 <span id="selectedSegmentLabel">#01</span></label>
-          <input id="selectedTextInput" type="text" placeholder="타임라인 클립을 선택하세요" aria-label="선택한 자막 텍스트">
-          <div class="inspector-meta"><span id="selectedTimeRange" class="mono">00:00.0 — 00:00.0</span><button id="selectedCutButton" type="button" class="cut-action">컷 편집 켜기</button></div>
+        <div class="storyline-wrap">
+          <div class="storyline-label">스토리라인 설명 (선택)</div>
+          <textarea class="storyline-input" id="storyline-input" rows="2"
+            placeholder="예) 친구들과 제주도 여행 1박 2일 브이로그 하이라이트…"></textarea>
         </div>
-        <button class="primary-button" id="analyzeButton" type="button" disabled><span>✦</span> AI 편집안 생성</button>
-        <p class="control-note">생성된 자막과 컷 포인트는 아래 타임라인에서 직접 수정할 수 있습니다.</p>
-      </aside>
-    </section>
-
-    <section class="timeline-panel panel" aria-label="타임라인 및 자막 편집">
-      <div class="timeline-header"><div><p class="eyebrow">TIMELINE</p><h2>자막 &amp; 컷 편집</h2><p class="timeline-description" id="timelineDescription">AI 분석 후 수정 가능한 세그먼트가 표시됩니다.</p></div><div class="timeline-actions"><span class="segment-count" id="segmentCount">0 segments</span><button class="secondary-button" id="addSegmentButton" type="button" disabled>+ 세그먼트 추가</button><button class="render-button" id="renderButton" type="button" disabled>최종 렌더링 시작 <span>→</span></button></div></div>
-      <div class="timeline-scroll" id="timelineScroll">
-        <div class="timeline-empty empty-state" id="timelineEmpty"><span>✦</span><strong>아직 편집할 타임라인이 없습니다</strong><p>영상 업로드 → AI 편집안 생성 → 타임라인에서 자막과 컷 수정 순서로 진행하세요.</p></div>
-        <div class="timeline-canvas" id="timelineCanvas" hidden>
-          <div class="ruler-track" id="timelineRuler" aria-label="시간 눈금자"></div>
-          <div class="track-row"><div class="track-label"><span class="track-icon">▣</span>VIDEO</div><div class="track-lane"><div class="source-clip" id="sourceClip"><span>원본 영상</span></div></div></div>
-          <div class="track-row"><div class="track-label subtitle-label"><span class="track-icon">T</span>SUBTITLES</div><div class="track-lane subtitle-lane" id="subtitleTrack"></div></div>
+        <div class="clip-list-label">업로드된 클립</div>
+        <div class="clip-list" id="clip-list">
+          <div style="color:var(--muted);font-size:12px;text-align:center;padding:20px 0">
+            영상을 추가하면 여기에 표시됩니다
+          </div>
         </div>
       </div>
-      <div class="render-progress" id="renderProgress" hidden><div class="progress-copy"><span id="renderMessage">렌더링 준비 중…</span><span id="renderPercent">0%</span></div><div class="progress-track"><div id="progressFill"></div></div></div>
-      <div class="render-result" id="renderResult" hidden><span>✓</span><div><strong>편집 영상이 준비되었습니다.</strong><p>수정한 타임라인 데이터로 렌더링했습니다.</p></div><a id="downloadLink" href="#">결과 다운로드</a></div>
+
+      <!-- Style tab -->
+      <div class="tab-pane" id="pane-style">
+        <div class="style-tab-inner">
+          <div class="style-tab-label">자막·편집 스타일 선택</div>
+          <label class="style-option">
+            <input type="radio" name="style" value="정석맛" checked>
+            <div><div class="style-option-name">정석맛</div>
+            <div class="style-option-desc">깔끔한 흰색 자막, 적당한 컷 편집.<br>강의·인터뷰·일상 브이로그에 적합.</div></div>
+          </label>
+          <label class="style-option">
+            <input type="radio" name="style" value="매운맛">
+            <div><div class="style-option-name">매운맛</div>
+            <div class="style-option-desc">카라오케 하이라이트 자막, 공백 최소화.<br>쇼츠·틱톡 스타일 빠른 편집에 적합.</div></div>
+          </label>
+          <label class="style-option">
+            <input type="radio" name="style" value="순한맛">
+            <div><div class="style-option-name">순한맛</div>
+            <div class="style-option-desc">넓은 호흡, 외곽선 자막, 여유로운 컷.<br>다큐·여행 영상·감성 편집에 적합.</div></div>
+          </label>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Center panel -->
+    <section class="center-panel">
+      <div class="preview-area">
+        <div class="preview-box">
+          <video id="video" playsinline preload="metadata"></video>
+          <div class="preview-empty" id="preview-empty">
+            타임라인에서 클립을 선택하거나<br>좌측에서 영상을 추가하세요
+          </div>
+        </div>
+      </div>
+      <div class="preview-controls">
+        <button class="btn-play" id="btn-play" disabled>
+          <svg id="icon-play"  viewBox="0 0 10 12" width="9" height="11"><polygon points="1,1 9,6 1,11" fill="currentColor"/></svg>
+          <svg id="icon-pause" viewBox="0 0 10 12" width="9" height="11" style="display:none"><rect x="1" y="1" width="3" height="10" fill="currentColor"/><rect x="6" y="1" width="3" height="10" fill="currentColor"/></svg>
+        </button>
+        <span class="preview-time" id="preview-time">0:00 / 0:00</span>
+        <div class="preview-progress" id="preview-progress">
+          <div class="preview-progress-fill" id="preview-progress-fill"></div>
+        </div>
+      </div>
     </section>
-  </main>
-  <div class="toast" id="toast" role="status" aria-live="polite"></div>
-  <script src="/static/app.js"></script>
+
+    <!-- Right AI panel -->
+    <aside class="right-panel">
+
+      <!-- Analyze -->
+      <div class="analyze-section">
+        <div class="section-label">AI 분석</div>
+        <button class="btn-analyze" id="btn-analyze" disabled>클립을 선택해 분석 시작</button>
+        <div class="analyze-progress hidden" id="analyze-progress">
+          <div class="progress-stage" id="progress-stage">분석 중...</div>
+          <div class="progress-bar-track">
+            <div class="progress-bar-fill" id="progress-bar-fill"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick commands -->
+      <div class="quick-section">
+        <div class="section-label" style="margin-bottom:8px">빠른 명령</div>
+        <div class="quick-btns">
+          <button class="btn-quick" data-cmd="말더듬, 침묵, 불필요한 반복 구간을 모두 컷해줘">컷편집 해줘</button>
+          <button class="btn-quick" data-cmd="분석된 구간에 자연스러운 자막을 생성해줘">자막생성 해줘</button>
+          <button class="btn-quick" data-cmd="말더듬이 포함된 구간만 골라서 컷해줘">말더듬 제거</button>
+          <button class="btn-quick" data-cmd="자르지 않고 전체 구간을 모두 살려줘">전체 살리기</button>
+        </div>
+      </div>
+
+      <!-- AI chat -->
+      <div class="ai-chat">
+        <div class="chat-header">AI 수정 요청</div>
+        <div class="chat-messages" id="chat-messages">
+          <div class="msg msg-hint">
+            자연어로 지시하세요.<br>
+            예) "말더듬 다 잘라줘", "3번 자막 다듬어줘"
+          </div>
+        </div>
+        <form class="chat-form" id="chat-form">
+          <textarea class="chat-input" id="chat-input" rows="2"
+            placeholder="AI에게 수정을 지시하세요… (Enter=전송, Shift+Enter=줄바꿈)"></textarea>
+          <button type="submit" class="btn-send">보내기</button>
+        </form>
+      </div>
+    </aside>
+  </div>
+
+  <!-- ── Timeline ────────────────────────────────────────────── -->
+  <section class="timeline-panel">
+    <div class="tl-toolbar">
+      <span class="tl-title">타임라인</span>
+      <span class="tl-stats" id="tl-stats"></span>
+      <button class="btn-snap active" id="btn-snap">스냅 ON</button>
+    </div>
+    <div class="tl-scroll" id="tl-scroll">
+      <div class="tl-content" id="tl-content">
+
+        <!-- Ruler row -->
+        <div class="tl-row ruler-row">
+          <div class="tl-row-label"></div>
+          <div class="tl-row-body" id="ruler-body"></div>
+        </div>
+
+        <!-- Video track -->
+        <div class="tl-row video-row">
+          <div class="tl-row-label">영상</div>
+          <div class="tl-row-body" id="video-track-body"
+            ondragover="event.preventDefault()" ondrop="handleTimelineDrop(event)">
+            <div class="tl-empty-hint" id="tl-empty-hint">좌측 클립을 여기로 드래그하거나 [+] 버튼을 누르세요</div>
+          </div>
+        </div>
+
+        <!-- Subtitle track -->
+        <div class="tl-row sub-row">
+          <div class="tl-row-label">자막</div>
+          <div class="tl-row-body" id="subtitle-track-body"></div>
+        </div>
+
+        <!-- Playhead (spans all rows) -->
+        <div class="playhead" id="playhead" style="left:52px">
+          <div class="playhead-handle" id="playhead-handle"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- Export modal -->
+<div class="modal hidden" id="export-modal">
+  <div class="modal-backdrop" id="modal-backdrop"></div>
+  <div class="modal-panel">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title">내보내기</div>
+        <div class="modal-sub" id="modal-sub"></div>
+      </div>
+      <button class="modal-close" id="modal-close">×</button>
+    </div>
+    <pre class="modal-body" id="modal-body"></pre>
+    <div class="modal-footer">
+      <div class="modal-status" id="modal-status"></div>
+      <button class="btn-secondary" id="btn-copy-json">JSON 복사</button>
+      <button class="btn-secondary" id="btn-modal-close2">닫기</button>
+      <button class="btn-primary"   id="btn-render">렌더링 시작</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* =====================================================================
+   Constants & State
+===================================================================== */
+const PX_PER_SEC      = 60;
+const SNAP_THRESHOLD  = 12; // px
+const TRACK_OFFSET_PX = 52; // label width
+
+const project = { storyline: "", media_list: [] };
+
+let SELECTED_CLIP_ID   = null;
+let SNAP_ENABLED       = true;
+let DRAGGING_MEDIA_ID  = null;  // left-panel → timeline drag
+let TRIM_STATE         = null;  // { clipId, edge, startX, origStart, origEnd }
+let PLAYHEAD_DRAG      = false;
+
+/* =====================================================================
+   Utilities
+===================================================================== */
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+function genId() {
+  return "m" + Math.random().toString(16).slice(2, 10);
+}
+
+function fmt(s) {
+  s = Math.max(0, s || 0);
+  const m = Math.floor(s / 60);
+  const sec = Math.floor(s % 60);
+  return `${m}:${sec.toString().padStart(2, "0")}`;
+}
+
+function getStyle() {
+  return document.querySelector('input[name="style"]:checked')?.value || "정석맛";
+}
+
+function timelineClips() {
+  return project.media_list.filter(m => m.timeline_start !== null);
+}
+
+function totalTimelineDuration() {
+  let max = 0;
+  for (const m of timelineClips()) {
+    const end = m.timeline_start + (m.timeline_range.end - m.timeline_range.start);
+    if (end > max) max = end;
+  }
+  return max;
+}
+
+/* =====================================================================
+   Media object factory
+===================================================================== */
+function createMedia(file, blobUrl) {
+  return {
+    id:               genId(),
+    filename:         file.name,
+    file:             file,
+    blob_url:         blobUrl,
+    source_file:      null,
+    duration:         0,
+    timeline_start:   null,
+    timeline_range:   { start: 0, end: 0 },
+    analysis_status:  "uploading",
+    analyze_job_id:   null,
+    segments:         [],
+  };
+}
+
+/* =====================================================================
+   Upload
+===================================================================== */
+async function handleFiles(files) {
+  for (const file of files) {
+    const blobUrl = URL.createObjectURL(file);
+    const media   = createMedia(file, blobUrl);
+    project.media_list.push(media);
+    renderClipList();
+
+    // Get duration via hidden video element
+    const dv = document.createElement("video");
+    dv.preload = "metadata";
+    dv.src = blobUrl;
+    dv.onloadedmetadata = () => {
+      media.duration = dv.duration;
+      media.timeline_range.end = dv.duration;
+      updateClipEl(media);
+    };
+
+    // Upload to server
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res  = await fetch("/upload", { method: "POST", body: fd });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      media.source_file     = data.source_file;
+      media.analysis_status = "ready";
+    } catch (err) {
+      media.analysis_status = "failed";
+      console.error("[upload]", err);
+    }
+    updateClipEl(media);
+  }
+}
+
+/* =====================================================================
+   Left panel – clip list rendering
+===================================================================== */
+function renderClipList() {
+  const list = document.getElementById("clip-list");
+  list.innerHTML = "";
+  if (!project.media_list.length) {
+    list.innerHTML = `<div style="color:var(--muted);font-size:12px;text-align:center;padding:20px 0">영상을 추가하면 여기에 표시됩니다</div>`;
+    return;
+  }
+  for (const m of project.media_list) {
+    list.appendChild(makeClipEl(m));
+  }
+}
+
+function makeClipEl(media) {
+  const el = document.createElement("div");
+  el.className   = "clip-item" + (media.timeline_start !== null ? " on-timeline" : "");
+  el.dataset.id  = media.id;
+  el.draggable   = true;
+  el.innerHTML   = `
+    <div class="clip-thumb-wrap">
+      <video class="clip-thumb" src="${media.blob_url}" preload="metadata" muted></video>
+    </div>
+    <div class="clip-info">
+      <div class="clip-name">${media.filename}</div>
+      <div class="clip-meta">
+        <span class="clip-status-badge badge-${media.analysis_status}" id="badge-${media.id}">${statusLabel(media.analysis_status)}</span>
+        <span class="clip-dur" id="dur-${media.id}">${media.duration ? fmt(media.duration) : "--:--"}</span>
+      </div>
+    </div>
+    <button class="clip-add-btn" title="타임라인에 추가">+</button>
+  `;
+
+  el.addEventListener("dragstart", e => {
+    DRAGGING_MEDIA_ID = media.id;
+    e.dataTransfer.effectAllowed = "copy";
+  });
+  el.addEventListener("dragend",   () => { DRAGGING_MEDIA_ID = null; });
+  el.addEventListener("dblclick",  () => previewMedia(media));
+  el.querySelector(".clip-add-btn").addEventListener("click", e => {
+    e.stopPropagation();
+    addToTimeline(media.id, totalTimelineDuration());
+  });
+  return el;
+}
+
+function updateClipEl(media) {
+  const el = document.querySelector(`.clip-item[data-id="${media.id}"]`);
+  if (!el) { renderClipList(); return; }
+  el.className = "clip-item" + (media.timeline_start !== null ? " on-timeline" : "");
+  const badge = document.getElementById(`badge-${media.id}`);
+  if (badge) { badge.className = `clip-status-badge badge-${media.analysis_status}`; badge.textContent = statusLabel(media.analysis_status); }
+  const dur = document.getElementById(`dur-${media.id}`);
+  if (dur && media.duration) dur.textContent = fmt(media.duration);
+}
+
+function statusLabel(s) {
+  return { uploading: "업로드 중", ready: "준비됨", analyzing: "분석 중", analyzed: "분석 완료", failed: "실패" }[s] || s;
+}
+
+/* =====================================================================
+   Timeline – place / remove
+===================================================================== */
+function addToTimeline(mediaId, positionSec) {
+  const media = project.media_list.find(m => m.id === mediaId);
+  if (!media || media.timeline_start !== null) return;
+  media.timeline_start = Math.max(0, positionSec);
+  if (!media.timeline_range.end && media.duration) media.timeline_range.end = media.duration;
+  updateClipEl(media);
+  renderTimeline();
+  updateExportBtn();
+  document.getElementById("tl-empty-hint").style.display = "none";
+}
+
+/* =====================================================================
+   Timeline – drop from left panel
+===================================================================== */
+function handleTimelineDrop(event) {
+  event.preventDefault();
+  if (!DRAGGING_MEDIA_ID) return;
+
+  const body = document.getElementById("video-track-body");
+  const rect = body.getBoundingClientRect();
+  let dropPx  = event.clientX - rect.left;
+  let dropSec = dropPx / PX_PER_SEC;
+
+  if (SNAP_ENABLED) {
+    const snapped = findSnap(dropSec, DRAGGING_MEDIA_ID);
+    if (snapped !== null) dropSec = snapped;
+  }
+
+  addToTimeline(DRAGGING_MEDIA_ID, Math.max(0, dropSec));
+  selectClip(DRAGGING_MEDIA_ID);
+  DRAGGING_MEDIA_ID = null;
+}
+
+function findSnap(sec, excludeId) {
+  const thresh = SNAP_THRESHOLD / PX_PER_SEC;
+  if (Math.abs(sec) < thresh) return 0;
+  for (const m of timelineClips()) {
+    if (m.id === excludeId) continue;
+    const end = m.timeline_start + (m.timeline_range.end - m.timeline_range.start);
+    if (Math.abs(sec - end) < thresh) return end;
+    if (Math.abs(sec - m.timeline_start) < thresh) return m.timeline_start;
+  }
+  return null;
+}
+
+/* =====================================================================
+   Timeline – rendering
+===================================================================== */
+function renderTimeline() {
+  updateTimelineWidth();
+  renderRuler();
+  renderVideoTrack();
+  renderSubtitleTrack();
+  updateTlStats();
+}
+
+function updateTimelineWidth() {
+  const total = Math.max(totalTimelineDuration(), 10);
+  const w     = TRACK_OFFSET_PX + total * PX_PER_SEC + 120;
+  document.getElementById("tl-content").style.minWidth = `${w}px`;
+}
+
+function renderRuler() {
+  const body  = document.getElementById("ruler-body");
+  body.innerHTML = "";
+  const total = Math.max(totalTimelineDuration(), 10);
+  for (let t = 0; t <= Math.ceil(total); t++) {
+    const x     = t * PX_PER_SEC;
+    const major = t % 5 === 0;
+    const tick  = document.createElement("div");
+    tick.className = "ruler-tick " + (major ? "major" : "minor");
+    tick.style.left = `${x}px`;
+    body.appendChild(tick);
+    if (major) {
+      const lbl = document.createElement("div");
+      lbl.className    = "ruler-label";
+      lbl.style.left   = `${x}px`;
+      lbl.textContent  = fmt(t);
+      body.appendChild(lbl);
+    }
+  }
+}
+
+function renderVideoTrack() {
+  const body = document.getElementById("video-track-body");
+  // keep empty hint
+  const hint = document.getElementById("tl-empty-hint");
+  body.innerHTML = "";
+  if (hint) body.appendChild(hint);
+
+  const clips = timelineClips().sort((a, b) => a.timeline_start - b.timeline_start);
+  hint.style.display = clips.length ? "none" : "";
+
+  for (const clip of clips) {
+    const rangeDur = clip.timeline_range.end - clip.timeline_range.start;
+    const left     = clip.timeline_start * PX_PER_SEC;
+    const width    = Math.max(rangeDur * PX_PER_SEC, 24);
+
+    const el = document.createElement("div");
+    el.className = [
+      "tl-clip",
+      clip.id === SELECTED_CLIP_ID ? "selected" : "",
+      clip.analysis_status === "analyzing" ? "analyzing" : "",
+      clip.analysis_status === "analyzed"  ? "analyzed"  : "",
+    ].filter(Boolean).join(" ");
+    el.style.left  = `${left}px`;
+    el.style.width = `${width}px`;
+    el.dataset.id  = clip.id;
+    el.innerHTML   = `
+      <div class="tl-clip-inner">
+        <div class="tl-clip-name">${clip.filename}</div>
+        <div class="tl-clip-dur">${clip.duration ? fmt(clip.timeline_range.end - clip.timeline_range.start) : ""}</div>
+        ${clip.analysis_status === "analyzing" ? '<div class="tl-clip-spinner">분석 중...</div>' : ""}
+      </div>
+      <div class="trim-handle trim-left"  data-id="${clip.id}" data-edge="left"></div>
+      <div class="trim-handle trim-right" data-id="${clip.id}" data-edge="right"></div>
+    `;
+
+    el.addEventListener("click", e => {
+      if (e.target.closest(".trim-handle")) return;
+      selectClip(clip.id);
+    });
+    el.addEventListener("dblclick", () => previewMedia(clip));
+
+    el.querySelectorAll(".trim-handle").forEach(h =>
+      h.addEventListener("mousedown", startTrimDrag)
+    );
+
+    body.appendChild(el);
+  }
+}
+
+function renderSubtitleTrack() {
+  const body = document.getElementById("subtitle-track-body");
+  body.innerHTML = "";
+
+  for (const clip of timelineClips()) {
+    if (clip.analysis_status !== "analyzed" || !clip.segments.length) continue;
+
+    clip.segments.forEach((seg, i) => {
+      if (seg.end < clip.timeline_range.start || seg.start > clip.timeline_range.end) return;
+
+      const offsetInClip = seg.start - clip.timeline_range.start;
+      const left  = (clip.timeline_start + Math.max(0, offsetInClip)) * PX_PER_SEC;
+      const width = Math.max((seg.end - seg.start) * PX_PER_SEC, 8);
+
+      const el = document.createElement("div");
+      el.className      = "sub-seg " + (seg.cut ? "sub-cut" : "sub-keep");
+      el.style.left     = `${left}px`;
+      el.style.width    = `${width}px`;
+      el.title          = seg.text;
+      el.dataset.clipId = clip.id;
+      el.dataset.segIdx = i;
+      el.innerHTML      = `
+        <span class="sub-seg-text">${seg.text}</span>
+        <span class="sub-seg-tag">${seg.cut ? "cut" : "keep"}</span>
+      `;
+      el.addEventListener("click", () => toggleSegment(clip.id, i, el));
+      body.appendChild(el);
+    });
+  }
+}
+
+function updateTlStats() {
+  const clips = timelineClips();
+  let keep = 0, cut = 0, dur = 0;
+  for (const c of clips) {
+    for (const s of c.segments) {
+      if (s.cut) cut++; else { keep++; dur += s.end - s.start; }
+    }
+  }
+  const el = document.getElementById("tl-stats");
+  if (clips.length === 0) { el.textContent = ""; return; }
+  el.textContent = segments => `클립 ${clips.length}개${keep + cut ? ` · 유지 ${keep} / 제거 ${cut}` : ""}`;
+  el.textContent = `클립 ${clips.length}개${keep + cut ? `  ·  유지 ${keep} / 제거 ${cut}  ·  예상 ${dur.toFixed(1)}초` : ""}`;
+}
+
+/* =====================================================================
+   Clip selection
+===================================================================== */
+function selectClip(id) {
+  SELECTED_CLIP_ID = id;
+  renderVideoTrack();
+
+  const media = project.media_list.find(m => m.id === id);
+  if (media) {
+    previewMedia(media);
+    updateAnalyzeBtn(media);
+  }
+}
+
+function updateAnalyzeBtn(media) {
+  const btn = document.getElementById("btn-analyze");
+  if (!media) { btn.disabled = true; btn.textContent = "클립을 선택해 분석 시작"; return; }
+  if (media.analysis_status === "ready") {
+    btn.disabled = false; btn.textContent = `"${media.filename}" 분석 시작`;
+  } else if (media.analysis_status === "analyzed") {
+    btn.disabled = false; btn.textContent = "재분석";
+  } else if (media.analysis_status === "analyzing") {
+    btn.disabled = true; btn.textContent = "분석 중...";
+  } else {
+    btn.disabled = true; btn.textContent = "클립을 선택해 분석 시작";
+  }
+}
+
+/* =====================================================================
+   Segment toggle
+===================================================================== */
+function toggleSegment(clipId, segIdx, el) {
+  const clip = project.media_list.find(m => m.id === clipId);
+  if (!clip) return;
+  const seg = clip.segments[segIdx];
+  seg.cut = !seg.cut;
+  el.className = "sub-seg " + (seg.cut ? "sub-cut" : "sub-keep");
+  const tag = el.querySelector(".sub-seg-tag");
+  if (tag) tag.textContent = seg.cut ? "cut" : "keep";
+  updateTlStats();
+  updateExportBtn();
+}
+
+/* =====================================================================
+   Trim handles
+===================================================================== */
+function startTrimDrag(e) {
+  e.preventDefault();
+  e.stopPropagation();
+  const id   = e.currentTarget.dataset.id;
+  const edge = e.currentTarget.dataset.edge;
+  const clip = project.media_list.find(m => m.id === id);
+  if (!clip) return;
+  TRIM_STATE = {
+    clipId: id, edge, startX: e.clientX,
+    origStart: clip.timeline_range.start,
+    origEnd:   clip.timeline_range.end,
+    origTlStart: clip.timeline_start,
+  };
+}
+
+document.addEventListener("mousemove", e => {
+  if (!TRIM_STATE) return;
+  const clip  = project.media_list.find(m => m.id === TRIM_STATE.clipId);
+  if (!clip) return;
+  const deltaSec = (e.clientX - TRIM_STATE.startX) / PX_PER_SEC;
+  const MIN_DUR  = 0.5;
+
+  if (TRIM_STATE.edge === "left") {
+    const newStart = Math.max(0, Math.min(TRIM_STATE.origStart + deltaSec, TRIM_STATE.origEnd - MIN_DUR));
+    const shift    = newStart - TRIM_STATE.origStart;
+    clip.timeline_range.start = newStart;
+    clip.timeline_start       = Math.max(0, TRIM_STATE.origTlStart + shift);
+  } else {
+    const newEnd = Math.max(TRIM_STATE.origStart + MIN_DUR, Math.min(clip.duration, TRIM_STATE.origEnd + deltaSec));
+    clip.timeline_range.end = newEnd;
+  }
+  renderTimeline();
+});
+
+document.addEventListener("mouseup", () => { TRIM_STATE = null; });
+
+/* =====================================================================
+   Video preview
+===================================================================== */
+function previewMedia(media) {
+  const video     = document.getElementById("video");
+  const emptyHint = document.getElementById("preview-empty");
+  video.src       = media.blob_url;
+  video.load();
+  emptyHint.classList.add("hidden");
+  document.getElementById("btn-play").disabled = false;
+}
+
+function updatePlaybackUI() {
+  const video = document.getElementById("video");
+  const t     = video.currentTime || 0;
+  const dur   = isFinite(video.duration) && video.duration > 0 ? video.duration : 0;
+  document.getElementById("preview-time").textContent = `${fmt(t)} / ${fmt(dur)}`;
+  document.getElementById("preview-progress-fill").style.width = dur ? `${(t / dur) * 100}%` : "0%";
+}
+
+const videoEl = document.getElementById("video");
+videoEl.addEventListener("timeupdate", updatePlaybackUI);
+videoEl.addEventListener("loadedmetadata", updatePlaybackUI);
+videoEl.addEventListener("play",  () => { document.getElementById("icon-play").style.display = "none"; document.getElementById("icon-pause").style.display = ""; });
+videoEl.addEventListener("pause", () => { document.getElementById("icon-play").style.display = ""; document.getElementById("icon-pause").style.display = "none"; });
+
+document.getElementById("btn-play").addEventListener("click", () => {
+  if (videoEl.paused) videoEl.play(); else videoEl.pause();
+});
+document.getElementById("preview-progress").addEventListener("click", e => {
+  if (!isFinite(videoEl.duration)) return;
+  const rect  = e.currentTarget.getBoundingClientRect();
+  const ratio = (e.clientX - rect.left) / rect.width;
+  videoEl.currentTime = ratio * videoEl.duration;
+});
+
+/* =====================================================================
+   Playhead drag
+===================================================================== */
+document.getElementById("playhead-handle").addEventListener("mousedown", e => {
+  PLAYHEAD_DRAG = true;
+  e.preventDefault();
+});
+document.addEventListener("mousemove", e => {
+  if (!PLAYHEAD_DRAG) return;
+  const scroll = document.getElementById("tl-scroll");
+  const body   = document.getElementById("ruler-body");
+  const rect   = body.getBoundingClientRect();
+  const x      = Math.max(0, e.clientX - rect.left + scroll.scrollLeft);
+  const sec    = x / PX_PER_SEC;
+  document.getElementById("playhead").style.left = `${TRACK_OFFSET_PX + x}px`;
+  if (isFinite(videoEl.duration)) videoEl.currentTime = Math.min(sec, videoEl.duration);
+});
+document.addEventListener("mouseup", () => { PLAYHEAD_DRAG = false; });
+
+// Click ruler → seek
+document.getElementById("ruler-body").addEventListener("click", e => {
+  const rect = e.currentTarget.getBoundingClientRect();
+  const x    = e.clientX - rect.left;
+  const sec  = x / PX_PER_SEC;
+  document.getElementById("playhead").style.left = `${TRACK_OFFSET_PX + x}px`;
+  if (isFinite(videoEl.duration)) videoEl.currentTime = Math.min(sec, videoEl.duration);
+});
+
+/* =====================================================================
+   Analyze
+===================================================================== */
+document.getElementById("btn-analyze").addEventListener("click", analyzeSelectedClip);
+
+async function analyzeSelectedClip() {
+  const media = project.media_list.find(m => m.id === SELECTED_CLIP_ID);
+  if (!media || !media.file) return;
+
+  media.analysis_status = "analyzing";
+  updateClipEl(media);
+  renderVideoTrack();
+  updateAnalyzeBtn(media);
+  showAnalyzeProgress(2, "업로드 중...");
+
+  try {
+    const style = getStyle();
+    const fd    = new FormData();
+    fd.append("file", media.file);
+    fd.append("style", style);
+    const res = await fetch("/analyze", { method: "POST", body: fd });
+    if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.detail || `HTTP ${res.status}`); }
+    const { job_id } = await res.json();
+    media.analyze_job_id = job_id;
+
+    // Poll
+    for (;;) {
+      await sleep(1500);
+      const jr = await fetch(`/analyze_jobs/${job_id}`);
+      const job = await jr.json();
+      showAnalyzeProgress(job.progress || 0, job.stage || "분석 중...");
+
+      if (job.status === "completed") {
+        media.analysis_status = "analyzed";
+        media.segments        = job.segments;
+        if (job.source_file) media.source_file = job.source_file;
+        break;
+      }
+      if (job.status === "failed") {
+        throw new Error(job.message || "알 수 없는 오류");
+      }
+    }
+    hideAnalyzeProgress();
+    updateClipEl(media);
+    renderTimeline();
+    updateAnalyzeBtn(media);
+    updateExportBtn();
+    addChatMsg("ai", `"${media.filename}" 분석이 완료됐습니다. 자막 트랙에서 구간을 확인하고 수정하세요.`);
+
+  } catch (err) {
+    media.analysis_status = "failed";
+    hideAnalyzeProgress();
+    showAnalyzeProgress(0, `분석 실패: ${err.message}`);
+    document.getElementById("analyze-progress").classList.remove("hidden");
+    updateClipEl(media);
+    renderVideoTrack();
+    updateAnalyzeBtn(media);
+    console.error("[analyze]", err);
+  }
+}
+
+function showAnalyzeProgress(pct, msg) {
+  document.getElementById("analyze-progress").classList.remove("hidden");
+  document.getElementById("progress-stage").textContent = `${pct}%  ${msg}`;
+  document.getElementById("progress-bar-fill").style.width = `${pct}%`;
+}
+function hideAnalyzeProgress() {
+  document.getElementById("analyze-progress").classList.add("hidden");
+}
+
+/* =====================================================================
+   AI Chat
+===================================================================== */
+document.getElementById("chat-form").addEventListener("submit", async e => {
+  e.preventDefault();
+  const input = document.getElementById("chat-input");
+  const text  = input.value.trim();
+  if (!text) return;
+  input.value = "";
+  await sendAiRequest(text);
+});
+
+document.getElementById("chat-input").addEventListener("keydown", e => {
+  if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); document.getElementById("chat-form").requestSubmit(); }
+});
+
+document.querySelectorAll(".btn-quick").forEach(btn =>
+  btn.addEventListener("click", () => sendAiRequest(btn.dataset.cmd))
+);
+
+async function sendAiRequest(instruction) {
+  const media = project.media_list.find(m => m.id === SELECTED_CLIP_ID && m.analysis_status === "analyzed");
+  if (!media) {
+    addChatMsg("err", "분석이 완료된 클립을 타임라인에서 선택해주세요.");
+    return;
+  }
+
+  addChatMsg("user", instruction);
+  const thinking = addChatMsg("ai", "처리 중...");
+
+  try {
+    const res = await fetch("/revise", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ instruction, segments: media.segments }),
+    });
+    const data = await res.json();
+    thinking.textContent = data.message || "완료";
+    if (data.ok && data.segments) {
+      media.segments = data.segments;
+      renderSubtitleTrack();
+      updateTlStats();
+      updateExportBtn();
+    } else if (!data.ok) {
+      thinking.className = "msg msg-err";
+      thinking.textContent = data.message || "AI 수정 실패";
+    }
+  } catch (err) {
+    thinking.className   = "msg msg-err";
+    thinking.textContent = `오류: ${err.message}`;
+  }
+}
+
+function addChatMsg(role, text) {
+  const msgs = document.getElementById("chat-messages");
+  const el   = document.createElement("div");
+  el.className   = `msg msg-${role}`;
+  el.textContent = text;
+  msgs.appendChild(el);
+  msgs.scrollTop = msgs.scrollHeight;
+  return el;
+}
+
+/* =====================================================================
+   Export
+===================================================================== */
+function updateExportBtn() {
+  const hasAnalyzed = project.media_list.some(m => m.analysis_status === "analyzed");
+  document.getElementById("btn-export").disabled = !hasAnalyzed;
+}
+
+document.getElementById("btn-export").addEventListener("click", openExportModal);
+document.getElementById("modal-close").addEventListener("click",   () => setModalHidden(true));
+document.getElementById("btn-modal-close2").addEventListener("click", () => setModalHidden(true));
+document.getElementById("modal-backdrop").addEventListener("click", () => setModalHidden(true));
+document.addEventListener("keydown", e => { if (e.key === "Escape") setModalHidden(true); });
+
+function setModalHidden(v) {
+  document.getElementById("export-modal").classList.toggle("hidden", v);
+}
+
+function buildRenderPayload() {
+  // Use first analyzed clip that is on timeline
+  const clip = timelineClips().find(m => m.analysis_status === "analyzed" && m.source_file);
+  if (!clip) return null;
+
+  const segs = clip.segments
+    .filter(s => s.start >= clip.timeline_range.start && s.end <= clip.timeline_range.end + 0.1)
+    .map(s => ({
+      start: s.start, end: s.end, text: s.text, cut: s.cut,
+      subtitle_color: "white", fontsize: 36,
+    }));
+
+  return {
+    source_file:   clip.source_file,
+    segments:      segs,
+    style_preset:  getStyle(),
+    aspect_ratio:  "16:9",
+    _clip_name:    clip.filename,
+  };
+}
+
+function openExportModal() {
+  const payload = buildRenderPayload();
+  if (!payload) { addChatMsg("err", "타임라인에 분석된 클립이 없습니다."); return; }
+
+  const { _clip_name, ...sendPayload } = payload;
+  const keep = sendPayload.segments.filter(s => !s.cut).length;
+  const cut  = sendPayload.segments.length - keep;
+  const dur  = sendPayload.segments.filter(s => !s.cut).reduce((a, s) => a + s.end - s.start, 0);
+
+  document.getElementById("modal-sub").textContent =
+    `${_clip_name} · 유지 ${keep} / 제거 ${cut} · 예상 ${dur.toFixed(1)}초`;
+  document.getElementById("modal-body").textContent = JSON.stringify(sendPayload, null, 2);
+  document.getElementById("modal-status").textContent = "";
+  document.getElementById("modal-status").className   = "modal-status";
+  document.getElementById("btn-render").disabled      = false;
+  document.getElementById("btn-render").textContent   = "렌더링 시작";
+  setModalHidden(false);
+}
+
+document.getElementById("btn-copy-json").addEventListener("click", async () => {
+  try {
+    await navigator.clipboard.writeText(document.getElementById("modal-body").textContent);
+    const btn = document.getElementById("btn-copy-json");
+    const orig = btn.textContent;
+    btn.textContent = "복사됨";
+    setTimeout(() => { btn.textContent = orig; }, 1400);
+  } catch (e) { /* ignore */ }
+});
+
+document.getElementById("btn-render").addEventListener("click", async () => {
+  const payload = buildRenderPayload();
+  if (!payload) return;
+  const { _clip_name, ...sendPayload } = payload;
+  const btn    = document.getElementById("btn-render");
+  const status = document.getElementById("modal-status");
+  btn.disabled = true; btn.textContent = "렌더링 중...";
+  setStatus("렌더링 요청 중...", "");
+
+  try {
+    const res = await fetch("/render", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(sendPayload),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const { job_id } = await res.json();
+
+    for (;;) {
+      await sleep(1500);
+      const jr  = await fetch(`/jobs/${job_id}`);
+      const job = await jr.json();
+      setStatus(`렌더링 중... ${job.progress || 0}%  ${job.message || ""}`, "");
+      if (job.status === "completed") {
+        status.innerHTML  = `렌더링 완료! <a href="${job.output_url}" download style="color:var(--keep)">다운로드</a>`;
+        status.className  = "modal-status ok";
+        btn.textContent   = "렌더링 시작";
+        btn.disabled      = false;
+        return;
+      }
+      if (job.status === "failed") throw new Error(job.message);
+    }
+  } catch (err) {
+    setStatus(`실패: ${err.message}`, "err");
+    btn.disabled    = false;
+    btn.textContent = "렌더링 시작";
+  }
+
+  function setStatus(t, cls) {
+    status.textContent = t;
+    status.className   = "modal-status " + cls;
+  }
+});
+
+/* =====================================================================
+   Left panel tabs
+===================================================================== */
+document.querySelectorAll(".tab-btn").forEach(btn =>
+  btn.addEventListener("click", () => {
+    const tab = btn.dataset.tab;
+    document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+    document.querySelectorAll(".tab-pane").forEach(p => p.classList.remove("active"));
+    btn.classList.add("active");
+    document.getElementById(`pane-${tab}`).classList.add("active");
+  })
+);
+
+/* =====================================================================
+   Snap toggle
+===================================================================== */
+document.getElementById("btn-snap").addEventListener("click", () => {
+  SNAP_ENABLED = !SNAP_ENABLED;
+  const btn = document.getElementById("btn-snap");
+  btn.textContent = SNAP_ENABLED ? "스냅 ON" : "스냅 OFF";
+  btn.classList.toggle("active", SNAP_ENABLED);
+});
+
+/* =====================================================================
+   Upload zone wiring
+===================================================================== */
+const uploadZone = document.getElementById("upload-zone");
+const fileInput  = document.getElementById("file-input");
+
+uploadZone.addEventListener("click", () => fileInput.click());
+fileInput.addEventListener("change", e => { if (e.target.files.length) handleFiles(Array.from(e.target.files)); });
+
+uploadZone.addEventListener("dragover", e => { e.preventDefault(); uploadZone.classList.add("drag-over"); });
+uploadZone.addEventListener("dragleave", () => uploadZone.classList.remove("drag-over"));
+uploadZone.addEventListener("drop", e => {
+  e.preventDefault(); uploadZone.classList.remove("drag-over");
+  const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith("video/"));
+  if (files.length) handleFiles(files);
+});
+
+// Status bar
+document.getElementById("topbar-status").textContent = "타임라인에 영상을 추가하세요";
+
+// Initial render
+renderTimeline();
+</script>
 </body>
 </html>
