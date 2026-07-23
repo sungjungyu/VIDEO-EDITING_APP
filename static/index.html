@@ -162,6 +162,37 @@
     .obj-prop-value{font-size:10px;color:var(--text);text-align:right;word-break:break-all}
     .obj-placeholder{font-size:11px;color:var(--muted);text-align:center;padding:20px 0;line-height:1.7}
 
+    /* ④ Subtitle style pane */
+    #sub-track-label{cursor:pointer;user-select:none;transition:color .15s}
+    #sub-track-label:hover{color:var(--text)}
+    #sub-style-pane{flex:1 1 auto;overflow-y:auto;padding:10px 12px}
+    .ss-label{font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;
+      letter-spacing:.06em;margin-bottom:7px}
+    .ss-preset-row{display:flex;gap:4px;margin-bottom:12px}
+    .ss-preset-btn{flex:1;padding:5px 0;border:1px solid var(--border);border-radius:5px;
+      background:none;color:var(--muted);font-size:10px;font-weight:600;cursor:pointer;
+      transition:border-color .15s,color .15s,background .15s}
+    .ss-preset-btn.active{background:rgba(255,216,77,.13);border-color:var(--accent);color:var(--accent)}
+    .ss-preset-btn:hover:not(.active){border-color:var(--text);color:var(--text)}
+    .ss-row{display:flex;align-items:center;justify-content:space-between;
+      padding:7px 0;border-bottom:1px solid rgba(255,255,255,.04);gap:6px}
+    .ss-row-label{font-size:10px;color:var(--muted);white-space:nowrap}
+    .ss-row-ctrl{display:flex;align-items:center;gap:6px;flex-shrink:0}
+    .ss-select{background:var(--panel2);border:1px solid var(--border);border-radius:4px;
+      color:var(--text);font-size:10px;padding:2px 5px;outline:none;max-width:106px}
+    .ss-color{width:28px;height:22px;border:1px solid var(--border);border-radius:3px;
+      padding:1px;cursor:pointer;background:none}
+    .ss-slider{width:72px;accent-color:var(--accent);cursor:pointer}
+    .ss-slider-val{font-size:10px;color:var(--text);min-width:26px;text-align:right}
+    .ss-toggle{width:34px;height:19px;border-radius:10px;border:none;cursor:pointer;
+      position:relative;transition:background .18s;flex-shrink:0}
+    .ss-toggle.on{background:var(--accent)}
+    .ss-toggle.off{background:var(--border)}
+    .ss-toggle::after{content:"";position:absolute;width:13px;height:13px;border-radius:50%;
+      background:#fff;top:3px;transition:left .18s}
+    .ss-toggle.on::after{left:18px}
+    .ss-toggle.off::after{left:3px}
+
     /* ⑤ AI panel */
     .ai-panel{flex:0 0 318px;display:flex;flex-direction:column;background:var(--panel);
       border-left:1px solid var(--border);min-height:0}
@@ -508,6 +539,71 @@
             <div class="obj-tab-pane" id="obj-tab-anim"><div class="obj-placeholder">애니메이션 준비 중</div></div>
             <div class="obj-tab-pane" id="obj-tab-speed"><div class="obj-placeholder">속도 조절 준비 중</div></div>
           </div>
+
+          <!-- Subtitle style pane (자막 트랙 헤더 클릭 시 표시) -->
+          <div id="sub-style-pane" style="display:none">
+            <div class="ss-label">프리셋</div>
+            <div class="ss-preset-row">
+              <button class="ss-preset-btn" data-preset="매운맛">매운맛</button>
+              <button class="ss-preset-btn" data-preset="순한맛">순한맛</button>
+              <button class="ss-preset-btn active" data-preset="정석맛">정석맛</button>
+            </div>
+            <div class="ss-row">
+              <span class="ss-row-label">폰트</span>
+              <div class="ss-row-ctrl">
+                <select class="ss-select" id="ss-font">
+                  <option value="Malgun Gothic">맑은 고딕</option>
+                  <option value="NanumGothic">나눔고딕</option>
+                  <option value="NanumBarunGothic">나눔바른고딕</option>
+                  <option value="Arial">Arial</option>
+                </select>
+              </div>
+            </div>
+            <div class="ss-row">
+              <span class="ss-row-label">색상</span>
+              <div class="ss-row-ctrl">
+                <input type="color" class="ss-color" id="ss-color" value="#ffffff">
+              </div>
+            </div>
+            <div class="ss-row">
+              <span class="ss-row-label">크기</span>
+              <div class="ss-row-ctrl">
+                <input type="range" class="ss-slider" id="ss-size" min="14" max="72" value="24">
+                <span class="ss-slider-val" id="ss-size-val">24px</span>
+              </div>
+            </div>
+            <div class="ss-row">
+              <span class="ss-row-label">외곽선</span>
+              <div class="ss-row-ctrl">
+                <button class="ss-toggle on" id="ss-outline"></button>
+              </div>
+            </div>
+            <div class="ss-row" id="ss-outline-row">
+              <span class="ss-row-label" style="padding-left:8px">두께</span>
+              <div class="ss-row-ctrl">
+                <input type="range" class="ss-slider" id="ss-outline-w" min="0" max="5" step="0.5" value="1">
+                <span class="ss-slider-val" id="ss-outline-w-val">1</span>
+              </div>
+            </div>
+            <div class="ss-row">
+              <span class="ss-row-label">배경 박스</span>
+              <div class="ss-row-ctrl">
+                <button class="ss-toggle off" id="ss-bg-box"></button>
+              </div>
+            </div>
+            <div class="ss-row">
+              <span class="ss-row-label">카라오케</span>
+              <div class="ss-row-ctrl">
+                <button class="ss-toggle off" id="ss-karaoke"></button>
+              </div>
+            </div>
+            <div class="ss-row">
+              <span class="ss-row-label">페이드 인/아웃</span>
+              <div class="ss-row-ctrl">
+                <button class="ss-toggle off" id="ss-fade"></button>
+              </div>
+            </div>
+          </div>
         </aside>
 
       </div><!-- end .middle-top -->
@@ -534,7 +630,7 @@
               </div>
             </div>
             <div class="tl-row sub-row">
-              <div class="tl-row-label">자막</div>
+              <div class="tl-row-label" id="sub-track-label" title="클릭: 자막 스타일 편집">자막</div>
               <div class="tl-row-body" id="subtitle-track-body"></div>
             </div>
             <div class="playhead" id="playhead" style="left:52px">
@@ -654,6 +750,17 @@ let AI_STAGE          = "idle";
 let AI_REVIEW_DATA    = null;
 let AI_REVIEW_CLIP_ID = null;
 let PREVIEW_MEDIA_ID  = null;
+let OBJ_PANEL_MODE    = null; // "clip" | "subtitle"
+
+const SUBTITLE_STYLE = {
+  preset:"정석맛", font:"Malgun Gothic", color:"#ffffff", size:24,
+  outline:true, outline_width:1, background_box:false, karaoke:false, fade:false
+};
+const SUBTITLE_PRESET_DEFAULTS = {
+  "매운맛":{ font:"Malgun Gothic", color:"#ffff00", size:28, outline:true, outline_width:2, background_box:true,  karaoke:true,  fade:true  },
+  "순한맛":{ font:"Malgun Gothic", color:"#ffffff", size:22, outline:true, outline_width:2, background_box:false, karaoke:true,  fade:true  },
+  "정석맛":{ font:"Malgun Gothic", color:"#ffffff", size:24, outline:true, outline_width:1, background_box:false, karaoke:false, fade:false }
+};
 
 /* =====================================================================
    Utilities
@@ -665,7 +772,7 @@ function fmt(s) {
   const m = Math.floor(s/60), sec = Math.floor(s%60);
   return `${m}:${sec.toString().padStart(2,"0")}`;
 }
-function getStyle() { return "정석맛"; }
+function getStyle() { return SUBTITLE_STYLE.preset; }
 function timelineClips() { return project.media_list.filter(m => m.timeline_start !== null); }
 function totalTimelineDuration() {
   let max = 0;
@@ -1076,8 +1183,12 @@ function selectClip(id) {
 }
 
 function showObjPanel(media) {
+  OBJ_PANEL_MODE = "clip";
   document.getElementById("obj-panel").classList.remove("hidden");
   document.getElementById("obj-panel-name").textContent = media.filename;
+  document.querySelector(".obj-tabs").style.display = "";
+  document.querySelector(".obj-tab-body").style.display = "";
+  document.getElementById("sub-style-pane").style.display = "none";
   document.getElementById("obj-tab-basic").innerHTML = `
     <div class="obj-prop"><span class="obj-prop-label">길이</span><span class="obj-prop-value">${fmt(media.duration)}</span></div>
     <div class="obj-prop"><span class="obj-prop-label">배치 위치</span><span class="obj-prop-value">${fmt(media.timeline_start||0)}</span></div>
@@ -1088,7 +1199,45 @@ function showObjPanel(media) {
 
 function hideObjPanel() {
   document.getElementById("obj-panel").classList.add("hidden");
+  document.getElementById("sub-style-pane").style.display = "none";
+  document.querySelector(".obj-tabs").style.display = "";
+  document.querySelector(".obj-tab-body").style.display = "";
+  OBJ_PANEL_MODE = null;
   SELECTED_CLIP_ID = null;
+}
+
+function showSubStylePanel() {
+  OBJ_PANEL_MODE = "subtitle";
+  if (SELECTED_CLIP_ID) { SELECTED_CLIP_ID = null; renderVideoTrack(); updateAnalyzeBtn(null); }
+  document.getElementById("obj-panel").classList.remove("hidden");
+  document.getElementById("obj-panel-name").textContent = "자막 스타일";
+  document.querySelector(".obj-tabs").style.display = "none";
+  document.querySelector(".obj-tab-body").style.display = "none";
+  document.getElementById("sub-style-pane").style.display = "block";
+  syncSubStyleForm();
+}
+
+function syncSubStyleForm() {
+  document.getElementById("ss-font").value = SUBTITLE_STYLE.font;
+  document.getElementById("ss-color").value = SUBTITLE_STYLE.color;
+  document.getElementById("ss-size").value = SUBTITLE_STYLE.size;
+  document.getElementById("ss-size-val").textContent = SUBTITLE_STYLE.size + "px";
+  document.getElementById("ss-outline-w").value = SUBTITLE_STYLE.outline_width;
+  document.getElementById("ss-outline-w-val").textContent = SUBTITLE_STYLE.outline_width;
+  document.getElementById("ss-outline-row").style.display = SUBTITLE_STYLE.outline ? "" : "none";
+  setToggle("ss-outline",  SUBTITLE_STYLE.outline);
+  setToggle("ss-bg-box",   SUBTITLE_STYLE.background_box);
+  setToggle("ss-karaoke",  SUBTITLE_STYLE.karaoke);
+  setToggle("ss-fade",     SUBTITLE_STYLE.fade);
+  document.querySelectorAll(".ss-preset-btn").forEach(b =>
+    b.classList.toggle("active", b.dataset.preset === SUBTITLE_STYLE.preset)
+  );
+}
+
+function setToggle(id, val) {
+  const el = document.getElementById(id);
+  el.classList.toggle("on", !!val);
+  el.classList.toggle("off", !val);
 }
 
 function updateAnalyzeBtn(media) {
@@ -1359,7 +1508,23 @@ function buildRenderPayload() {
   const segs = clip.segments
     .filter(s => s.start >= clip.timeline_range.start && s.end <= clip.timeline_range.end + 0.1)
     .map(s => ({ start:s.start, end:s.end, text:s.text, cut:s.cut, subtitle_color:"white", fontsize:36 }));
-  return { source_file:clip.source_file, segments:segs, style_preset:getStyle(), aspect_ratio:"16:9", _clip_name:clip.filename };
+  return {
+    source_file: clip.source_file,
+    segments: segs,
+    style_preset: SUBTITLE_STYLE.preset,
+    style_overrides: {
+      font:          SUBTITLE_STYLE.font,
+      color:         SUBTITLE_STYLE.color,
+      size:          SUBTITLE_STYLE.size,
+      outline:       SUBTITLE_STYLE.outline,
+      outline_width: SUBTITLE_STYLE.outline_width,
+      background_box:SUBTITLE_STYLE.background_box,
+      karaoke:       SUBTITLE_STYLE.karaoke,
+      fade:          SUBTITLE_STYLE.fade,
+    },
+    aspect_ratio: project.aspect_ratio,
+    _clip_name: clip.filename
+  };
 }
 
 function openExportModal() {
@@ -1465,6 +1630,47 @@ document.getElementById("btn-snap").addEventListener("click", () => {
   const btn = document.getElementById("btn-snap");
   btn.textContent = SNAP_ENABLED ? "스냅 ON" : "스냅 OFF";
   btn.classList.toggle("active", SNAP_ENABLED);
+});
+
+/* =====================================================================
+   Subtitle style panel events
+===================================================================== */
+document.getElementById("sub-track-label").addEventListener("click", showSubStylePanel);
+
+document.querySelectorAll(".ss-preset-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    SUBTITLE_STYLE.preset = btn.dataset.preset;
+    Object.assign(SUBTITLE_STYLE, SUBTITLE_PRESET_DEFAULTS[btn.dataset.preset]);
+    syncSubStyleForm();
+  });
+});
+
+document.getElementById("ss-font").addEventListener("change", e => { SUBTITLE_STYLE.font = e.target.value; });
+document.getElementById("ss-color").addEventListener("input",  e => { SUBTITLE_STYLE.color = e.target.value; });
+document.getElementById("ss-size").addEventListener("input", e => {
+  SUBTITLE_STYLE.size = +e.target.value;
+  document.getElementById("ss-size-val").textContent = e.target.value + "px";
+});
+document.getElementById("ss-outline").addEventListener("click", () => {
+  SUBTITLE_STYLE.outline = !SUBTITLE_STYLE.outline;
+  setToggle("ss-outline", SUBTITLE_STYLE.outline);
+  document.getElementById("ss-outline-row").style.display = SUBTITLE_STYLE.outline ? "" : "none";
+});
+document.getElementById("ss-outline-w").addEventListener("input", e => {
+  SUBTITLE_STYLE.outline_width = +e.target.value;
+  document.getElementById("ss-outline-w-val").textContent = e.target.value;
+});
+document.getElementById("ss-bg-box").addEventListener("click", () => {
+  SUBTITLE_STYLE.background_box = !SUBTITLE_STYLE.background_box;
+  setToggle("ss-bg-box", SUBTITLE_STYLE.background_box);
+});
+document.getElementById("ss-karaoke").addEventListener("click", () => {
+  SUBTITLE_STYLE.karaoke = !SUBTITLE_STYLE.karaoke;
+  setToggle("ss-karaoke", SUBTITLE_STYLE.karaoke);
+});
+document.getElementById("ss-fade").addEventListener("click", () => {
+  SUBTITLE_STYLE.fade = !SUBTITLE_STYLE.fade;
+  setToggle("ss-fade", SUBTITLE_STYLE.fade);
 });
 
 // Init

@@ -10,7 +10,7 @@ import sys
 import uuid
 import traceback
 from pathlib import Path
-from typing import Any, Dict, List, Literal
+from typing import Any, Dict, List, Literal, Optional
 
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
@@ -51,10 +51,22 @@ class SubtitleSegment(BaseModel):
     fontsize: int = Field(default=32, ge=16, le=96)
 
 
+class StyleOverrides(BaseModel):
+    font: Optional[str] = None
+    color: Optional[str] = None
+    size: Optional[int] = None
+    outline: Optional[bool] = None
+    outline_width: Optional[float] = None
+    background_box: Optional[bool] = None
+    karaoke: Optional[bool] = None
+    fade: Optional[bool] = None
+
+
 class RenderRequest(BaseModel):
     source_file: str
     segments: List[SubtitleSegment] = Field(min_length=1, max_length=1000)
     style_preset: Literal["매운맛", "순한맛", "정석맛"] = "정석맛"
+    style_overrides: Optional[StyleOverrides] = None
     aspect_ratio: Literal["16:9", "9:16"] = "16:9"
 
 
@@ -235,7 +247,9 @@ async def revise_segments(request: ReviseRequest) -> JSONResponse:
 # ── Render ───────────────────────────────────────────────────────────────────
 
 def _render_video(
-    job_id: str, input_path: Path, segments: List[Dict[str, Any]], aspect_ratio: str
+    job_id: str, input_path: Path, segments: List[Dict[str, Any]],
+    aspect_ratio: str, style_preset: str = "정석맛",
+    style_overrides: Optional[Dict[str, Any]] = None,
 ) -> None:
     output_name = f"cutroom_{job_id}.mp4"
     output_path = OUTPUT_DIR / output_name
@@ -243,6 +257,13 @@ def _render_video(
         render_jobs[job_id].update(progress=20, message="타임라인을 정리하는 중...")
         pipeline = VideoEditingPipeline.__new__(VideoEditingPipeline)
         pipeline.temp_dir = ""
+        # style_overrides 가 있으면 세그먼트의 색상·크기를 일괄 덮어씀
+        if style_overrides:
+            for seg in segments:
+                if style_overrides.get("color"):
+                    seg["subtitle_color"] = style_overrides["color"]
+                if style_overrides.get("size") is not None:
+                    seg["fontsize"] = int(style_overrides["size"])
         render_jobs[job_id].update(progress=55, message="렌더링 중...")
         pipeline.step5_create_final_video(
             str(input_path), segments, str(output_path), aspect_ratio=aspect_ratio
@@ -270,10 +291,18 @@ async def render_video(request: RenderRequest) -> JSONResponse:
             raise HTTPException(status_code=422, detail="종료 시간은 시작 시간보다 뒤여야 합니다.")
         normalized.append(seg.model_dump() if hasattr(seg, "model_dump") else seg.dict())
 
+    overrides = (
+        request.style_overrides.model_dump(exclude_none=True)
+        if request.style_overrides else None
+    )
+
     job_id = uuid.uuid4().hex
     render_jobs[job_id] = {"status": "processing", "progress": 5, "message": "렌더링을 준비하는 중..."}
     asyncio.create_task(
-        asyncio.to_thread(_render_video, job_id, input_path, normalized, request.aspect_ratio)
+        asyncio.to_thread(
+            _render_video, job_id, input_path, normalized,
+            request.aspect_ratio, request.style_preset, overrides,
+        )
     )
     return JSONResponse({"job_id": job_id, **render_jobs[job_id]})
 
