@@ -118,6 +118,19 @@
       align-items:center;justify-content:center;color:var(--muted);font-size:12px;
       text-align:center;line-height:1.8;pointer-events:none}
     .preview-empty.hidden{display:none}
+
+    /* Subtitle overlay */
+    .sub-overlay{position:absolute;bottom:10%;left:0;right:0;
+      text-align:center;pointer-events:none;z-index:5;padding:0 8%}
+    .sub-overlay-text{display:inline-block;color:#fff;font-size:15px;font-weight:600;
+      background:rgba(0,0,0,.65);padding:4px 14px;border-radius:4px;
+      line-height:1.55;text-shadow:0 1px 3px rgba(0,0,0,.9);max-width:100%;
+      white-space:pre-wrap;word-break:break-word}
+    .sub-overlay-cut .sub-overlay-text{color:rgba(255,130,130,.9);
+      text-decoration:line-through;background:rgba(60,0,0,.65)}
+    .sub-overlay-badge{font-size:9px;font-weight:700;padding:1px 4px;
+      border-radius:3px;margin-left:6px;vertical-align:middle;
+      background:rgba(255,92,92,.8);color:#fff;text-decoration:none;display:inline-block}
     .preview-controls{flex:0 0 auto;display:flex;align-items:center;gap:10px;padding-top:10px}
     .btn-play{flex:0 0 32px;height:32px;background:var(--panel);border:1px solid var(--border);
       border-radius:50%;display:grid;place-items:center;cursor:pointer;transition:background .15s}
@@ -458,6 +471,7 @@
           <div class="preview-area">
             <div class="preview-box">
               <video id="video" playsinline preload="metadata"></video>
+              <div class="sub-overlay" id="sub-overlay" style="display:none"></div>
               <div class="preview-empty" id="preview-empty">타임라인에서 클립을 선택하거나<br>좌측에서 영상을 추가하세요</div>
             </div>
           </div>
@@ -639,6 +653,7 @@ let PLAYHEAD_DRAG     = false;
 let AI_STAGE          = "idle";
 let AI_REVIEW_DATA    = null;
 let AI_REVIEW_CLIP_ID = null;
+let PREVIEW_MEDIA_ID  = null;
 
 /* =====================================================================
    Utilities
@@ -1203,9 +1218,11 @@ document.getElementById("ruler-body").addEventListener("click", e => {
    Video preview
 ===================================================================== */
 function previewMedia(media) {
+  PREVIEW_MEDIA_ID = media.id;
   videoEl.src = media.blob_url; videoEl.load();
   document.getElementById("preview-empty").classList.add("hidden");
   document.getElementById("btn-play").disabled = false;
+  document.getElementById("sub-overlay").style.display = "none";
 }
 function updatePlaybackUI() {
   const t = videoEl.currentTime||0, dur = isFinite(videoEl.duration)&&videoEl.duration>0 ? videoEl.duration : 0;
@@ -1213,7 +1230,24 @@ function updatePlaybackUI() {
   document.getElementById("preview-progress-fill").style.width = dur ? `${(t/dur)*100}%` : "0%";
 }
 const videoEl = document.getElementById("video");
-videoEl.addEventListener("timeupdate",     updatePlaybackUI);
+videoEl.addEventListener("timeupdate", updatePlaybackUI);
+videoEl.addEventListener("timeupdate", updateSubtitleOverlay);
+
+function updateSubtitleOverlay() {
+  const overlay = document.getElementById("sub-overlay");
+  const media   = project.media_list.find(m => m.id === PREVIEW_MEDIA_ID);
+  if (!media || media.analysis_status !== "analyzed" || !media.segments.length) {
+    overlay.style.display = "none"; return;
+  }
+  const t   = videoEl.currentTime;
+  const seg = media.segments.find(s => t >= s.start && t < s.end);
+  if (!seg) { overlay.style.display = "none"; return; }
+
+  overlay.style.display = "";
+  overlay.className = "sub-overlay" + (seg.cut ? " sub-overlay-cut" : "");
+  const badge = seg.cut ? `<span class="sub-overlay-badge">cut</span>` : "";
+  overlay.innerHTML = `<span class="sub-overlay-text">${seg.text}${badge}</span>`;
+}
 videoEl.addEventListener("loadedmetadata", updatePlaybackUI);
 videoEl.addEventListener("play",  () => { document.getElementById("icon-play").style.display="none"; document.getElementById("icon-pause").style.display=""; });
 videoEl.addEventListener("pause", () => { document.getElementById("icon-play").style.display="";     document.getElementById("icon-pause").style.display="none"; });
