@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Cutroom AI</title>
   <style>
-    /* ── Design tokens ─────────────────────────────────────── */
     :root {
       --bg:        #12161C;
       --panel:     #1B222B;
@@ -25,10 +24,9 @@
                    "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
       font-size: 13px; overflow: hidden; }
 
-    /* ── Shell ─────────────────────────────────────────────── */
     .app { display: flex; flex-direction: column; height: 100vh; }
 
-    /* ── Topbar ────────────────────────────────────────────── */
+    /* Topbar */
     .topbar {
       flex: 0 0 52px; display: flex; align-items: center;
       justify-content: space-between; padding: 0 18px;
@@ -50,19 +48,15 @@
     .btn-export:hover { filter: brightness(1.08); }
     .btn-export:disabled { opacity: .4; cursor: not-allowed; filter: none; }
 
-    /* ── Workspace (3 columns) ─────────────────────────────── */
-    .workspace {
-      flex: 1 1 auto; display: flex; min-height: 0; overflow: hidden;
-    }
+    /* Workspace */
+    .workspace { flex: 1 1 auto; display: flex; min-height: 0; overflow: hidden; }
 
-    /* ── Left panel ────────────────────────────────────────── */
+    /* Left panel */
     .left-panel {
       flex: 0 0 30%; display: flex; flex-direction: column;
       border-right: 1px solid var(--border); background: var(--panel); min-width: 0;
     }
-    .panel-tabs {
-      display: flex; border-bottom: 1px solid var(--border); flex: 0 0 auto;
-    }
+    .panel-tabs { display: flex; border-bottom: 1px solid var(--border); flex: 0 0 auto; }
     .tab-btn {
       flex: 1; padding: 10px 0; background: none; border: none; color: var(--muted);
       font-size: 12px; font-weight: 600; cursor: pointer; border-bottom: 2px solid transparent;
@@ -72,7 +66,6 @@
     .tab-pane { display: none; flex-direction: column; flex: 1 1 auto; min-height: 0; overflow: hidden; }
     .tab-pane.active { display: flex; }
 
-    /* Media tab */
     .upload-zone {
       flex: 0 0 auto; margin: 12px; border: 2px dashed var(--border); border-radius: var(--radius);
       padding: 18px 12px; text-align: center; cursor: pointer; transition: border-color .2s;
@@ -97,18 +90,13 @@
     }
     .clip-item:hover { background: var(--panel2); }
     .clip-item.on-timeline { border-color: var(--keep); }
-    .clip-thumb-wrap {
-      flex: 0 0 56px; height: 36px; border-radius: 4px; overflow: hidden;
-      background: #0a0d12;
-    }
+    .clip-thumb-wrap { flex: 0 0 56px; height: 36px; border-radius: 4px; overflow: hidden; background: #0a0d12; }
     .clip-thumb { width: 100%; height: 100%; object-fit: cover; display: block; }
     .clip-info { flex: 1 1 auto; min-width: 0; }
     .clip-name { font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 3px; }
     .clip-meta { display: flex; align-items: center; gap: 8px; }
     .clip-dur { font-size: 11px; color: var(--muted); }
-    .clip-status-badge {
-      font-size: 10px; padding: 1px 6px; border-radius: 10px; font-weight: 600;
-    }
+    .clip-status-badge { font-size: 10px; padding: 1px 6px; border-radius: 10px; font-weight: 600; }
     .badge-uploading { background: #2a3340; color: var(--muted); }
     .badge-ready     { background: #1a2a1a; color: #5ca85c; }
     .badge-analyzed  { background: #1a2035; color: var(--keep); }
@@ -122,7 +110,7 @@
     .clip-add-btn:hover { border-color: var(--keep); color: var(--keep); }
 
     /* Style tab */
-    .style-tab-inner { padding: 16px 16px; }
+    .style-tab-inner { padding: 16px; }
     .style-tab-label { font-size: 11px; color: var(--muted); margin-bottom: 10px; text-transform: uppercase; letter-spacing: .05em; }
     .style-option {
       display: flex; align-items: flex-start; gap: 10px; padding: 12px 14px;
@@ -134,7 +122,7 @@
     .style-option-name { font-weight: 700; font-size: 13px; margin-bottom: 3px; }
     .style-option-desc { font-size: 11px; color: var(--muted); line-height: 1.5; }
 
-    /* ── Center panel ──────────────────────────────────────── */
+    /* Center panel */
     .center-panel {
       flex: 0 0 30%; display: flex; flex-direction: column; min-width: 0;
       background: var(--bg); padding: 14px;
@@ -155,9 +143,7 @@
       font-size: 12px; text-align: center; line-height: 1.8; pointer-events: none;
     }
     .preview-empty.hidden { display: none; }
-    .preview-controls {
-      flex: 0 0 auto; display: flex; align-items: center; gap: 10px; padding-top: 10px;
-    }
+    .preview-controls { flex: 0 0 auto; display: flex; align-items: center; gap: 10px; padding-top: 10px; }
     .btn-play {
       flex: 0 0 32px; height: 32px; background: var(--panel); border: 1px solid var(--border);
       border-radius: 50%; display: grid; place-items: center; cursor: pointer;
@@ -166,23 +152,15 @@
     .btn-play:hover { background: var(--panel2); }
     .btn-play:disabled { opacity: .3; cursor: not-allowed; }
     .preview-time { flex: 0 0 auto; font-size: 11px; color: var(--muted); white-space: nowrap; }
-    .preview-progress {
-      flex: 1 1 auto; height: 4px; background: var(--border); border-radius: 2px;
-      cursor: pointer; position: relative;
-    }
+    .preview-progress { flex: 1 1 auto; height: 4px; background: var(--border); border-radius: 2px; cursor: pointer; position: relative; }
     .preview-progress-fill { height: 100%; background: var(--accent); border-radius: 2px; width: 0; }
 
-    /* ── Right AI panel ────────────────────────────────────── */
+    /* Right panel */
     .right-panel {
       flex: 0 0 40%; display: flex; flex-direction: column;
       border-left: 1px solid var(--border); background: var(--panel); min-width: 0;
     }
-
-    /* Analyze section */
-    .analyze-section {
-      flex: 0 0 auto; padding: 14px 16px 12px;
-      border-bottom: 1px solid var(--border);
-    }
+    .analyze-section { flex: 0 0 auto; padding: 14px 16px 12px; border-bottom: 1px solid var(--border); }
     .section-label { font-size: 11px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 10px; }
     .btn-analyze {
       width: 100%; padding: 9px; background: var(--accent); color: #12161C;
@@ -194,15 +172,9 @@
     .analyze-progress { margin-top: 10px; }
     .analyze-progress.hidden { display: none; }
     .progress-stage { font-size: 11px; color: var(--muted); margin-bottom: 5px; }
-    .progress-bar-track {
-      height: 6px; background: var(--border); border-radius: 3px; overflow: hidden;
-    }
+    .progress-bar-track { height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
     .progress-bar-fill { height: 100%; background: var(--analyzing); border-radius: 3px; width: 0; transition: width .4s; }
-
-    /* Quick commands */
-    .quick-section {
-      flex: 0 0 auto; padding: 12px 16px; border-bottom: 1px solid var(--border);
-    }
+    .quick-section { flex: 0 0 auto; padding: 12px 16px; border-bottom: 1px solid var(--border); }
     .quick-btns { display: flex; gap: 8px; flex-wrap: wrap; }
     .btn-quick {
       padding: 6px 14px; background: var(--panel2); border: 1px solid var(--border);
@@ -210,18 +182,9 @@
       transition: border-color .15s, color .15s;
     }
     .btn-quick:hover { border-color: var(--keep); color: var(--keep); }
-
-    /* AI chat */
     .ai-chat { flex: 1 1 auto; display: flex; flex-direction: column; min-height: 0; }
-    .chat-header {
-      flex: 0 0 auto; padding: 10px 16px 8px;
-      border-bottom: 1px solid var(--border); font-size: 11px;
-      color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .05em;
-    }
-    .chat-messages {
-      flex: 1 1 auto; overflow-y: auto; padding: 12px 16px; display: flex;
-      flex-direction: column; gap: 8px;
-    }
+    .chat-header { flex: 0 0 auto; padding: 10px 16px 8px; border-bottom: 1px solid var(--border); font-size: 11px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .05em; }
+    .chat-messages { flex: 1 1 auto; overflow-y: auto; padding: 12px 16px; display: flex; flex-direction: column; gap: 8px; }
     .msg { padding: 9px 12px; border-radius: 8px; font-size: 12px; line-height: 1.6; max-width: 90%; }
     .msg-hint { background: var(--panel2); color: var(--muted); align-self: center; text-align: center; max-width: 100%; }
     .msg-user { background: #1e3050; color: var(--text); align-self: flex-end; }
@@ -241,7 +204,7 @@
     }
     .btn-send:hover { filter: brightness(1.1); }
 
-    /* ── Timeline panel ────────────────────────────────────── */
+    /* Timeline panel */
     .timeline-panel {
       flex: 0 0 210px; border-top: 1px solid var(--border);
       background: var(--panel); display: flex; flex-direction: column;
@@ -259,9 +222,7 @@
     }
     .btn-snap.active { border-color: var(--accent); color: var(--accent); }
     .tl-scroll { flex: 1 1 auto; overflow: auto; position: relative; }
-    .tl-content {
-      position: relative; min-height: 100%;
-    }
+    .tl-content { position: relative; min-height: 100%; }
 
     /* Track rows */
     .tl-row { display: flex; align-items: stretch; }
@@ -285,50 +246,68 @@
       transform: translateX(-50%); white-space: nowrap;
     }
 
-    /* Timeline clip (video track) */
+    /* Timeline clip */
     .tl-clip {
       position: absolute; top: 6px; height: 52px; border-radius: 5px;
       background: #1e3050; border: 2px solid #2a4070;
-      display: flex; align-items: center; overflow: hidden;
-      cursor: pointer; user-select: none; transition: border-color .15s;
+      overflow: hidden; user-select: none;
+      cursor: grab;
+      transition: border-color .15s, opacity .1s;
     }
     .tl-clip:hover  { border-color: var(--keep); }
-    .tl-clip.selected { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+    .tl-clip.selected  { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
     .tl-clip.analyzing { border-color: var(--analyzing); }
     .tl-clip.analyzed  { border-color: var(--keep); background: #1a2a40; }
-    .tl-clip-inner { padding: 0 30px 0 8px; overflow: hidden; width: 100%; }
-    .tl-clip-name  { font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .tl-clip-dur   { font-size: 10px; color: var(--muted); }
+    .tl-clip.clip-moving { cursor: grabbing; opacity: .82; }
+
+    /* Filmstrip inside clip */
+    .tl-clip-filmstrip {
+      position: absolute; inset: 0; display: flex; overflow: hidden;
+      border-radius: 3px; pointer-events: none;
+    }
+    .tl-clip-filmstrip img {
+      flex: 0 0 auto; height: 100%; object-fit: cover; display: block;
+    }
+
+    /* Text overlay on clip */
+    .tl-clip-overlay {
+      position: absolute; inset: 0; padding: 5px 32px 4px 8px;
+      background: linear-gradient(to bottom,
+        rgba(0,0,0,.7) 0%, rgba(0,0,0,.3) 50%, transparent 100%);
+      pointer-events: none;
+    }
+    .tl-clip-name {
+      font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      color: #fff; text-shadow: 0 1px 3px rgba(0,0,0,.9);
+    }
+    .tl-clip-dur     { font-size: 10px; color: rgba(255,255,255,.65); text-shadow: 0 1px 2px rgba(0,0,0,.8); }
     .tl-clip-spinner { font-size: 10px; color: var(--analyzing); }
 
     /* Trim handles */
     .trim-handle {
       position: absolute; top: 0; bottom: 0; width: 10px; cursor: col-resize;
-      background: rgba(255,255,255,.15); z-index: 2;
+      background: rgba(255,255,255,.18); z-index: 3;
       display: flex; align-items: center; justify-content: center;
     }
-    .trim-handle::after { content: ""; width: 2px; height: 20px; background: rgba(255,255,255,.5); border-radius: 1px; }
-    .trim-left  { left: 0; border-radius: 5px 0 0 5px; }
+    .trim-handle::after { content: ""; width: 2px; height: 20px; background: rgba(255,255,255,.55); border-radius: 1px; }
+    .trim-left  { left: 0;  border-radius: 5px 0 0 5px; }
     .trim-right { right: 0; border-radius: 0 5px 5px 0; }
 
-    /* Subtitle segments (subtitle track) */
+    /* Subtitle segments */
     .sub-seg {
       position: absolute; top: 6px; height: 36px; border-radius: 4px;
       cursor: pointer; overflow: hidden; border: 1px solid transparent;
       transition: filter .1s;
     }
     .sub-seg:hover { filter: brightness(1.2); }
-    .sub-keep { background: rgba(92, 168, 255, .25); border-color: rgba(92, 168, 255, .5); }
-    .sub-cut  { background: rgba(255,  92,  92, .2);  border-color: rgba(255,  92,  92, .4); }
+    .sub-keep { background: rgba(92,168,255,.25); border-color: rgba(92,168,255,.5); }
+    .sub-cut  { background: rgba(255, 92, 92,.2);  border-color: rgba(255, 92, 92,.4); }
     .sub-seg-text {
       font-size: 10px; padding: 3px 5px; white-space: nowrap;
       overflow: hidden; text-overflow: ellipsis; display: block;
       color: var(--text); line-height: 1.3;
     }
-    .sub-seg-tag {
-      position: absolute; right: 4px; bottom: 3px;
-      font-size: 9px; font-weight: 700;
-    }
+    .sub-seg-tag { position: absolute; right: 4px; bottom: 3px; font-size: 9px; font-weight: 700; }
     .sub-keep .sub-seg-tag { color: var(--keep); }
     .sub-cut  .sub-seg-tag { color: var(--cut); }
 
@@ -350,6 +329,15 @@
       justify-content: center; color: var(--muted); font-size: 12px;
       pointer-events: none;
     }
+
+    /* Zoom hint toast */
+    .tl-zoom-hint {
+      position: fixed; bottom: 230px; left: 50%; transform: translateX(-50%);
+      background: rgba(0,0,0,.82); color: #fff; font-size: 12px; font-weight: 600;
+      padding: 5px 16px; border-radius: 20px; pointer-events: none;
+      opacity: 0; transition: opacity .25s; z-index: 50;
+    }
+    .tl-zoom-hint.show { opacity: 1; }
 
     /* Export modal */
     .modal { position: fixed; inset: 0; z-index: 100; display: flex; align-items: center; justify-content: center; }
@@ -374,7 +362,6 @@
     .btn-primary:hover { filter: brightness(1.08); }
     .btn-primary:disabled { opacity: .4; cursor: not-allowed; filter: none; }
 
-    /* Scrollbar */
     ::-webkit-scrollbar { width: 6px; height: 6px; }
     ::-webkit-scrollbar-track { background: transparent; }
     ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
@@ -383,7 +370,6 @@
 <body>
 <div class="app">
 
-  <!-- ── Topbar ─────────────────────────────────────────────── -->
   <header class="topbar">
     <div class="brand">
       <div class="brand-mark">C</div>
@@ -393,7 +379,6 @@
     <button class="btn-export" id="btn-export" disabled>내보내기</button>
   </header>
 
-  <!-- ── Workspace ──────────────────────────────────────────── -->
   <div class="workspace">
 
     <!-- Left panel -->
@@ -403,7 +388,6 @@
         <button class="tab-btn"        data-tab="style">스타일</button>
       </div>
 
-      <!-- Media tab -->
       <div class="tab-pane active" id="pane-media">
         <div class="upload-zone" id="upload-zone">
           <input type="file" id="file-input" accept="video/*" multiple hidden />
@@ -426,7 +410,6 @@
         </div>
       </div>
 
-      <!-- Style tab -->
       <div class="tab-pane" id="pane-style">
         <div class="style-tab-inner">
           <div class="style-tab-label">자막·편집 스타일 선택</div>
@@ -471,10 +454,8 @@
       </div>
     </section>
 
-    <!-- Right AI panel -->
+    <!-- Right panel -->
     <aside class="right-panel">
-
-      <!-- Analyze -->
       <div class="analyze-section">
         <div class="section-label">AI 분석</div>
         <button class="btn-analyze" id="btn-analyze" disabled>클립을 선택해 분석 시작</button>
@@ -486,7 +467,6 @@
         </div>
       </div>
 
-      <!-- Quick commands -->
       <div class="quick-section">
         <div class="section-label" style="margin-bottom:8px">빠른 명령</div>
         <div class="quick-btns">
@@ -497,7 +477,6 @@
         </div>
       </div>
 
-      <!-- AI chat -->
       <div class="ai-chat">
         <div class="chat-header">AI 수정 요청</div>
         <div class="chat-messages" id="chat-messages">
@@ -515,23 +494,22 @@
     </aside>
   </div>
 
-  <!-- ── Timeline ────────────────────────────────────────────── -->
+  <!-- Timeline -->
   <section class="timeline-panel">
     <div class="tl-toolbar">
       <span class="tl-title">타임라인</span>
       <span class="tl-stats" id="tl-stats"></span>
+      <span style="font-size:10px;color:var(--muted)">Ctrl+스크롤: 확대/축소</span>
       <button class="btn-snap active" id="btn-snap">스냅 ON</button>
     </div>
     <div class="tl-scroll" id="tl-scroll">
       <div class="tl-content" id="tl-content">
 
-        <!-- Ruler row -->
         <div class="tl-row ruler-row">
           <div class="tl-row-label"></div>
           <div class="tl-row-body" id="ruler-body"></div>
         </div>
 
-        <!-- Video track -->
         <div class="tl-row video-row">
           <div class="tl-row-label">영상</div>
           <div class="tl-row-body" id="video-track-body"
@@ -540,13 +518,11 @@
           </div>
         </div>
 
-        <!-- Subtitle track -->
         <div class="tl-row sub-row">
           <div class="tl-row-label">자막</div>
           <div class="tl-row-body" id="subtitle-track-body"></div>
         </div>
 
-        <!-- Playhead (spans all rows) -->
         <div class="playhead" id="playhead" style="left:52px">
           <div class="playhead-handle" id="playhead-handle"></div>
         </div>
@@ -554,6 +530,9 @@
     </div>
   </section>
 </div>
+
+<!-- Zoom hint -->
+<div class="tl-zoom-hint" id="zoom-hint"></div>
 
 <!-- Export modal -->
 <div class="modal hidden" id="export-modal">
@@ -580,31 +559,29 @@
 /* =====================================================================
    Constants & State
 ===================================================================== */
-const PX_PER_SEC      = 60;
-const SNAP_THRESHOLD  = 12; // px
-const TRACK_OFFSET_PX = 52; // label width
+let   PX_PER_SEC      = 60;   // mutable — Ctrl+scroll zoom
+const SNAP_THRESHOLD  = 12;   // px
+const TRACK_OFFSET_PX = 52;   // label column width
 
 const project = { storyline: "", media_list: [] };
 
-let SELECTED_CLIP_ID   = null;
-let SNAP_ENABLED       = true;
-let DRAGGING_MEDIA_ID  = null;  // left-panel → timeline drag
-let TRIM_STATE         = null;  // { clipId, edge, startX, origStart, origEnd }
-let PLAYHEAD_DRAG      = false;
+let SELECTED_CLIP_ID  = null;
+let SNAP_ENABLED      = true;
+let DRAGGING_MEDIA_ID = null;  // left-panel → timeline drag
+let TRIM_STATE        = null;  // { clipId, edge, startX, origStart, origEnd, origTlStart }
+let CLIP_DRAG_STATE   = null;  // { clipId, startX, origTlStart, moved }
+let PLAYHEAD_DRAG     = false;
 
 /* =====================================================================
    Utilities
 ===================================================================== */
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
-function genId() {
-  return "m" + Math.random().toString(16).slice(2, 10);
-}
+function genId() { return "m" + Math.random().toString(16).slice(2, 10); }
 
 function fmt(s) {
   s = Math.max(0, s || 0);
-  const m = Math.floor(s / 60);
-  const sec = Math.floor(s % 60);
+  const m = Math.floor(s / 60), sec = Math.floor(s % 60);
   return `${m}:${sec.toString().padStart(2, "0")}`;
 }
 
@@ -630,18 +607,60 @@ function totalTimelineDuration() {
 ===================================================================== */
 function createMedia(file, blobUrl) {
   return {
-    id:               genId(),
-    filename:         file.name,
-    file:             file,
-    blob_url:         blobUrl,
-    source_file:      null,
-    duration:         0,
-    timeline_start:   null,
-    timeline_range:   { start: 0, end: 0 },
-    analysis_status:  "uploading",
-    analyze_job_id:   null,
-    segments:         [],
+    id:              genId(),
+    filename:        file.name,
+    file:            file,
+    blob_url:        blobUrl,
+    source_file:     null,
+    duration:        0,
+    timeline_start:  null,
+    timeline_range:  { start: 0, end: 0 },
+    analysis_status: "uploading",
+    analyze_job_id:  null,
+    segments:        [],
+    thumbnails:      null,   // array of dataURLs
+    thumb_interval:  1,      // seconds between thumbnails
+    thumb_w:         85,     // px width of each thumb frame
   };
+}
+
+/* =====================================================================
+   Thumbnail generation
+===================================================================== */
+async function generateThumbnails(media) {
+  if (!media.duration || media.duration <= 0) return;
+
+  const THUMB_H   = 48;
+  const THUMB_W   = Math.round(THUMB_H * 16 / 9); // ≈ 85 px
+  const MAX_THUMBS = 30;
+  const interval  = Math.max(0.5, media.duration / MAX_THUMBS);
+
+  const vid = document.createElement("video");
+  vid.src        = media.blob_url;
+  vid.muted      = true;
+  vid.playsInline = true;
+  vid.preload    = "auto";
+  await new Promise(r => { vid.onloadedmetadata = r; vid.load(); });
+
+  const canvas = document.createElement("canvas");
+  canvas.width  = THUMB_W;
+  canvas.height = THUMB_H;
+  const ctx = canvas.getContext("2d");
+
+  media.thumbnails     = [];
+  media.thumb_interval = interval;
+  media.thumb_w        = THUMB_W;
+
+  for (let t = 0; t < media.duration && media.thumbnails.length < MAX_THUMBS; t += interval) {
+    vid.currentTime = Math.min(t, media.duration - 0.05);
+    await new Promise(r => { vid.onseeked = r; });
+    try {
+      ctx.drawImage(vid, 0, 0, THUMB_W, THUMB_H);
+      media.thumbnails.push(canvas.toDataURL("image/jpeg", 0.55));
+    } catch (e) { break; }
+  }
+
+  if (media.timeline_start !== null) renderTimeline();
 }
 
 /* =====================================================================
@@ -654,17 +673,16 @@ async function handleFiles(files) {
     project.media_list.push(media);
     renderClipList();
 
-    // Get duration via hidden video element
     const dv = document.createElement("video");
     dv.preload = "metadata";
-    dv.src = blobUrl;
+    dv.src     = blobUrl;
     dv.onloadedmetadata = () => {
-      media.duration = dv.duration;
-      media.timeline_range.end = dv.duration;
+      media.duration              = dv.duration;
+      media.timeline_range.end   = dv.duration;
       updateClipEl(media);
+      generateThumbnails(media);  // async, no await
     };
 
-    // Upload to server
     try {
       const fd = new FormData();
       fd.append("file", file);
@@ -682,7 +700,7 @@ async function handleFiles(files) {
 }
 
 /* =====================================================================
-   Left panel – clip list rendering
+   Left panel – clip list
 ===================================================================== */
 function renderClipList() {
   const list = document.getElementById("clip-list");
@@ -691,17 +709,15 @@ function renderClipList() {
     list.innerHTML = `<div style="color:var(--muted);font-size:12px;text-align:center;padding:20px 0">영상을 추가하면 여기에 표시됩니다</div>`;
     return;
   }
-  for (const m of project.media_list) {
-    list.appendChild(makeClipEl(m));
-  }
+  for (const m of project.media_list) list.appendChild(makeClipEl(m));
 }
 
 function makeClipEl(media) {
   const el = document.createElement("div");
-  el.className   = "clip-item" + (media.timeline_start !== null ? " on-timeline" : "");
-  el.dataset.id  = media.id;
-  el.draggable   = true;
-  el.innerHTML   = `
+  el.className  = "clip-item" + (media.timeline_start !== null ? " on-timeline" : "");
+  el.dataset.id = media.id;
+  el.draggable  = true;
+  el.innerHTML  = `
     <div class="clip-thumb-wrap">
       <video class="clip-thumb" src="${media.blob_url}" preload="metadata" muted></video>
     </div>
@@ -714,11 +730,7 @@ function makeClipEl(media) {
     </div>
     <button class="clip-add-btn" title="타임라인에 추가">+</button>
   `;
-
-  el.addEventListener("dragstart", e => {
-    DRAGGING_MEDIA_ID = media.id;
-    e.dataTransfer.effectAllowed = "copy";
-  });
+  el.addEventListener("dragstart", e => { DRAGGING_MEDIA_ID = media.id; e.dataTransfer.effectAllowed = "copy"; });
   el.addEventListener("dragend",   () => { DRAGGING_MEDIA_ID = null; });
   el.addEventListener("dblclick",  () => previewMedia(media));
   el.querySelector(".clip-add-btn").addEventListener("click", e => {
@@ -739,11 +751,11 @@ function updateClipEl(media) {
 }
 
 function statusLabel(s) {
-  return { uploading: "업로드 중", ready: "준비됨", analyzing: "분석 중", analyzed: "분석 완료", failed: "실패" }[s] || s;
+  return { uploading:"업로드 중", ready:"준비됨", analyzing:"분석 중", analyzed:"분석 완료", failed:"실패" }[s] || s;
 }
 
 /* =====================================================================
-   Timeline – place / remove
+   Timeline – place clip
 ===================================================================== */
 function addToTimeline(mediaId, positionSec) {
   const media = project.media_list.find(m => m.id === mediaId);
@@ -763,16 +775,15 @@ function handleTimelineDrop(event) {
   event.preventDefault();
   if (!DRAGGING_MEDIA_ID) return;
 
-  const body = document.getElementById("video-track-body");
-  const rect = body.getBoundingClientRect();
-  let dropPx  = event.clientX - rect.left;
-  let dropSec = dropPx / PX_PER_SEC;
+  const body    = document.getElementById("video-track-body");
+  const rect    = body.getBoundingClientRect();
+  const scroll  = document.getElementById("tl-scroll");
+  let dropSec   = (event.clientX - rect.left + scroll.scrollLeft) / PX_PER_SEC;
 
   if (SNAP_ENABLED) {
     const snapped = findSnap(dropSec, DRAGGING_MEDIA_ID);
     if (snapped !== null) dropSec = snapped;
   }
-
   addToTimeline(DRAGGING_MEDIA_ID, Math.max(0, dropSec));
   selectClip(DRAGGING_MEDIA_ID);
   DRAGGING_MEDIA_ID = null;
@@ -784,7 +795,7 @@ function findSnap(sec, excludeId) {
   for (const m of timelineClips()) {
     if (m.id === excludeId) continue;
     const end = m.timeline_start + (m.timeline_range.end - m.timeline_range.start);
-    if (Math.abs(sec - end) < thresh) return end;
+    if (Math.abs(sec - end)           < thresh) return end;
     if (Math.abs(sec - m.timeline_start) < thresh) return m.timeline_start;
   }
   return null;
@@ -803,7 +814,7 @@ function renderTimeline() {
 
 function updateTimelineWidth() {
   const total = Math.max(totalTimelineDuration(), 10);
-  const w     = TRACK_OFFSET_PX + total * PX_PER_SEC + 120;
+  const w     = TRACK_OFFSET_PX + total * PX_PER_SEC + 160;
   document.getElementById("tl-content").style.minWidth = `${w}px`;
 }
 
@@ -811,18 +822,26 @@ function renderRuler() {
   const body  = document.getElementById("ruler-body");
   body.innerHTML = "";
   const total = Math.max(totalTimelineDuration(), 10);
-  for (let t = 0; t <= Math.ceil(total); t++) {
+
+  // Choose a label interval that looks good at any zoom level
+  const targetLabelPx = 80;
+  const rawSec = targetLabelPx / PX_PER_SEC;
+  const niceIntervals = [1,2,5,10,15,30,60,120,300];
+  const labelInterval = niceIntervals.find(n => n >= rawSec) || 300;
+  const minorInterval = labelInterval / 5;
+
+  for (let t = 0; t <= Math.ceil(total) + labelInterval; t += minorInterval) {
     const x     = t * PX_PER_SEC;
-    const major = t % 5 === 0;
+    const major = Math.abs(t % labelInterval) < minorInterval * 0.5;
     const tick  = document.createElement("div");
     tick.className = "ruler-tick " + (major ? "major" : "minor");
     tick.style.left = `${x}px`;
     body.appendChild(tick);
     if (major) {
       const lbl = document.createElement("div");
-      lbl.className    = "ruler-label";
-      lbl.style.left   = `${x}px`;
-      lbl.textContent  = fmt(t);
+      lbl.className   = "ruler-label";
+      lbl.style.left  = `${x}px`;
+      lbl.textContent = fmt(t);
       body.appendChild(lbl);
     }
   }
@@ -830,7 +849,6 @@ function renderRuler() {
 
 function renderVideoTrack() {
   const body = document.getElementById("video-track-body");
-  // keep empty hint
   const hint = document.getElementById("tl-empty-hint");
   body.innerHTML = "";
   if (hint) body.appendChild(hint);
@@ -849,29 +867,86 @@ function renderVideoTrack() {
       clip.id === SELECTED_CLIP_ID ? "selected" : "",
       clip.analysis_status === "analyzing" ? "analyzing" : "",
       clip.analysis_status === "analyzed"  ? "analyzed"  : "",
+      CLIP_DRAG_STATE?.clipId === clip.id && CLIP_DRAG_STATE.moved ? "clip-moving" : "",
     ].filter(Boolean).join(" ");
     el.style.left  = `${left}px`;
     el.style.width = `${width}px`;
     el.dataset.id  = clip.id;
-    el.innerHTML   = `
-      <div class="tl-clip-inner">
-        <div class="tl-clip-name">${clip.filename}</div>
-        <div class="tl-clip-dur">${clip.duration ? fmt(clip.timeline_range.end - clip.timeline_range.start) : ""}</div>
-        ${clip.analysis_status === "analyzing" ? '<div class="tl-clip-spinner">분석 중...</div>' : ""}
-      </div>
-      <div class="trim-handle trim-left"  data-id="${clip.id}" data-edge="left"></div>
-      <div class="trim-handle trim-right" data-id="${clip.id}" data-edge="right"></div>
-    `;
 
-    el.addEventListener("click", e => {
+    // ── Filmstrip ──
+    if (clip.thumbnails && clip.thumbnails.length) {
+      const filmstrip = document.createElement("div");
+      filmstrip.className = "tl-clip-filmstrip";
+      const frameW    = clip.thumb_w || 85;
+      const interval  = clip.thumb_interval || 1;
+      let px = 0;
+      while (px < width + frameW) {
+        const timeSec  = clip.timeline_range.start + px / PX_PER_SEC;
+        const thumbIdx = Math.max(0, Math.min(
+          Math.floor(timeSec / interval),
+          clip.thumbnails.length - 1
+        ));
+        const img = document.createElement("img");
+        img.src   = clip.thumbnails[thumbIdx];
+        img.style.width  = `${frameW}px`;
+        img.style.height = "100%";
+        img.draggable    = false;
+        filmstrip.appendChild(img);
+        px += frameW;
+      }
+      el.appendChild(filmstrip);
+    }
+
+    // ── Text overlay ──
+    const overlay = document.createElement("div");
+    overlay.className = "tl-clip-overlay";
+
+    const nameDiv = document.createElement("div");
+    nameDiv.className   = "tl-clip-name";
+    nameDiv.textContent = clip.filename;
+    overlay.appendChild(nameDiv);
+
+    if (clip.duration) {
+      const durDiv = document.createElement("div");
+      durDiv.className   = "tl-clip-dur";
+      durDiv.textContent = fmt(rangeDur);
+      overlay.appendChild(durDiv);
+    }
+    if (clip.analysis_status === "analyzing") {
+      const spin = document.createElement("div");
+      spin.className   = "tl-clip-spinner";
+      spin.textContent = "분석 중...";
+      overlay.appendChild(spin);
+    }
+    el.appendChild(overlay);
+
+    // ── Trim handles ──
+    const tLeft = document.createElement("div");
+    tLeft.className      = "trim-handle trim-left";
+    tLeft.dataset.id     = clip.id;
+    tLeft.dataset.edge   = "left";
+    tLeft.addEventListener("mousedown", startTrimDrag);
+    el.appendChild(tLeft);
+
+    const tRight = document.createElement("div");
+    tRight.className     = "trim-handle trim-right";
+    tRight.dataset.id    = clip.id;
+    tRight.dataset.edge  = "right";
+    tRight.addEventListener("mousedown", startTrimDrag);
+    el.appendChild(tRight);
+
+    // ── Clip body mouse events ──
+    el.addEventListener("mousedown", e => {
       if (e.target.closest(".trim-handle")) return;
-      selectClip(clip.id);
+      e.preventDefault();
+      CLIP_DRAG_STATE = {
+        clipId:      clip.id,
+        startX:      e.clientX,
+        origTlStart: clip.timeline_start,
+        moved:       false,
+      };
     });
     el.addEventListener("dblclick", () => previewMedia(clip));
-
-    el.querySelectorAll(".trim-handle").forEach(h =>
-      h.addEventListener("mousedown", startTrimDrag)
-    );
 
     body.appendChild(el);
   }
@@ -883,10 +958,8 @@ function renderSubtitleTrack() {
 
   for (const clip of timelineClips()) {
     if (clip.analysis_status !== "analyzed" || !clip.segments.length) continue;
-
     clip.segments.forEach((seg, i) => {
       if (seg.end < clip.timeline_range.start || seg.start > clip.timeline_range.end) return;
-
       const offsetInClip = seg.start - clip.timeline_range.start;
       const left  = (clip.timeline_start + Math.max(0, offsetInClip)) * PX_PER_SEC;
       const width = Math.max((seg.end - seg.start) * PX_PER_SEC, 8);
@@ -898,10 +971,7 @@ function renderSubtitleTrack() {
       el.title          = seg.text;
       el.dataset.clipId = clip.id;
       el.dataset.segIdx = i;
-      el.innerHTML      = `
-        <span class="sub-seg-text">${seg.text}</span>
-        <span class="sub-seg-tag">${seg.cut ? "cut" : "keep"}</span>
-      `;
+      el.innerHTML      = `<span class="sub-seg-text">${seg.text}</span><span class="sub-seg-tag">${seg.cut ? "cut" : "keep"}</span>`;
       el.addEventListener("click", () => toggleSegment(clip.id, i, el));
       body.appendChild(el);
     });
@@ -917,8 +987,7 @@ function updateTlStats() {
     }
   }
   const el = document.getElementById("tl-stats");
-  if (clips.length === 0) { el.textContent = ""; return; }
-  el.textContent = segments => `클립 ${clips.length}개${keep + cut ? ` · 유지 ${keep} / 제거 ${cut}` : ""}`;
+  if (!clips.length) { el.textContent = ""; return; }
   el.textContent = `클립 ${clips.length}개${keep + cut ? `  ·  유지 ${keep} / 제거 ${cut}  ·  예상 ${dur.toFixed(1)}초` : ""}`;
 }
 
@@ -928,12 +997,8 @@ function updateTlStats() {
 function selectClip(id) {
   SELECTED_CLIP_ID = id;
   renderVideoTrack();
-
   const media = project.media_list.find(m => m.id === id);
-  if (media) {
-    previewMedia(media);
-    updateAnalyzeBtn(media);
-  }
+  if (media) { previewMedia(media); updateAnalyzeBtn(media); }
 }
 
 function updateAnalyzeBtn(media) {
@@ -956,8 +1021,8 @@ function updateAnalyzeBtn(media) {
 function toggleSegment(clipId, segIdx, el) {
   const clip = project.media_list.find(m => m.id === clipId);
   if (!clip) return;
+  clip.segments[segIdx].cut = !clip.segments[segIdx].cut;
   const seg = clip.segments[segIdx];
-  seg.cut = !seg.cut;
   el.className = "sub-seg " + (seg.cut ? "sub-cut" : "sub-keep");
   const tag = el.querySelector(".sub-seg-tag");
   if (tag) tag.textContent = seg.cut ? "cut" : "keep";
@@ -977,58 +1042,136 @@ function startTrimDrag(e) {
   if (!clip) return;
   TRIM_STATE = {
     clipId: id, edge, startX: e.clientX,
-    origStart: clip.timeline_range.start,
-    origEnd:   clip.timeline_range.end,
+    origStart:   clip.timeline_range.start,
+    origEnd:     clip.timeline_range.end,
     origTlStart: clip.timeline_start,
   };
 }
 
+/* =====================================================================
+   Global mouse handlers (combined)
+===================================================================== */
 document.addEventListener("mousemove", e => {
-  if (!TRIM_STATE) return;
-  const clip  = project.media_list.find(m => m.id === TRIM_STATE.clipId);
-  if (!clip) return;
-  const deltaSec = (e.clientX - TRIM_STATE.startX) / PX_PER_SEC;
-  const MIN_DUR  = 0.5;
-
-  if (TRIM_STATE.edge === "left") {
-    const newStart = Math.max(0, Math.min(TRIM_STATE.origStart + deltaSec, TRIM_STATE.origEnd - MIN_DUR));
-    const shift    = newStart - TRIM_STATE.origStart;
-    clip.timeline_range.start = newStart;
-    clip.timeline_start       = Math.max(0, TRIM_STATE.origTlStart + shift);
-  } else {
-    const newEnd = Math.max(TRIM_STATE.origStart + MIN_DUR, Math.min(clip.duration, TRIM_STATE.origEnd + deltaSec));
-    clip.timeline_range.end = newEnd;
+  // Trim drag
+  if (TRIM_STATE) {
+    const clip = project.media_list.find(m => m.id === TRIM_STATE.clipId);
+    if (!clip) return;
+    const deltaSec = (e.clientX - TRIM_STATE.startX) / PX_PER_SEC;
+    const MIN_DUR  = 0.5;
+    if (TRIM_STATE.edge === "left") {
+      const newStart = Math.max(0, Math.min(TRIM_STATE.origStart + deltaSec, TRIM_STATE.origEnd - MIN_DUR));
+      const shift    = newStart - TRIM_STATE.origStart;
+      clip.timeline_range.start = newStart;
+      clip.timeline_start       = Math.max(0, TRIM_STATE.origTlStart + shift);
+    } else {
+      clip.timeline_range.end = Math.max(
+        TRIM_STATE.origStart + MIN_DUR,
+        Math.min(clip.duration || Infinity, TRIM_STATE.origEnd + deltaSec)
+      );
+    }
+    renderTimeline();
+    return;
   }
-  renderTimeline();
+
+  // Clip body drag (move on timeline)
+  if (CLIP_DRAG_STATE) {
+    const delta = e.clientX - CLIP_DRAG_STATE.startX;
+    if (!CLIP_DRAG_STATE.moved && Math.abs(delta) < 4) return;
+    CLIP_DRAG_STATE.moved = true;
+    const clip = project.media_list.find(m => m.id === CLIP_DRAG_STATE.clipId);
+    if (!clip) return;
+    let newStart = Math.max(0, CLIP_DRAG_STATE.origTlStart + delta / PX_PER_SEC);
+    if (SNAP_ENABLED) {
+      const snapped = findSnap(newStart, clip.id);
+      if (snapped !== null) newStart = snapped;
+    }
+    clip.timeline_start = newStart;
+    renderTimeline();
+    return;
+  }
+
+  // Playhead drag
+  if (PLAYHEAD_DRAG) {
+    const scroll = document.getElementById("tl-scroll");
+    const body   = document.getElementById("ruler-body");
+    const rect   = body.getBoundingClientRect();
+    const x      = Math.max(0, e.clientX - rect.left + scroll.scrollLeft);
+    const sec    = x / PX_PER_SEC;
+    document.getElementById("playhead").style.left = `${TRACK_OFFSET_PX + x}px`;
+    if (isFinite(videoEl.duration)) videoEl.currentTime = Math.min(sec, videoEl.duration);
+  }
 });
 
-document.addEventListener("mouseup", () => { TRIM_STATE = null; });
+document.addEventListener("mouseup", () => {
+  if (CLIP_DRAG_STATE) {
+    if (!CLIP_DRAG_STATE.moved) selectClip(CLIP_DRAG_STATE.clipId); // pure click → select
+    CLIP_DRAG_STATE = null;
+  }
+  TRIM_STATE    = null;
+  PLAYHEAD_DRAG = false;
+});
+
+/* =====================================================================
+   Ctrl+Scroll zoom
+===================================================================== */
+let _zoomTimer = null;
+document.getElementById("tl-scroll").addEventListener("wheel", e => {
+  if (!e.ctrlKey) return;
+  e.preventDefault();
+
+  // Zoom around the cursor position
+  const scroll  = document.getElementById("tl-scroll");
+  const rect    = scroll.getBoundingClientRect();
+  const cursorX = e.clientX - rect.left + scroll.scrollLeft - TRACK_OFFSET_PX;
+  const cursorSec = cursorX / PX_PER_SEC;
+
+  const factor = e.deltaY < 0 ? 1.12 : 1 / 1.12;
+  PX_PER_SEC   = Math.max(15, Math.min(400, PX_PER_SEC * factor));
+
+  renderTimeline();
+
+  // Keep the cursor time position stable while scrolling
+  const newX = cursorSec * PX_PER_SEC + TRACK_OFFSET_PX;
+  scroll.scrollLeft = newX - (e.clientX - rect.left);
+
+  // Toast
+  const hint = document.getElementById("zoom-hint");
+  hint.textContent = `확대 ${Math.round(PX_PER_SEC)}px/s`;
+  hint.classList.add("show");
+  clearTimeout(_zoomTimer);
+  _zoomTimer = setTimeout(() => hint.classList.remove("show"), 900);
+}, { passive: false });
 
 /* =====================================================================
    Video preview
 ===================================================================== */
 function previewMedia(media) {
-  const video     = document.getElementById("video");
-  const emptyHint = document.getElementById("preview-empty");
-  video.src       = media.blob_url;
+  const video = document.getElementById("video");
+  video.src   = media.blob_url;
   video.load();
-  emptyHint.classList.add("hidden");
+  document.getElementById("preview-empty").classList.add("hidden");
   document.getElementById("btn-play").disabled = false;
 }
 
 function updatePlaybackUI() {
   const video = document.getElementById("video");
-  const t     = video.currentTime || 0;
-  const dur   = isFinite(video.duration) && video.duration > 0 ? video.duration : 0;
+  const t   = video.currentTime || 0;
+  const dur = isFinite(video.duration) && video.duration > 0 ? video.duration : 0;
   document.getElementById("preview-time").textContent = `${fmt(t)} / ${fmt(dur)}`;
   document.getElementById("preview-progress-fill").style.width = dur ? `${(t / dur) * 100}%` : "0%";
 }
 
 const videoEl = document.getElementById("video");
-videoEl.addEventListener("timeupdate", updatePlaybackUI);
+videoEl.addEventListener("timeupdate",    updatePlaybackUI);
 videoEl.addEventListener("loadedmetadata", updatePlaybackUI);
-videoEl.addEventListener("play",  () => { document.getElementById("icon-play").style.display = "none"; document.getElementById("icon-pause").style.display = ""; });
-videoEl.addEventListener("pause", () => { document.getElementById("icon-play").style.display = ""; document.getElementById("icon-pause").style.display = "none"; });
+videoEl.addEventListener("play",  () => {
+  document.getElementById("icon-play").style.display  = "none";
+  document.getElementById("icon-pause").style.display = "";
+});
+videoEl.addEventListener("pause", () => {
+  document.getElementById("icon-play").style.display  = "";
+  document.getElementById("icon-pause").style.display = "none";
+});
 
 document.getElementById("btn-play").addEventListener("click", () => {
   if (videoEl.paused) videoEl.play(); else videoEl.pause();
@@ -1036,8 +1179,7 @@ document.getElementById("btn-play").addEventListener("click", () => {
 document.getElementById("preview-progress").addEventListener("click", e => {
   if (!isFinite(videoEl.duration)) return;
   const rect  = e.currentTarget.getBoundingClientRect();
-  const ratio = (e.clientX - rect.left) / rect.width;
-  videoEl.currentTime = ratio * videoEl.duration;
+  videoEl.currentTime = ((e.clientX - rect.left) / rect.width) * videoEl.duration;
 });
 
 /* =====================================================================
@@ -1046,24 +1188,14 @@ document.getElementById("preview-progress").addEventListener("click", e => {
 document.getElementById("playhead-handle").addEventListener("mousedown", e => {
   PLAYHEAD_DRAG = true;
   e.preventDefault();
+  e.stopPropagation();
 });
-document.addEventListener("mousemove", e => {
-  if (!PLAYHEAD_DRAG) return;
-  const scroll = document.getElementById("tl-scroll");
-  const body   = document.getElementById("ruler-body");
-  const rect   = body.getBoundingClientRect();
-  const x      = Math.max(0, e.clientX - rect.left + scroll.scrollLeft);
-  const sec    = x / PX_PER_SEC;
-  document.getElementById("playhead").style.left = `${TRACK_OFFSET_PX + x}px`;
-  if (isFinite(videoEl.duration)) videoEl.currentTime = Math.min(sec, videoEl.duration);
-});
-document.addEventListener("mouseup", () => { PLAYHEAD_DRAG = false; });
 
-// Click ruler → seek
 document.getElementById("ruler-body").addEventListener("click", e => {
-  const rect = e.currentTarget.getBoundingClientRect();
-  const x    = e.clientX - rect.left;
-  const sec  = x / PX_PER_SEC;
+  const scroll = document.getElementById("tl-scroll");
+  const rect   = e.currentTarget.getBoundingClientRect();
+  const x      = e.clientX - rect.left + scroll.scrollLeft;
+  const sec    = x / PX_PER_SEC;
   document.getElementById("playhead").style.left = `${TRACK_OFFSET_PX + x}px`;
   if (isFinite(videoEl.duration)) videoEl.currentTime = Math.min(sec, videoEl.duration);
 });
@@ -1084,31 +1216,26 @@ async function analyzeSelectedClip() {
   showAnalyzeProgress(2, "업로드 중...");
 
   try {
-    const style = getStyle();
-    const fd    = new FormData();
+    const fd = new FormData();
     fd.append("file", media.file);
-    fd.append("style", style);
+    fd.append("style", getStyle());
     const res = await fetch("/analyze", { method: "POST", body: fd });
     if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.detail || `HTTP ${res.status}`); }
     const { job_id } = await res.json();
     media.analyze_job_id = job_id;
 
-    // Poll
     for (;;) {
       await sleep(1500);
-      const jr = await fetch(`/analyze_jobs/${job_id}`);
+      const jr  = await fetch(`/analyze_jobs/${job_id}`);
       const job = await jr.json();
       showAnalyzeProgress(job.progress || 0, job.stage || "분석 중...");
-
       if (job.status === "completed") {
         media.analysis_status = "analyzed";
         media.segments        = job.segments;
         if (job.source_file) media.source_file = job.source_file;
         break;
       }
-      if (job.status === "failed") {
-        throw new Error(job.message || "알 수 없는 오류");
-      }
+      if (job.status === "failed") throw new Error(job.message || "알 수 없는 오류");
     }
     hideAnalyzeProgress();
     updateClipEl(media);
@@ -1116,7 +1243,6 @@ async function analyzeSelectedClip() {
     updateAnalyzeBtn(media);
     updateExportBtn();
     addChatMsg("ai", `"${media.filename}" 분석이 완료됐습니다. 자막 트랙에서 구간을 확인하고 수정하세요.`);
-
   } catch (err) {
     media.analysis_status = "failed";
     hideAnalyzeProgress();
@@ -1160,14 +1286,10 @@ document.querySelectorAll(".btn-quick").forEach(btn =>
 
 async function sendAiRequest(instruction) {
   const media = project.media_list.find(m => m.id === SELECTED_CLIP_ID && m.analysis_status === "analyzed");
-  if (!media) {
-    addChatMsg("err", "분석이 완료된 클립을 타임라인에서 선택해주세요.");
-    return;
-  }
+  if (!media) { addChatMsg("err", "분석이 완료된 클립을 타임라인에서 선택해주세요."); return; }
 
   addChatMsg("user", instruction);
   const thinking = addChatMsg("ai", "처리 중...");
-
   try {
     const res = await fetch("/revise", {
       method: "POST",
@@ -1182,7 +1304,7 @@ async function sendAiRequest(instruction) {
       updateTlStats();
       updateExportBtn();
     } else if (!data.ok) {
-      thinking.className = "msg msg-err";
+      thinking.className   = "msg msg-err";
       thinking.textContent = data.message || "AI 수정 실패";
     }
   } catch (err) {
@@ -1210,45 +1332,29 @@ function updateExportBtn() {
 }
 
 document.getElementById("btn-export").addEventListener("click", openExportModal);
-document.getElementById("modal-close").addEventListener("click",   () => setModalHidden(true));
+document.getElementById("modal-close").addEventListener("click",      () => setModalHidden(true));
 document.getElementById("btn-modal-close2").addEventListener("click", () => setModalHidden(true));
-document.getElementById("modal-backdrop").addEventListener("click", () => setModalHidden(true));
+document.getElementById("modal-backdrop").addEventListener("click",   () => setModalHidden(true));
 document.addEventListener("keydown", e => { if (e.key === "Escape") setModalHidden(true); });
 
-function setModalHidden(v) {
-  document.getElementById("export-modal").classList.toggle("hidden", v);
-}
+function setModalHidden(v) { document.getElementById("export-modal").classList.toggle("hidden", v); }
 
 function buildRenderPayload() {
-  // Use first analyzed clip that is on timeline
   const clip = timelineClips().find(m => m.analysis_status === "analyzed" && m.source_file);
   if (!clip) return null;
-
   const segs = clip.segments
     .filter(s => s.start >= clip.timeline_range.start && s.end <= clip.timeline_range.end + 0.1)
-    .map(s => ({
-      start: s.start, end: s.end, text: s.text, cut: s.cut,
-      subtitle_color: "white", fontsize: 36,
-    }));
-
-  return {
-    source_file:   clip.source_file,
-    segments:      segs,
-    style_preset:  getStyle(),
-    aspect_ratio:  "16:9",
-    _clip_name:    clip.filename,
-  };
+    .map(s => ({ start: s.start, end: s.end, text: s.text, cut: s.cut, subtitle_color: "white", fontsize: 36 }));
+  return { source_file: clip.source_file, segments: segs, style_preset: getStyle(), aspect_ratio: "16:9", _clip_name: clip.filename };
 }
 
 function openExportModal() {
   const payload = buildRenderPayload();
   if (!payload) { addChatMsg("err", "타임라인에 분석된 클립이 없습니다."); return; }
-
   const { _clip_name, ...sendPayload } = payload;
   const keep = sendPayload.segments.filter(s => !s.cut).length;
   const cut  = sendPayload.segments.length - keep;
   const dur  = sendPayload.segments.filter(s => !s.cut).reduce((a, s) => a + s.end - s.start, 0);
-
   document.getElementById("modal-sub").textContent =
     `${_clip_name} · 유지 ${keep} / 제거 ${cut} · 예상 ${dur.toFixed(1)}초`;
   document.getElementById("modal-body").textContent = JSON.stringify(sendPayload, null, 2);
@@ -1292,10 +1398,10 @@ document.getElementById("btn-render").addEventListener("click", async () => {
       const job = await jr.json();
       setStatus(`렌더링 중... ${job.progress || 0}%  ${job.message || ""}`, "");
       if (job.status === "completed") {
-        status.innerHTML  = `렌더링 완료! <a href="${job.output_url}" download style="color:var(--keep)">다운로드</a>`;
-        status.className  = "modal-status ok";
-        btn.textContent   = "렌더링 시작";
-        btn.disabled      = false;
+        status.innerHTML = `렌더링 완료! <a href="${job.output_url}" download style="color:var(--keep)">다운로드</a>`;
+        status.className = "modal-status ok";
+        btn.textContent  = "렌더링 시작";
+        btn.disabled     = false;
         return;
       }
       if (job.status === "failed") throw new Error(job.message);
@@ -1306,14 +1412,11 @@ document.getElementById("btn-render").addEventListener("click", async () => {
     btn.textContent = "렌더링 시작";
   }
 
-  function setStatus(t, cls) {
-    status.textContent = t;
-    status.className   = "modal-status " + cls;
-  }
+  function setStatus(t, cls) { status.textContent = t; status.className = "modal-status " + cls; }
 });
 
 /* =====================================================================
-   Left panel tabs
+   UI wiring
 ===================================================================== */
 document.querySelectorAll(".tab-btn").forEach(btn =>
   btn.addEventListener("click", () => {
@@ -1325,9 +1428,6 @@ document.querySelectorAll(".tab-btn").forEach(btn =>
   })
 );
 
-/* =====================================================================
-   Snap toggle
-===================================================================== */
 document.getElementById("btn-snap").addEventListener("click", () => {
   SNAP_ENABLED = !SNAP_ENABLED;
   const btn = document.getElementById("btn-snap");
@@ -1335,16 +1435,11 @@ document.getElementById("btn-snap").addEventListener("click", () => {
   btn.classList.toggle("active", SNAP_ENABLED);
 });
 
-/* =====================================================================
-   Upload zone wiring
-===================================================================== */
 const uploadZone = document.getElementById("upload-zone");
 const fileInput  = document.getElementById("file-input");
-
-uploadZone.addEventListener("click", () => fileInput.click());
+uploadZone.addEventListener("click",     () => fileInput.click());
 fileInput.addEventListener("change", e => { if (e.target.files.length) handleFiles(Array.from(e.target.files)); });
-
-uploadZone.addEventListener("dragover", e => { e.preventDefault(); uploadZone.classList.add("drag-over"); });
+uploadZone.addEventListener("dragover",  e => { e.preventDefault(); uploadZone.classList.add("drag-over"); });
 uploadZone.addEventListener("dragleave", () => uploadZone.classList.remove("drag-over"));
 uploadZone.addEventListener("drop", e => {
   e.preventDefault(); uploadZone.classList.remove("drag-over");
@@ -1352,8 +1447,9 @@ uploadZone.addEventListener("drop", e => {
   if (files.length) handleFiles(files);
 });
 
-// Status bar
-document.getElementById("topbar-status").textContent = "타임라인에 영상을 추가하세요";
+document.getElementById("storyline-input").addEventListener("input", e => {
+  project.storyline = e.target.value;
+});
 
 // Initial render
 renderTimeline();
