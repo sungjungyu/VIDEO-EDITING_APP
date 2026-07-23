@@ -3,12 +3,12 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Cutroom AI</title>
+  <title>VibeCut</title>
   <style>
     :root {
       --bg:#12161C; --panel:#1B222B; --panel2:#222A35; --panel3:#0E1217;
       --border:#2A3340; --text:#E8ECF1; --muted:#7A8899;
-      --accent:#FFD84D; --keep:#5CA8FF; --cut:#FF5C5C; --analyzing:#A78BFA;
+      --accent:#8B5CF6; --keep:#5CA8FF; --cut:#FF5C5C; --analyzing:#C4B5FD;
       --radius:8px;
     }
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -27,13 +27,13 @@
     .topbar-center{flex:1;text-align:center;font-size:11px;color:var(--muted)}
     .brand{display:flex;align-items:center;gap:7px;font-weight:700;font-size:14px}
     .brand-mark{width:22px;height:22px;border-radius:5px;display:grid;place-items:center;
-      background:linear-gradient(135deg,var(--keep),var(--accent));font-size:11px;font-weight:900;color:#12161C}
+      background:linear-gradient(135deg,var(--keep),var(--accent));font-size:11px;font-weight:900;color:#fff}
     .brand-ai{color:var(--accent)}
     .btn-tb{width:28px;height:28px;background:none;border:1px solid var(--border);border-radius:5px;
       color:var(--muted);font-size:14px;cursor:pointer;display:grid;place-items:center;transition:background .15s}
     .btn-tb:hover:not(:disabled){background:var(--panel2);color:var(--text)}
     .btn-tb:disabled{opacity:.3;cursor:not-allowed}
-    .btn-export{background:var(--accent);color:#12161C;font-weight:700;font-size:12px;
+    .btn-export{background:var(--accent);color:#fff;font-weight:700;font-size:12px;
       padding:6px 16px;border:none;border-radius:6px;cursor:pointer;transition:filter .15s}
     .btn-export:hover:not(:disabled){filter:brightness(1.08)}
     .btn-export:disabled{opacity:.4;cursor:not-allowed}
@@ -212,7 +212,7 @@
     /* Stage idle */
     #ai-idle{padding:18px 14px;gap:12px;align-items:stretch}
     .ai-idle-hint{font-size:11px;color:var(--muted);line-height:1.7;text-align:center;padding:4px 0}
-    .btn-analyze{width:100%;padding:10px;background:var(--accent);color:#12161C;
+    .btn-analyze{width:100%;padding:10px;background:var(--accent);color:#fff;
       font-weight:700;font-size:13px;border:none;border-radius:7px;cursor:pointer;transition:filter .15s}
     .btn-analyze:hover:not(:disabled){filter:brightness(1.08)}
     .btn-analyze:disabled{opacity:.35;cursor:not-allowed;filter:none}
@@ -373,7 +373,7 @@
     .modal-status.err{color:var(--cut)}
     .btn-secondary{padding:6px 13px;background:var(--panel2);border:1px solid var(--border);
       border-radius:6px;color:var(--text);font-size:11px;cursor:pointer}
-    .btn-primary{padding:6px 16px;background:var(--accent);color:#12161C;border:none;
+    .btn-primary{padding:6px 16px;background:var(--accent);color:#fff;border:none;
       border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;transition:filter .15s}
     .btn-primary:hover{filter:brightness(1.08)}
     .btn-primary:disabled{opacity:.4;cursor:not-allowed;filter:none}
@@ -390,8 +390,8 @@
   <header class="topbar">
     <div class="topbar-left">
       <div class="brand">
-        <div class="brand-mark">C</div>
-        <span>Cutroom <span class="brand-ai">AI</span></span>
+        <div class="brand-mark">V</div>
+        <span>Vibe<span class="brand-ai">Cut</span></span>
       </div>
       <div style="display:flex;gap:3px">
         <button class="btn-tb" title="실행취소 (준비 중)" disabled>↩</button>
@@ -410,7 +410,7 @@
     <!-- ① Icon bar -->
     <nav class="icon-bar">
       <div class="icon-bar-logo">
-        <div class="brand-mark" style="width:26px;height:26px;font-size:13px">C</div>
+        <div class="brand-mark" style="width:26px;height:26px;font-size:13px">V</div>
       </div>
       <button class="icon-btn icon-active" data-panel="media">
         <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
