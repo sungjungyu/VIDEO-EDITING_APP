@@ -33,7 +33,7 @@ CRF = 23
 PRESET = "medium"
 
 # 자막 폰트 (시스템에 설치된 폰트명)
-DEFAULT_FONT = "NanumGothic"
+DEFAULT_FONT = "Malgun Gothic"
 FALLBACK_FONT = "Arial"
 
 # 자막 기본 크기
