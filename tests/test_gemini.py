@@ -27,7 +27,7 @@ def test_gemini_api():
         
         # 모델 생성
         print("🤖 모델 생성 중...")
-        model = genai.GenerativeModel('gemini-2.5-flash')
+        model = genai.GenerativeModel('gemini-3-flash')
         
         # 간단한 테스트
         print("📡 API 호출 테스트 중...")

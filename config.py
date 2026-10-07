@@ -5,13 +5,15 @@
 """
 
 import os
+from pathlib import Path
 from typing import Optional
 
 class Config:
     """설정 관리 클래스"""
     
     def __init__(self):
-        self.api_key_file = "gemini_key.txt"
+        self.base_dir = Path(__file__).resolve().parent
+        self.api_key_file = self.base_dir / "gemini_key.txt"
     
     def load_api_key(self) -> Optional[str]:
         """
@@ -23,14 +25,15 @@ class Config:
         # 1. 환경 변수 확인
         api_key = os.getenv("GEMINI_API_KEY")
         if api_key:
+            api_key = api_key.strip().strip('"').strip("'").replace("\ufeff", "")
             print("✅ 환경 변수에서 API 키를 찾았습니다.")
             return api_key
         
         # 2. 파일 확인
-        if os.path.exists(self.api_key_file):
+        if self.api_key_file.exists():
             try:
                 with open(self.api_key_file, 'r', encoding='utf-8') as f:
-                    api_key = f.read().strip()
+                    api_key = f.read().strip().strip('"').strip("'").replace("\ufeff", "")
                 if api_key:
                     print("✅ 파일에서 API 키를 찾았습니다.")
                     return api_key
@@ -52,7 +55,7 @@ class Config:
         try:
             with open(self.api_key_file, 'w', encoding='utf-8') as f:
                 f.write(api_key.strip())
-            print(f"✅ API 키를 '{self.api_key_file}' 파일에 저장했습니다.")
+            print(f"✅ API 키를 '{self.api_key_file.name}' 파일에 저장했습니다.")
             return True
         except Exception as e:
             print(f"❌ API 키 저장 오류: {e}")
@@ -70,6 +73,8 @@ class Config:
             if not api_key:
                 print("❌ API 키가 입력되지 않았습니다.")
                 return None
+
+            api_key = api_key.strip().strip('"').strip("'").replace("\ufeff", "")
             
             # 자동으로 파일에 저장
             self.save_api_key(api_key)
