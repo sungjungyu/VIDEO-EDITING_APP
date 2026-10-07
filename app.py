@@ -35,7 +35,7 @@ OUTPUT_DIR = BASE_DIR / "outputs"
 for directory in (STATIC_DIR, UPLOAD_DIR, OUTPUT_DIR):
     directory.mkdir(exist_ok=True)
 
-app = FastAPI(title="Cutroom AI", version="2.0.0")
+app = FastAPI(title="VIBE-CUT", version="2.0.0")
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 uploaded_files: Dict[str, Path] = {}
@@ -66,7 +66,7 @@ class ReviseRequest(BaseModel):
 
 @app.get("/", response_class=HTMLResponse)
 async def home() -> HTMLResponse:
-    return HTMLResponse((STATIC_DIR / "editor.html").read_text(encoding="utf-8"))
+    return HTMLResponse((STATIC_DIR / "index.html").read_text(encoding="utf-8"))
 
 
 @app.post("/upload")
@@ -239,7 +239,7 @@ def _render_video(
     segments: List[Dict[str, Any]],
     style_preset: str,
 ) -> None:
-    output_name = f"cutroom_{job_id}.mp4"
+    output_name = f"vibecut_{job_id}.mp4"
     output_path = OUTPUT_DIR / output_name
     try:
         def _progress(stage: str, pct: int) -> None:
@@ -312,5 +312,5 @@ async def download_file(filename: str) -> FileResponse:
 
 
 if __name__ == "__main__":
-    print("Cutroom AI 서버 시작: http://localhost:8000")
+    print("VIBE-CUT 서버 시작: http://localhost:8000")
     uvicorn.run(app, host="0.0.0.0", port=8000)

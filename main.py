@@ -446,27 +446,6 @@ class VideoEditingPipeline:
         print("✅ 자막 표기 교정 완료 (타임스탬프 유지)")
         return refined_segments
     
-    def _build_dummy_commands(self, segments: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        """Gemini 호출 실패 시 사용할 기본 편집 명령어"""
-        dummy_commands = []
-        for i, segment in enumerate(segments[:5]):
-            dummy_commands.append({
-                "start": segment["start"],
-                "end": segment["end"],
-                "text": segment["text"],
-                "cut": i % 2 == 1,
-                "subtitle_color": "yellow" if i % 2 == 0 else "red",
-                "fontsize": 45,
-                "scene_type": "hook" if i == 0 else "dialogue",
-                "emphasis": i == 0,
-                "punch_in": i == 0,
-                "transition_type": "fade" if i == 0 else "cut",
-                "subtitle_mode": "headline" if i == 0 else "caption",
-                "retain_pause": False,
-                "broll_needed": False,
-            })
-        return dummy_commands
-
     def _build_local_commands(self, segments: List[Dict[str, Any]], style_preset: str) -> List[Dict[str, Any]]:
         """Gemini 없이도 바로 사용할 수 있는 로컬 편집 명령어 생성"""
         if not segments:
