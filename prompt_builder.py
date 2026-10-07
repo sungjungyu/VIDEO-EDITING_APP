@@ -195,9 +195,14 @@ def calc_duration(node_ids: Iterable[str], tree: Any) -> float:
 
 
 def _ensure_normalized(tree: Any) -> List[Dict[str, Any]]:
-    """이미 내부 포맷이면 그대로, 아니면 normalize_tree를 돌려서 반환."""
-    if isinstance(tree, list) and all(isinstance(n, dict) and "children" in n for n in tree):
-        return tree
+    """항상 normalize_tree를 돌려서 반환.
+
+    normalize_tree는 멱등(이미 내부 포맷을 넣어도 같은 결과)이고 원본을 수정하지
+    않으므로 두 번 돌려도 안전하다. 과거엔 "list of dict with children" 휴리스틱
+    으로 재정규화를 건너뛰었는데, 외부 포맷이 루트 레벨에서 우연히 'children'을
+    쓰면서도 하위 필드는 alias(예: node_id)를 쓰는 경우를 '정규화됨'으로 오판해
+    _build_parent_map 등이 깨졌다.
+    """
     return normalize_tree(tree)
 
 

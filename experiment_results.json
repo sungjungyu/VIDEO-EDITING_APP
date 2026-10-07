@@ -1,0 +1,166 @@
+{
+  "model": "gemini-3.5-flash",
+  "results": [
+    {
+      "label": "1) partial / 3분",
+      "request": {
+        "mode": "partial",
+        "locked_nodes": [
+          "intro-hook",
+          "tip-2"
+        ],
+        "excluded_nodes": [
+          "outro-next"
+        ],
+        "purpose": "쇼츠용 핵심 요약",
+        "target_minutes": 3,
+        "tone": "경쾌하고 빠르게",
+        "must_include": [
+          "꿀팁"
+        ],
+        "must_exclude": [
+          "광고"
+        ]
+      },
+      "prompt": "[시스템 규칙]\n너는 영상 편집용 장면 선택 어시스턴트다. 아래 규칙을 반드시 지켜라.\n1) 반드시 아래 JSON 스키마로만 응답한다. 다른 텍스트, 주석, 코드블록 금지.\n   { \"selected_ids\": [\"<node_id>\", ...], \"reasons\": {\"<node_id>\": \"<선택 이유 한 줄>\", ...} }\n2) selected_ids는 제공된 트리에 실제로 존재하는 id만 사용한다.\n3) 목표 분량(target_minutes)에 최대한 가깝게 선택한다. 오차는 ±10% 이내.\n4) 부모 노드를 선택하면 그 모든 자식 구간이 포함된다고 간주한다.\n5) 고정 노드(locked_nodes)는 반드시 selected_ids에 포함한다.\n6) 제외 노드(excluded_nodes)와 그 자손은 selected_ids에 포함하지 않는다.\n\n[제작자 프로필]\n- 컷 템포: 빠름 (평균 3~5초)\n- 군말 제거 강도: 강 (음, 어, 그니까 전부 제거)\n- 자주 쓰는 단어: 꿀팁, 레전드, 결론부터\n\n[이번 영상 요청]\n- 모드: partial\n- 의도/목적: 쇼츠용 핵심 요약\n- 목표 분량: 3.0분\n- 톤: 경쾌하고 빠르게\n- 반드시 포함할 키워드: 꿀팁\n- 반드시 제외할 키워드: 광고\n- 고정(locked) 노드 id: intro-hook, tip-2\n- 제외(excluded) 노드 id: outro-next\n- 고정 노드 총 길이: 110.0초\n- 남은 시간 예산: 70.0초 (= 3.0분 - 고정 노드 길이). 이 예산 안에서 추가 노드를 골라라.\n\n[장면 트리 요약]\n- [intro] 오프닝 (0.0-30.0s, 30.0s) :: 채널 소개 및 오늘 주제 티저 #opening,hook\n  - [intro-hook] 훅 멘트 (0.0-10.0s, 10.0s) #hook\n  - [intro-topic] 오늘 주제 (10.0-30.0s, 20.0s)\n- [body] 본론: 영상편집 꿀팁 3가지 (30.0-330.0s, 300.0s) :: 핵심 꿀팁 세 가지를 순서대로 설명\n  - [tip-1] 꿀팁 1 - 컷편집 (30.0-120.0s, 90.0s)\n    - [tip-1-demo] 데모 (60.0-100.0s, 40.0s)\n  - [tip-2] 꿀팁 2 - 자막 (120.0-220.0s, 100.0s)\n  - [tip-3] 꿀팁 3 - 색보정 (220.0-330.0s, 110.0s)\n- [outro] 엔딩 (330.0-390.0s, 60.0s)\n  - [outro-cta] 구독 유도 (330.0-360.0s, 30.0s)\n  - [outro-next] 다음 영상 예고 (360.0-390.0s, 30.0s)\n\n위 조건에 맞게 selected_ids와 reasons를 JSON으로만 응답하라.",
+      "raw_response": "{\n  \"selected_ids\": [\n    \"intro-hook\",\n    \"intro-topic\",\n    \"tip-1-demo\",\n    \"tip-2\"\n  ],\n  \"reasons\": {\n    \"intro-hook\": \"고정 노드로, 시청자 이탈을 막기 위한 강렬한 오프닝 훅 구간입니다.\",\n    \"intro-topic\": \"영상의 주제를 명확하게 제시하여 시청 지속률을 높이는 도입부입니다.\",\n    \"tip-1-demo\": \"실제 컷편집 시연을 보여주어 직관적이고 유용한 편집 꿀팁을 제공합니다.\",\n    \"tip-2\": \"고정 노드로, 영상 분위기를 경쾌하게 만들어 줄 필수 자막 꿀팁 구간입니다.\"\n  }\n}",
+      "selected_ids": [
+        "intro-hook",
+        "intro-topic",
+        "tip-1-demo",
+        "tip-2"
+      ],
+      "reasons": {
+        "intro-hook": "고정 노드로, 시청자 이탈을 막기 위한 강렬한 오프닝 훅 구간입니다.",
+        "intro-topic": "영상의 주제를 명확하게 제시하여 시청 지속률을 높이는 도입부입니다.",
+        "tip-1-demo": "실제 컷편집 시연을 보여주어 직관적이고 유용한 편집 꿀팁을 제공합니다.",
+        "tip-2": "고정 노드로, 영상 분위기를 경쾌하게 만들어 줄 필수 자막 꿀팁 구간입니다."
+      },
+      "parse_error": null,
+      "validation": {
+        "ok": true,
+        "errors": [],
+        "warnings": [],
+        "unknown_ids": [],
+        "missing_locked": [],
+        "included_excluded": [],
+        "total_duration_sec": 170.0,
+        "target_sec": 180.0,
+        "duration_ratio": 0.944,
+        "within_tolerance": true
+      }
+    },
+    {
+      "label": "2) auto / 2분 / 임팩트",
+      "request": {
+        "mode": "auto",
+        "locked_nodes": [],
+        "excluded_nodes": [],
+        "purpose": "틱톡용 하이라이트 자동 선정",
+        "target_minutes": 2,
+        "tone": "임팩트 있게",
+        "must_include": [],
+        "must_exclude": []
+      },
+      "prompt": "[시스템 규칙]\n너는 영상 편집용 장면 선택 어시스턴트다. 아래 규칙을 반드시 지켜라.\n1) 반드시 아래 JSON 스키마로만 응답한다. 다른 텍스트, 주석, 코드블록 금지.\n   { \"selected_ids\": [\"<node_id>\", ...], \"reasons\": {\"<node_id>\": \"<선택 이유 한 줄>\", ...} }\n2) selected_ids는 제공된 트리에 실제로 존재하는 id만 사용한다.\n3) 목표 분량(target_minutes)에 최대한 가깝게 선택한다. 오차는 ±10% 이내.\n4) 부모 노드를 선택하면 그 모든 자식 구간이 포함된다고 간주한다.\n\n[제작자 프로필]\n- 컷 템포: 빠름 (평균 3~5초)\n- 군말 제거 강도: 강 (음, 어, 그니까 전부 제거)\n- 자주 쓰는 단어: 꿀팁, 레전드, 결론부터\n\n[이번 영상 요청]\n- 모드: auto\n- 의도/목적: 틱톡용 하이라이트 자동 선정\n- 목표 분량: 2.0분\n- 톤: 임팩트 있게\n- 반드시 포함할 키워드: (없음)\n- 반드시 제외할 키워드: (없음)\n- auto 모드: 위 의도와 목표 분량만으로 전부 선택하라.\n\n[장면 트리 요약]\n- [intro] 오프닝 (0.0-30.0s, 30.0s) :: 채널 소개 및 오늘 주제 티저 #opening,hook\n  - [intro-hook] 훅 멘트 (0.0-10.0s, 10.0s) #hook\n  - [intro-topic] 오늘 주제 (10.0-30.0s, 20.0s)\n- [body] 본론: 영상편집 꿀팁 3가지 (30.0-330.0s, 300.0s) :: 핵심 꿀팁 세 가지를 순서대로 설명\n  - [tip-1] 꿀팁 1 - 컷편집 (30.0-120.0s, 90.0s)\n    - [tip-1-demo] 데모 (60.0-100.0s, 40.0s)\n  - [tip-2] 꿀팁 2 - 자막 (120.0-220.0s, 100.0s)\n  - [tip-3] 꿀팁 3 - 색보정 (220.0-330.0s, 110.0s)\n- [outro] 엔딩 (330.0-390.0s, 60.0s)\n  - [outro-cta] 구독 유도 (330.0-360.0s, 30.0s)\n  - [outro-next] 다음 영상 예고 (360.0-390.0s, 30.0s)\n\n위 조건에 맞게 selected_ids와 reasons를 JSON으로만 응답하라.",
+      "raw_response": "{\n  \"selected_ids\": [\n    \"intro\",\n    \"tip-1\"\n  ],\n  \"reasons\": {\n    \"intro\": \"임팩트 있는 훅과 주제 소개로 초반 30초 내에 틱톡 시청자의 이탈을 방지합니다.\",\n    \"tip-1\": \"크리에이터의 빠른 템포 성향에 가장 부합하는 컷편집 꿀팁과 실전 데모를 제공합니다.\"\n  }\n}",
+      "selected_ids": [
+        "intro",
+        "tip-1"
+      ],
+      "reasons": {
+        "intro": "임팩트 있는 훅과 주제 소개로 초반 30초 내에 틱톡 시청자의 이탈을 방지합니다.",
+        "tip-1": "크리에이터의 빠른 템포 성향에 가장 부합하는 컷편집 꿀팁과 실전 데모를 제공합니다."
+      },
+      "parse_error": null,
+      "validation": {
+        "ok": true,
+        "errors": [],
+        "warnings": [],
+        "unknown_ids": [],
+        "missing_locked": [],
+        "included_excluded": [],
+        "total_duration_sec": 120.0,
+        "target_sec": 120.0,
+        "duration_ratio": 1.0,
+        "within_tolerance": true
+      }
+    },
+    {
+      "label": "3) auto / 4분 / 임팩트",
+      "request": {
+        "mode": "auto",
+        "locked_nodes": [],
+        "excluded_nodes": [],
+        "purpose": "틱톡용 하이라이트 자동 선정",
+        "target_minutes": 4,
+        "tone": "임팩트 있게",
+        "must_include": [],
+        "must_exclude": []
+      },
+      "prompt": "[시스템 규칙]\n너는 영상 편집용 장면 선택 어시스턴트다. 아래 규칙을 반드시 지켜라.\n1) 반드시 아래 JSON 스키마로만 응답한다. 다른 텍스트, 주석, 코드블록 금지.\n   { \"selected_ids\": [\"<node_id>\", ...], \"reasons\": {\"<node_id>\": \"<선택 이유 한 줄>\", ...} }\n2) selected_ids는 제공된 트리에 실제로 존재하는 id만 사용한다.\n3) 목표 분량(target_minutes)에 최대한 가깝게 선택한다. 오차는 ±10% 이내.\n4) 부모 노드를 선택하면 그 모든 자식 구간이 포함된다고 간주한다.\n\n[제작자 프로필]\n- 컷 템포: 빠름 (평균 3~5초)\n- 군말 제거 강도: 강 (음, 어, 그니까 전부 제거)\n- 자주 쓰는 단어: 꿀팁, 레전드, 결론부터\n\n[이번 영상 요청]\n- 모드: auto\n- 의도/목적: 틱톡용 하이라이트 자동 선정\n- 목표 분량: 4.0분\n- 톤: 임팩트 있게\n- 반드시 포함할 키워드: (없음)\n- 반드시 제외할 키워드: (없음)\n- auto 모드: 위 의도와 목표 분량만으로 전부 선택하라.\n\n[장면 트리 요약]\n- [intro] 오프닝 (0.0-30.0s, 30.0s) :: 채널 소개 및 오늘 주제 티저 #opening,hook\n  - [intro-hook] 훅 멘트 (0.0-10.0s, 10.0s) #hook\n  - [intro-topic] 오늘 주제 (10.0-30.0s, 20.0s)\n- [body] 본론: 영상편집 꿀팁 3가지 (30.0-330.0s, 300.0s) :: 핵심 꿀팁 세 가지를 순서대로 설명\n  - [tip-1] 꿀팁 1 - 컷편집 (30.0-120.0s, 90.0s)\n    - [tip-1-demo] 데모 (60.0-100.0s, 40.0s)\n  - [tip-2] 꿀팁 2 - 자막 (120.0-220.0s, 100.0s)\n  - [tip-3] 꿀팁 3 - 색보정 (220.0-330.0s, 110.0s)\n- [outro] 엔딩 (330.0-390.0s, 60.0s)\n  - [outro-cta] 구독 유도 (330.0-360.0s, 30.0s)\n  - [outro-next] 다음 영상 예고 (360.0-390.0s, 30.0s)\n\n위 조건에 맞게 selected_ids와 reasons를 JSON으로만 응답하라.",
+      "raw_response": "{\n  \"selected_ids\": [\n    \"intro-hook\",\n    \"tip-1\",\n    \"tip-3\",\n    \"outro-cta\"\n  ],\n  \"reasons\": {\n    \"intro-hook\": \"틱톡 맞춤형 10초 임팩트 훅으로 초반 시청자 이탈을 방지합니다.\",\n    \"tip-1\": \"크리에이터 선호 주제인 컷편집 꿀팁과 실전 데모를 통해 실용성을 극대화합니다.\",\n    \"tip-3\": \"시각적 효과가 확실한 색보정 꿀팁으로 영상의 완성도와 몰입감을 높입니다.\",\n    \"outro-cta\": \"구독 유도 구간을 포함하여 깔끔하게 임팩트 있는 엔딩을 구성합니다.\"\n  }\n}",
+      "selected_ids": [
+        "intro-hook",
+        "tip-1",
+        "tip-3",
+        "outro-cta"
+      ],
+      "reasons": {
+        "intro-hook": "틱톡 맞춤형 10초 임팩트 훅으로 초반 시청자 이탈을 방지합니다.",
+        "tip-1": "크리에이터 선호 주제인 컷편집 꿀팁과 실전 데모를 통해 실용성을 극대화합니다.",
+        "tip-3": "시각적 효과가 확실한 색보정 꿀팁으로 영상의 완성도와 몰입감을 높입니다.",
+        "outro-cta": "구독 유도 구간을 포함하여 깔끔하게 임팩트 있는 엔딩을 구성합니다."
+      },
+      "parse_error": null,
+      "validation": {
+        "ok": true,
+        "errors": [],
+        "warnings": [],
+        "unknown_ids": [],
+        "missing_locked": [],
+        "included_excluded": [],
+        "total_duration_sec": 240.0,
+        "target_sec": 240.0,
+        "duration_ratio": 1.0,
+        "within_tolerance": true
+      }
+    },
+    {
+      "label": "4) auto / 2분 / 차분한 정보 전달",
+      "request": {
+        "mode": "auto",
+        "locked_nodes": [],
+        "excluded_nodes": [],
+        "purpose": "차분한 정보 전달용 요약",
+        "target_minutes": 2,
+        "tone": "차분하게 정보 전달",
+        "must_include": [],
+        "must_exclude": []
+      },
+      "prompt": "[시스템 규칙]\n너는 영상 편집용 장면 선택 어시스턴트다. 아래 규칙을 반드시 지켜라.\n1) 반드시 아래 JSON 스키마로만 응답한다. 다른 텍스트, 주석, 코드블록 금지.\n   { \"selected_ids\": [\"<node_id>\", ...], \"reasons\": {\"<node_id>\": \"<선택 이유 한 줄>\", ...} }\n2) selected_ids는 제공된 트리에 실제로 존재하는 id만 사용한다.\n3) 목표 분량(target_minutes)에 최대한 가깝게 선택한다. 오차는 ±10% 이내.\n4) 부모 노드를 선택하면 그 모든 자식 구간이 포함된다고 간주한다.\n\n[제작자 프로필]\n- 컷 템포: 빠름 (평균 3~5초)\n- 군말 제거 강도: 강 (음, 어, 그니까 전부 제거)\n- 자주 쓰는 단어: 꿀팁, 레전드, 결론부터\n\n[이번 영상 요청]\n- 모드: auto\n- 의도/목적: 차분한 정보 전달용 요약\n- 목표 분량: 2.0분\n- 톤: 차분하게 정보 전달\n- 반드시 포함할 키워드: (없음)\n- 반드시 제외할 키워드: (없음)\n- auto 모드: 위 의도와 목표 분량만으로 전부 선택하라.\n\n[장면 트리 요약]\n- [intro] 오프닝 (0.0-30.0s, 30.0s) :: 채널 소개 및 오늘 주제 티저 #opening,hook\n  - [intro-hook] 훅 멘트 (0.0-10.0s, 10.0s) #hook\n  - [intro-topic] 오늘 주제 (10.0-30.0s, 20.0s)\n- [body] 본론: 영상편집 꿀팁 3가지 (30.0-330.0s, 300.0s) :: 핵심 꿀팁 세 가지를 순서대로 설명\n  - [tip-1] 꿀팁 1 - 컷편집 (30.0-120.0s, 90.0s)\n    - [tip-1-demo] 데모 (60.0-100.0s, 40.0s)\n  - [tip-2] 꿀팁 2 - 자막 (120.0-220.0s, 100.0s)\n  - [tip-3] 꿀팁 3 - 색보정 (220.0-330.0s, 110.0s)\n- [outro] 엔딩 (330.0-390.0s, 60.0s)\n  - [outro-cta] 구독 유도 (330.0-360.0s, 30.0s)\n  - [outro-next] 다음 영상 예고 (360.0-390.0s, 30.0s)\n\n위 조건에 맞게 selected_ids와 reasons를 JSON으로만 응답하라.",
+      "raw_response": "{\n  \"selected_ids\": [\n    \"intro-topic\",\n    \"tip-2\"\n  ],\n  \"reasons\": {\n    \"intro-topic\": \"오늘의 주제를 차분하게 소개하여 정보 전달의 기초를 다집니다.\",\n    \"tip-2\": \"자막 관련 핵심 꿀팁을 상세히 전달하며, 오프닝과 합쳐 목표 분량 120초를 정확히 충족합니다.\"\n  }\n}",
+      "selected_ids": [
+        "intro-topic",
+        "tip-2"
+      ],
+      "reasons": {
+        "intro-topic": "오늘의 주제를 차분하게 소개하여 정보 전달의 기초를 다집니다.",
+        "tip-2": "자막 관련 핵심 꿀팁을 상세히 전달하며, 오프닝과 합쳐 목표 분량 120초를 정확히 충족합니다."
+      },
+      "parse_error": null,
+      "validation": {
+        "ok": true,
+        "errors": [],
+        "warnings": [],
+        "unknown_ids": [],
+        "missing_locked": [],
+        "included_excluded": [],
+        "total_duration_sec": 120.0,
+        "target_sec": 120.0,
+        "duration_ratio": 1.0,
+        "within_tolerance": true
+      }
+    }
+  ]
+}
