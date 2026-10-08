@@ -251,6 +251,97 @@
       font-weight:700;font-size:13px;border:none;border-radius:7px;cursor:pointer;transition:filter .15s}
     .btn-apply:hover{filter:brightness(1.1)}
 
+    /* =====================================================================
+       편집 설정 단계 (setup stage) - 공부용으로 추가된 CSS
+       - 패널 헤더의 "내 프로필" 버튼
+       - idle 단계에서 setup으로 넘어가는 "가짜 트리로 테스트" 버튼
+       - setup 단계의 모드/의도/트리/요약/요청JSON UI
+       - "내 프로필" 모달
+       ===================================================================== */
+
+    /* 패널 헤더 오른쪽 버튼 묶음 */
+    .ai-panel-hdr-actions{display:flex;align-items:center;gap:6px}
+    .btn-profile{font-size:10px;color:var(--muted);background:none;border:1px solid var(--border);
+      border-radius:4px;cursor:pointer;padding:2px 8px;transition:background .15s,color .15s}
+    .btn-profile:hover{background:var(--panel2);color:var(--text)}
+
+    /* idle 단계 - 가짜 트리로 테스트 버튼 */
+    .idle-divider{font-size:10px;color:var(--muted);text-align:center;padding:4px 0 2px}
+    .btn-setup-test{width:100%;padding:9px;background:var(--panel2);color:var(--text);
+      border:1px solid var(--border);border-radius:7px;cursor:pointer;font-size:12px;
+      transition:border-color .15s,color .15s}
+    .btn-setup-test:hover{border-color:var(--accent);color:var(--accent)}
+
+    /* setup 단계 전체 - 스크롤 가능한 세로 레이아웃 */
+    #ai-setup{overflow:hidden}
+    .setup-scroll{flex:1 1 auto;overflow-y:auto;padding:10px 13px;
+      display:flex;flex-direction:column;gap:14px}
+
+    /* 상단 "현재 선택 길이 / 목표" 요약 바 */
+    .setup-summary-bar{padding:8px 10px;background:var(--panel2);border:1px solid var(--border);
+      border-radius:6px;font-size:11px;line-height:1.6}
+    .setup-summary-bar .duration-ok{color:var(--keep);font-weight:700}
+    .setup-summary-bar .duration-off{color:var(--cut);font-weight:700}
+
+    /* setup 섹션 공통 */
+    .setup-section{display:flex;flex-direction:column;gap:6px}
+    .setup-section.hidden{display:none}
+    .setup-section-label{font-size:9px;font-weight:700;color:var(--muted);
+      text-transform:uppercase;letter-spacing:.07em}
+
+    /* 모드 선택 버튼들 */
+    .setup-mode-btns{display:flex;flex-direction:column;gap:4px}
+    .setup-mode-btn{padding:7px 10px;background:var(--panel2);border:1px solid var(--border);
+      border-radius:5px;color:var(--text);font-size:11px;cursor:pointer;text-align:left;
+      transition:border-color .15s,color .15s}
+    .setup-mode-btn:hover{border-color:var(--keep)}
+    .setup-mode-btn.active{border-color:var(--accent);color:var(--accent)}
+
+    /* 입력 필드(라벨+입력) */
+    .setup-field{display:flex;flex-direction:column;gap:3px;font-size:11px}
+    .setup-field > span{font-size:10px;color:var(--muted)}
+    .setup-field input,.setup-field select{background:var(--panel2);border:1px solid var(--border);
+      border-radius:5px;padding:5px 8px;color:var(--text);font-size:11px;
+      font-family:inherit;outline:none}
+    .setup-field input:focus,.setup-field select:focus{border-color:var(--keep)}
+
+    /* 장면 트리 */
+    .setup-tree{display:flex;flex-direction:column;gap:1px;background:var(--panel2);
+      border:1px solid var(--border);border-radius:6px;padding:5px;
+      max-height:260px;overflow-y:auto}
+    .setup-tree-row{display:flex;align-items:center;gap:5px;padding:3px 4px;
+      border-radius:4px;font-size:11px}
+    .setup-tree-row:hover{background:rgba(255,255,255,.04)}
+    .setup-tree-collapse{flex:0 0 14px;background:none;border:none;color:var(--muted);
+      cursor:pointer;font-size:10px;line-height:1;padding:0;text-align:center}
+    .setup-tree-collapse.empty{visibility:hidden}
+    .setup-tree-check{flex:0 0 auto;cursor:pointer;margin:0}
+    .setup-tree-lock{flex:0 0 auto;background:none;border:1px solid var(--border);
+      border-radius:3px;color:var(--muted);font-size:10px;cursor:pointer;padding:1px 5px;
+      transition:border-color .15s,color .15s}
+    .setup-tree-lock:hover{border-color:var(--accent);color:var(--accent)}
+    .setup-tree-lock.locked{background:var(--accent);color:#fff;border-color:var(--accent)}
+    .setup-tree-lock.hidden{display:none}
+    .setup-tree-title{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .setup-tree-dur{flex:0 0 auto;color:var(--muted);font-size:10px}
+
+    /* "편집 시작" 눌렀을 때 보여줄 요청 JSON */
+    .setup-request-view{background:var(--panel2);border:1px solid var(--border);
+      border-radius:6px;padding:9px 11px;font-family:monospace;font-size:10.5px;
+      line-height:1.6;color:var(--text);white-space:pre-wrap;word-break:break-all;
+      max-height:220px;overflow:auto;margin:0}
+
+    /* setup 하단 "편집 시작" 버튼 */
+    .setup-footer{flex:0 0 auto;padding:9px 13px;border-top:1px solid var(--border)}
+    .btn-start-edit{width:100%;padding:10px;background:var(--accent);color:#fff;
+      font-weight:700;font-size:13px;border:none;border-radius:7px;cursor:pointer;
+      transition:filter .15s}
+    .btn-start-edit:hover{filter:brightness(1.1)}
+
+    /* 프로필 모달 */
+    .modal-panel-sm{max-width:380px}
+    .profile-form{padding:14px 18px;display:flex;flex-direction:column;gap:10px}
+
     /* Stage chat */
     #ai-chat{overflow:hidden}
     .quick-wrap{flex:0 0 auto;padding:9px 13px;border-bottom:1px solid var(--border)}
@@ -647,13 +738,19 @@
         <div class="ai-panel-title">
           <div class="ai-dot"></div>AI 어시스턴트
         </div>
-        <button class="btn-ai-reset hidden" id="btn-ai-reset">처음으로</button>
+        <div class="ai-panel-hdr-actions">
+          <button class="btn-profile" id="btn-profile">내 프로필</button>
+          <button class="btn-ai-reset hidden" id="btn-ai-reset">처음으로</button>
+        </div>
       </div>
 
       <!-- Stage: idle -->
       <div class="ai-stage" id="ai-idle">
         <p class="ai-idle-hint">타임라인에서 클립을 선택하고<br>AI 분석을 시작하세요.</p>
         <button class="btn-analyze" id="btn-analyze" disabled>AI 분석 시작</button>
+        <!-- 아직 백엔드가 장면 트리를 못 주므로, 가짜 트리로 setup 단계를 미리 체험 -->
+        <div class="idle-divider">— 또는 —</div>
+        <button class="btn-setup-test" id="btn-setup-test">가짜 트리로 테스트</button>
       </div>
 
       <!-- Stage: analyzing -->
@@ -662,6 +759,85 @@
         <div class="progress-stage" id="progress-stage"></div>
         <div class="progress-bar-track">
           <div class="progress-bar-fill" id="progress-bar-fill"></div>
+        </div>
+      </div>
+
+      <!-- Stage: setup (편집 설정 단계) -->
+      <div class="ai-stage hidden" id="ai-setup">
+        <div class="setup-scroll">
+          <!-- 상단: 현재 선택 길이 / 목표 분량 실시간 요약 -->
+          <div class="setup-summary-bar">
+            현재 선택 길이:
+            <span id="setup-selected-duration">0.0초</span>
+            / 목표:
+            <span id="setup-target-display">3분 (180.0초)</span>
+          </div>
+
+          <!-- 1) 편집 모드 선택 -->
+          <div class="setup-section">
+            <div class="setup-section-label">1. 편집 모드</div>
+            <div class="setup-mode-btns">
+              <button class="setup-mode-btn" data-mode="manual">
+                직접 고르기 (manual)
+              </button>
+              <button class="setup-mode-btn active" data-mode="partial">
+                일부 고정 + AI가 채우기 (partial)
+              </button>
+              <button class="setup-mode-btn" data-mode="auto">
+                AI에게 전부 맡기기 (auto)
+              </button>
+            </div>
+          </div>
+
+          <!-- 2) 의도 입력 -->
+          <div class="setup-section">
+            <div class="setup-section-label">2. 의도</div>
+            <label class="setup-field">
+              <span>영상 목적 (선택)</span>
+              <input type="text" id="setup-purpose" placeholder="예: 쇼츠용 핵심 요약">
+            </label>
+            <label class="setup-field">
+              <span>목표 분량 (분)</span>
+              <input type="number" id="setup-target-minutes" min="0" step="0.5" value="3">
+            </label>
+            <label class="setup-field">
+              <span>톤</span>
+              <select id="setup-tone">
+                <option value="">(선택 없음)</option>
+                <option>경쾌하고 빠르게</option>
+                <option>차분하게 정보 전달</option>
+                <option>임팩트 있게</option>
+                <option>잔잔하게</option>
+              </select>
+            </label>
+            <label class="setup-field">
+              <span>꼭 넣을 키워드 (쉼표로 구분)</span>
+              <input type="text" id="setup-must-include" placeholder="예: 꿀팁, 결론">
+            </label>
+            <label class="setup-field">
+              <span>뺄 키워드 (쉼표로 구분)</span>
+              <input type="text" id="setup-must-exclude" placeholder="예: 광고, 홍보">
+            </label>
+          </div>
+
+          <!-- 3) 장면 트리 -->
+          <div class="setup-section">
+            <div class="setup-section-label">
+              3. 장면 트리 (체크=포함, 해제=제외, 자물쇠=반드시 포함)
+            </div>
+            <div class="setup-tree" id="setup-tree"></div>
+          </div>
+
+          <!-- 4) 편집 시작 눌렀을 때만 표시되는 요청 JSON -->
+          <div class="setup-section hidden" id="setup-request-section">
+            <div class="setup-section-label">편집 요청 JSON (서버 전송 전)</div>
+            <pre class="setup-request-view" id="setup-request-view"></pre>
+          </div>
+        </div>
+
+        <!-- 하단: 편집 시작 버튼 -->
+        <div class="setup-footer">
+          <button class="btn-start-edit" id="btn-start-edit">편집 시작</button>
         </div>
       </div>
 
@@ -711,6 +887,49 @@
 </div><!-- end .app -->
 
 <div class="tl-zoom-hint" id="zoom-hint"></div>
+
+<!-- 내 프로필 모달 (localStorage에 저장) -->
+<div class="modal hidden" id="profile-modal">
+  <div class="modal-backdrop" id="profile-modal-backdrop"></div>
+  <div class="modal-panel modal-panel-sm">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title">내 프로필</div>
+        <div class="modal-sub">편집 스타일 저장 (현재는 브라우저 localStorage)</div>
+      </div>
+      <button class="modal-close" id="profile-modal-close">×</button>
+    </div>
+    <div class="profile-form">
+      <label class="setup-field">
+        <span>컷 템포</span>
+        <select id="profile-cut-tempo">
+          <option value="">(선택 없음)</option>
+          <option>느림 (평균 10초 이상)</option>
+          <option>보통 (평균 6~9초)</option>
+          <option>빠름 (평균 3~5초)</option>
+        </select>
+      </label>
+      <label class="setup-field">
+        <span>군말 제거 강도</span>
+        <select id="profile-filler-removal">
+          <option value="">(선택 없음)</option>
+          <option>약 (크게 거슬리는 것만)</option>
+          <option>중</option>
+          <option>강 (음, 어, 그니까 전부 제거)</option>
+        </select>
+      </label>
+      <label class="setup-field">
+        <span>자주 쓰는 단어 (쉼표로 구분)</span>
+        <input type="text" id="profile-frequent-words" placeholder="예: 꿀팁, 레전드, 결론부터">
+      </label>
+    </div>
+    <div class="modal-footer">
+      <div class="modal-status" id="profile-save-status"></div>
+      <button class="btn-secondary" id="btn-profile-cancel">닫기</button>
+      <button class="btn-primary" id="btn-profile-save">저장</button>
+    </div>
+  </div>
+</div>
 
 <!-- Export modal -->
 <div class="modal hidden" id="export-modal">
@@ -788,7 +1007,10 @@ function totalTimelineDuration() {
 ===================================================================== */
 function setAiStage(stage) {
   AI_STAGE = stage;
-  ["idle","analyzing","review","chat"].forEach(s =>
+  // "setup" 단계를 analyzing과 review 사이에 추가.
+  // 기존 함수(showReview/applyEdits/analyzeSelectedClip)는 "setup"을 쓰지 않으므로
+  // 그대로 동작한다. 다만 setAiStage의 toggle 대상 목록에는 꼭 포함돼야 한다.
+  ["idle","analyzing","setup","review","chat"].forEach(s =>
     document.getElementById("ai-"+s).classList.toggle("hidden", s !== stage)
   );
   document.getElementById("btn-ai-reset").classList.toggle("hidden", stage === "idle");
@@ -1672,6 +1894,628 @@ document.getElementById("ss-fade").addEventListener("click", () => {
   SUBTITLE_STYLE.fade = !SUBTITLE_STYLE.fade;
   setToggle("ss-fade", SUBTITLE_STYLE.fade);
 });
+
+/* =====================================================================
+   편집 설정 단계 (setup stage)
+   ---------------------------------------------------------------------
+   이 블록은 "편집 설정 UI" 하나만 담당한다. 기존 함수(showReview,
+   applyEdits, analyzeSelectedClip, renderTimeline 등)와는 분리되어 있고,
+   서로 참조하지 않는다.
+
+   흐름:
+     [1] "가짜 트리로 테스트" 버튼 → openEditSetupWithFakeTree()
+     [2] setup 단계 UI에서 모드/의도/트리 체크/자물쇠를 조작
+     [3] "편집 시작" 버튼 → buildEditRequest() 로 request JSON 조립
+         → 콘솔에 출력하고 화면 하단에도 보여준다 (서버 전송은 아직 안 함)
+===================================================================== */
+
+/* ---------------------------------------------------------------------
+   가짜 raw 트리 (test_prompt_builder.py의 RAW_TREE와 동일한 내용)
+   ---------------------------------------------------------------------
+   백엔드가 아직 트리를 못 주므로, 프론트에서 UI만 미리 테스트하기 위한
+   더미 데이터. 외부 포맷처럼 "node_id/name/start_sec" alias도 섞어 뒀다.
+   아래 normalizeFakeTreeNode()가 이것을 내부 포맷(id/title/start/end/
+   children)으로 통일해 준다.
+--------------------------------------------------------------------- */
+const FAKE_RAW_TREE = [
+  {
+    "node_id": "intro",
+    "name": "오프닝",
+    "start_sec": 0,
+    "end_sec": 30,
+    "description": "채널 소개 및 오늘 주제 티저",
+    "tags": ["opening", "hook"],
+    "children": [
+      { "id": "intro-hook",  "title": "훅 멘트",   "start": 0,  "end": 10, "tags": ["hook"] },
+      { "id": "intro-topic", "title": "오늘 주제", "start": 10, "end": 30 }
+    ]
+  },
+  {
+    "id": "body",
+    "title": "본론: 영상편집 꿀팁 3가지",
+    "start": 30,
+    "end": 330,
+    "summary": "핵심 꿀팁 세 가지를 순서대로 설명",
+    "children": [
+      {
+        "id": "tip-1",
+        "title": "꿀팁 1 - 컷편집",
+        "start": 30,
+        "end": 120,
+        "children": [
+          { "id": "tip-1-demo", "title": "데모", "start": 60, "end": 100 }
+        ]
+      },
+      { "id": "tip-2", "title": "꿀팁 2 - 자막",   "start": 120, "end": 220 },
+      { "id": "tip-3", "title": "꿀팁 3 - 색보정", "start": 220, "end": 330 }
+    ]
+  },
+  {
+    "id": "outro",
+    "title": "엔딩",
+    "start": 330,
+    "end": 390,
+    "children": [
+      { "id": "outro-cta",  "title": "구독 유도",     "start": 330, "end": 360 },
+      { "id": "outro-next", "title": "다음 영상 예고", "start": 360, "end": 390 }
+    ]
+  }
+];
+
+/* ---------------------------------------------------------------------
+   편집 설정 상태 (editSetup)
+   ---------------------------------------------------------------------
+   setup 단계 동안 UI가 보여줘야 할 모든 상태를 한 객체에 모아 둔다.
+   왜 전역 하나로 모으냐? → 여러 함수가 공유해야 하는데, 매번 함수
+   매개변수로 넘기면 코드가 복잡해져서. 공부용으로는 단순함이 우선.
+--------------------------------------------------------------------- */
+const editSetup = {
+  tree:          [],              // 정규화된 트리 (내부 포맷)
+  mode:          "partial",       // "manual" | "partial" | "auto"
+  purpose:       "",              // 영상 목적
+  targetMinutes: 3,               // 목표 분량(분)
+  tone:          "",              // 톤
+  mustInclude:   [],              // 꼭 넣을 키워드 리스트
+  mustExclude:   [],              // 뺄 키워드 리스트
+  checkedIds:    new Set(),       // 체크된 노드 id (Set: 중복 없는 집합)
+  lockedIds:     new Set(),       // 자물쇠 걸린 노드 id
+  collapsedIds:  new Set(),       // 접힌 노드 id (자식 숨김)
+};
+
+/* ---------------------------------------------------------------------
+   트리 정규화 (prompt_builder.py의 normalize_tree와 같은 역할)
+   ---------------------------------------------------------------------
+   왜 필요한가?
+     외부 raw 트리는 팀마다 필드명이 다를 수 있어서 ("id" vs "node_id",
+     "start" vs "start_sec" 등), 들어오자마자 한 번만 내부 포맷으로
+     통일해 두면 뒤의 모든 함수가 깔끔해진다.
+--------------------------------------------------------------------- */
+
+// 입력: raw 노드 하나 (dict)
+// 출력: 내부 포맷의 새 노드 (id/title/start/end/children)
+// 예시: {"node_id":"a","name":"ㅁ","start_sec":0,"end_sec":10}
+//    → {id:"a", title:"ㅁ", start:0, end:10, children:[]}
+function normalizeFakeTreeNode(raw) {
+  // 각 필드마다 "가장 먼저 발견되는 별명"을 찾아 꺼낸다.
+  const id    = raw.id    ?? raw.node_id    ?? raw.uid        ?? "";
+  const title = raw.title ?? raw.name       ?? raw.label      ?? "";
+  const start = raw.start ?? raw.start_sec  ?? raw.start_time ?? 0;
+  const end   = raw.end   ?? raw.end_sec    ?? raw.end_time   ?? 0;
+  const childrenRaw = raw.children ?? raw.nodes ?? [];
+
+  // 자식을 재귀적으로 변환 → 트리 전체가 내부 포맷으로 바뀜.
+  const children = [];
+  for (const childRaw of childrenRaw) {
+    children.push(normalizeFakeTreeNode(childRaw));
+  }
+
+  return {
+    id:    String(id),
+    title: String(title),
+    start: Number(start),
+    end:   Number(end),
+    children: children,
+  };
+}
+
+// 입력: raw 트리 (노드들의 리스트)
+// 출력: 정규화된 노드들의 리스트
+function normalizeFakeTree(rawTree) {
+  const result = [];
+  for (const rawNode of rawTree) {
+    result.push(normalizeFakeTreeNode(rawNode));
+  }
+  return result;
+}
+
+/* ---------------------------------------------------------------------
+   트리 유틸 함수들 (전부 재귀)
+--------------------------------------------------------------------- */
+
+// 트리 안의 모든 노드 id를 리스트로 수집.
+// 입력: nodes(노드 리스트), outList(결과를 담을 리스트)
+// 출력: 없음 (outList에 직접 push)
+function collectAllNodeIds(nodes, outList) {
+  for (const node of nodes) {
+    outList.push(node.id);
+    collectAllNodeIds(node.children, outList);
+  }
+}
+
+// 노드 하나의 재생 길이(초)를 계산.
+// 예시: {start:30, end:120} → 90초
+function nodeDuration(node) {
+  const dur = node.end - node.start;
+  if (dur < 0) return 0;
+  return dur;
+}
+
+/* ---------------------------------------------------------------------
+   선택된 노드들의 총 길이 계산 (★ 어려운 부분)
+   ---------------------------------------------------------------------
+   prompt_builder.py의 calc_duration과 똑같은 규칙:
+     "부모와 자식이 함께 선택되면 부모 길이만 센다 (자식은 더하지 않음)."
+
+   왜? 부모 구간이 자식 구간을 "이미 포함"하기 때문에, 자식을 또 더하면
+   같은 시간을 이중으로 세는 꼴이 된다.
+
+   쉬운 예시 (주석 안의 숫자로 머리로 돌려 보자):
+     트리:  카페 가기 (8분)
+              └─ 주문하기 (2분)
+     사용자가 둘 다 체크했음
+       → 틀린 계산: 8 + 2 = 10분  ❌
+       → 올바른 계산:        8분  ✅ (주문하기는 카페 가기 안에 있음)
+
+   구현 방법:
+     각 노드마다 "이 노드가 체크되어 있나?"를 먼저 본다.
+       - 체크됨 → 이 노드 길이만 더하고, 자식은 재귀로 "안 내려간다".
+                 (부모가 이미 그 자식 구간을 다 덮고 있으니까)
+       - 체크 안 됨 → 자식들 중에 체크된 게 있을 수 있으니 자식들 재귀.
+--------------------------------------------------------------------- */
+// 입력: nodes(노드 리스트), checkedIds(체크된 id 집합)
+// 출력: 총 길이(초, number)
+function calcSelectedDuration(nodes, checkedIds) {
+  let total = 0;
+  for (const node of nodes) {
+    if (checkedIds.has(node.id)) {
+      // 부모가 선택됨 → 이 노드 길이만 더하고 자식은 skip.
+      total += nodeDuration(node);
+    } else {
+      // 이 노드는 선택 안됨 → 자식 중에 선택된 게 있을 수 있으니 재귀.
+      total += calcSelectedDuration(node.children, checkedIds);
+    }
+  }
+  return total;
+}
+
+/* ---------------------------------------------------------------------
+   체크 상태 계산 ("checked" / "indeterminate" / "unchecked")
+   ---------------------------------------------------------------------
+   사용자가 "자식 일부만" 체크하면 부모는 "일부 선택" (indeterminate)로
+   표시해야 한다. 그래야 사용자가 "아 지금 다 체크된 건 아니구나"를 안다.
+
+   규칙:
+     - 자신이 checkedIds에 있으면 → "checked"
+     - 자신이 checkedIds에 없고 자식도 아예 없으면 → "unchecked"
+     - 자식이 있을 때:
+         자손 중 하나라도 체크 → "indeterminate"
+         자손 전부 미체크      → "unchecked"
+--------------------------------------------------------------------- */
+function computeCheckState(node, checkedIds) {
+  if (checkedIds.has(node.id)) {
+    return "checked";
+  }
+  if (node.children.length === 0) {
+    return "unchecked";
+  }
+  // 자손 중 하나라도 체크됐나?
+  if (hasAnyCheckedDescendant(node, checkedIds)) {
+    return "indeterminate";
+  }
+  return "unchecked";
+}
+
+// 자손 중에 체크된 노드가 하나라도 있는가?
+function hasAnyCheckedDescendant(node, checkedIds) {
+  for (const child of node.children) {
+    if (checkedIds.has(child.id)) return true;
+    if (hasAnyCheckedDescendant(child, checkedIds)) return true;
+  }
+  return false;
+}
+
+/* ---------------------------------------------------------------------
+   부모 체크 시 자식도 전부 체크 (반대도 마찬가지)
+   ---------------------------------------------------------------------
+   체크박스에서 부모를 클릭하면 그 아래 모든 자손을 같은 상태로 맞춘다.
+   예: "본론"을 체크 → tip-1, tip-1-demo, tip-2, tip-3 전부 체크.
+--------------------------------------------------------------------- */
+function cascadeCheck(node, shouldCheck, checkedIds) {
+  if (shouldCheck) {
+    checkedIds.add(node.id);
+  } else {
+    checkedIds.delete(node.id);
+  }
+  for (const child of node.children) {
+    cascadeCheck(child, shouldCheck, checkedIds);
+  }
+}
+
+/* ---------------------------------------------------------------------
+   setup 단계 진입 (가짜 트리로 시작)
+   ---------------------------------------------------------------------
+   "가짜 트리로 테스트" 버튼을 눌렀을 때 실행된다.
+   editSetup 상태를 초기화하고 setup 단계로 이동한다.
+--------------------------------------------------------------------- */
+function openEditSetupWithFakeTree() {
+  // 1) 트리 정규화 후 상태에 저장
+  editSetup.tree = normalizeFakeTree(FAKE_RAW_TREE);
+
+  // 2) 초기 상태: 모든 노드 체크, 아무것도 locked 아님, 아무것도 접히지 않음
+  const allIds = [];
+  collectAllNodeIds(editSetup.tree, allIds);
+  editSetup.checkedIds   = new Set(allIds);
+  editSetup.lockedIds    = new Set();
+  editSetup.collapsedIds = new Set();
+
+  // 3) 의도 입력 기본값
+  editSetup.mode          = "partial";
+  editSetup.purpose       = "";
+  editSetup.targetMinutes = 3;
+  editSetup.tone          = "";
+  editSetup.mustInclude   = [];
+  editSetup.mustExclude   = [];
+
+  // 4) 화면 입력 필드도 기본값으로 리셋
+  document.getElementById("setup-purpose").value         = "";
+  document.getElementById("setup-target-minutes").value  = "3";
+  document.getElementById("setup-tone").value            = "";
+  document.getElementById("setup-must-include").value    = "";
+  document.getElementById("setup-must-exclude").value    = "";
+  document.getElementById("setup-request-section").classList.add("hidden");
+
+  // 5) 모드 버튼 활성화 상태 반영
+  updateSetupModeButtons();
+
+  // 6) 트리와 요약 다시 그리기
+  renderSetupTree();
+  updateSetupSummary();
+
+  // 7) 단계 전환
+  setAiStage("setup");
+}
+
+/* ---------------------------------------------------------------------
+   요약 바 업데이트 ("현재 선택 길이 / 목표 분량")
+   ---------------------------------------------------------------------
+   체크/언체크, 목표 분량 변경 등이 생길 때마다 호출.
+--------------------------------------------------------------------- */
+function updateSetupSummary() {
+  const selectedSec = calcSelectedDuration(editSetup.tree, editSetup.checkedIds);
+  const targetSec   = editSetup.targetMinutes * 60;
+
+  const selectedEl = document.getElementById("setup-selected-duration");
+  const targetEl   = document.getElementById("setup-target-display");
+
+  selectedEl.textContent = selectedSec.toFixed(1) + "초";
+  targetEl.textContent   = editSetup.targetMinutes + "분 (" + targetSec.toFixed(1) + "초)";
+
+  // ±10% 이내면 초록, 아니면 빨강으로.
+  selectedEl.className = "";
+  if (targetSec > 0) {
+    const ratio = selectedSec / targetSec;
+    if (ratio >= 0.9 && ratio <= 1.1) {
+      selectedEl.className = "duration-ok";
+    } else {
+      selectedEl.className = "duration-off";
+    }
+  }
+}
+
+/* ---------------------------------------------------------------------
+   모드 버튼 UI 업데이트
+   ---------------------------------------------------------------------
+   선택된 모드만 .active 클래스. 또한 모드에 따라 자물쇠 버튼 표시 여부도
+   바뀌므로 트리를 다시 그린다.
+--------------------------------------------------------------------- */
+function updateSetupModeButtons() {
+  const buttons = document.querySelectorAll(".setup-mode-btn");
+  for (const btn of buttons) {
+    const isActive = btn.dataset.mode === editSetup.mode;
+    btn.classList.toggle("active", isActive);
+  }
+}
+
+/* ---------------------------------------------------------------------
+   트리 전체 다시 그리기
+   ---------------------------------------------------------------------
+   체크/자물쇠/접힘 상태가 바뀌면 트리 DOM을 통째로 다시 만든다.
+   (부분 업데이트가 복잡하므로 공부용으로는 전체 재렌더가 편함)
+--------------------------------------------------------------------- */
+function renderSetupTree() {
+  const container = document.getElementById("setup-tree");
+  container.innerHTML = "";
+  for (const rootNode of editSetup.tree) {
+    renderSetupTreeNode(rootNode, container, 0);
+  }
+}
+
+/* ---------------------------------------------------------------------
+   노드 하나를 DOM 행으로 그리기 (재귀)
+   ---------------------------------------------------------------------
+   입력:
+     node      - 그릴 노드
+     container - 추가할 부모 DOM 요소
+     depth     - 들여쓰기 깊이 (0=루트)
+--------------------------------------------------------------------- */
+function renderSetupTreeNode(node, container, depth) {
+  const row = document.createElement("div");
+  row.className = "setup-tree-row";
+  row.style.paddingLeft = (4 + depth * 14) + "px";
+
+  // 1) 접기/펴기 버튼 (자식이 있을 때만 실제로 기능)
+  const collapseBtn = document.createElement("button");
+  collapseBtn.className = "setup-tree-collapse";
+  if (node.children.length === 0) {
+    // 자식이 없는 노드는 빈칸 자리만 차지 (가로 정렬 맞추기용)
+    collapseBtn.classList.add("empty");
+    collapseBtn.textContent = "";
+  } else {
+    const isCollapsed = editSetup.collapsedIds.has(node.id);
+    collapseBtn.textContent = isCollapsed ? "▶" : "▼";
+    collapseBtn.addEventListener("click", function() {
+      if (isCollapsed) {
+        editSetup.collapsedIds.delete(node.id);
+      } else {
+        editSetup.collapsedIds.add(node.id);
+      }
+      renderSetupTree();
+    });
+  }
+  row.appendChild(collapseBtn);
+
+  // 2) 체크박스
+  const check = document.createElement("input");
+  check.type = "checkbox";
+  check.className = "setup-tree-check";
+  const state = computeCheckState(node, editSetup.checkedIds);
+  check.checked       = (state === "checked");
+  check.indeterminate = (state === "indeterminate");
+  check.addEventListener("change", function() {
+    // 부모를 체크/해제하면 자손 전부 같은 상태로 맞춤.
+    cascadeCheck(node, check.checked, editSetup.checkedIds);
+    renderSetupTree();      // indeterminate 표시가 다시 계산되도록
+    updateSetupSummary();   // 선택 길이도 갱신
+  });
+  row.appendChild(check);
+
+  // 3) 자물쇠 버튼 (partial 모드에서만 보임)
+  const lockBtn = document.createElement("button");
+  lockBtn.className = "setup-tree-lock";
+  const isLocked = editSetup.lockedIds.has(node.id);
+  lockBtn.textContent = isLocked ? "🔒" : "🔓";
+  if (isLocked) lockBtn.classList.add("locked");
+  if (editSetup.mode !== "partial") lockBtn.classList.add("hidden");
+  lockBtn.title = "반드시 포함 (locked_nodes)";
+  lockBtn.addEventListener("click", function() {
+    if (isLocked) {
+      editSetup.lockedIds.delete(node.id);
+    } else {
+      editSetup.lockedIds.add(node.id);
+    }
+    renderSetupTree();
+  });
+  row.appendChild(lockBtn);
+
+  // 4) 제목
+  const title = document.createElement("span");
+  title.className   = "setup-tree-title";
+  title.textContent = "[" + node.id + "] " + node.title;
+  row.appendChild(title);
+
+  // 5) 길이 표시
+  const dur = document.createElement("span");
+  dur.className   = "setup-tree-dur";
+  dur.textContent = nodeDuration(node).toFixed(1) + "s";
+  row.appendChild(dur);
+
+  container.appendChild(row);
+
+  // 6) 자식 렌더 (접힌 상태가 아니면)
+  const isCollapsed = editSetup.collapsedIds.has(node.id);
+  if (!isCollapsed) {
+    for (const child of node.children) {
+      renderSetupTreeNode(child, container, depth + 1);
+    }
+  }
+}
+
+/* ---------------------------------------------------------------------
+   화면 입력 필드 → editSetup 반영
+   ---------------------------------------------------------------------
+   사용자가 입력할 때마다 editSetup에 값을 옮긴다. 반대 방향은 따로
+   필요 없다 (화면이 바로 그 값을 가지고 있으니까).
+--------------------------------------------------------------------- */
+
+// 쉼표 구분 문자열 → 깔끔한 리스트.
+// 예시: " 꿀팁, 결론 ,  " → ["꿀팁", "결론"]
+function parseCommaList(text) {
+  const result = [];
+  const parts = text.split(",");
+  for (const part of parts) {
+    const trimmed = part.trim();
+    if (trimmed.length > 0) result.push(trimmed);
+  }
+  return result;
+}
+
+function readIntentFromForm() {
+  editSetup.purpose       = document.getElementById("setup-purpose").value.trim();
+  editSetup.targetMinutes = Number(document.getElementById("setup-target-minutes").value) || 0;
+  editSetup.tone          = document.getElementById("setup-tone").value;
+  editSetup.mustInclude   = parseCommaList(document.getElementById("setup-must-include").value);
+  editSetup.mustExclude   = parseCommaList(document.getElementById("setup-must-exclude").value);
+}
+
+/* ---------------------------------------------------------------------
+   요청 JSON 조립 ("편집 시작" 버튼이 눌렸을 때)
+   ---------------------------------------------------------------------
+   편집 시작:
+     1) 화면 값들을 editSetup에 반영
+     2) locked_nodes = lockedIds 집합을 리스트로 (partial 모드일 때만)
+     3) excluded_nodes = "전체 id - 체크된 id"
+     4) request 객체를 만들어 콘솔 로그 + 화면 pre 태그에 보여준다
+--------------------------------------------------------------------- */
+function buildEditRequest() {
+  readIntentFromForm();
+
+  // 전체 노드 id - 체크된 id = 제외된 id
+  // 예: 전체 [a,b,c], 체크 [a,c] → 제외 [b]
+  const allIds = [];
+  collectAllNodeIds(editSetup.tree, allIds);
+  const excludedIds = [];
+  for (const nid of allIds) {
+    if (!editSetup.checkedIds.has(nid)) excludedIds.push(nid);
+  }
+
+  // locked는 partial 모드에서만 의미 있음.
+  // (manual/auto는 lockedIds가 비어 있어도 되지만, 안전하게 비워서 보냄)
+  let lockedList = [];
+  if (editSetup.mode === "partial") {
+    lockedList = Array.from(editSetup.lockedIds);
+  }
+
+  return {
+    mode:            editSetup.mode,
+    locked_nodes:    lockedList,
+    excluded_nodes:  excludedIds,
+    purpose:         editSetup.purpose,
+    target_minutes:  editSetup.targetMinutes,
+    tone:            editSetup.tone,
+    must_include:    editSetup.mustInclude,
+    must_exclude:    editSetup.mustExclude,
+  };
+}
+
+function showEditRequest(request) {
+  const section = document.getElementById("setup-request-section");
+  const view    = document.getElementById("setup-request-view");
+  view.textContent = JSON.stringify(request, null, 2);
+  section.classList.remove("hidden");
+  // 스크롤을 요청 영역으로 내려서 사용자가 바로 볼 수 있게
+  view.scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+
+/* ---------------------------------------------------------------------
+   이벤트 바인딩
+--------------------------------------------------------------------- */
+
+// "가짜 트리로 테스트" 버튼
+document.getElementById("btn-setup-test").addEventListener("click", openEditSetupWithFakeTree);
+
+// 모드 버튼들
+for (const btn of document.querySelectorAll(".setup-mode-btn")) {
+  btn.addEventListener("click", function() {
+    editSetup.mode = btn.dataset.mode;
+    updateSetupModeButtons();
+    renderSetupTree();   // 자물쇠 보임/숨김이 바뀌므로 다시 그림
+  });
+}
+
+// 목표 분량이 바뀌면 요약 바도 바로 갱신
+document.getElementById("setup-target-minutes").addEventListener("input", function() {
+  editSetup.targetMinutes = Number(this.value) || 0;
+  updateSetupSummary();
+});
+
+// "편집 시작" 버튼
+document.getElementById("btn-start-edit").addEventListener("click", function() {
+  const request = buildEditRequest();
+  console.log("[편집 요청]", request);
+  showEditRequest(request);
+});
+
+
+/* =====================================================================
+   제작자 프로필 (localStorage 저장)
+   ---------------------------------------------------------------------
+   패널 헤더의 "내 프로필" 버튼을 누르면 모달이 열린다. 저장 버튼을
+   누르면 localStorage에 저장되고, 페이지를 다시 열면 자동으로 불러온다.
+   나중에 백엔드 저장으로 바꿀 수 있도록 load/save 함수를 따로 분리해
+   두었다. (API 호출로 교체하면 UI 코드는 안 바뀌어도 됨)
+===================================================================== */
+
+const PROFILE_STORAGE_KEY = "video_editor_profile_v1";
+const DEFAULT_PROFILE = {
+  cut_tempo:       "",
+  filler_removal:  "",
+  frequent_words:  [],
+};
+
+// 저장소에서 프로필을 읽어온다. 없거나 깨져 있으면 DEFAULT_PROFILE.
+function loadProfile() {
+  const raw = localStorage.getItem(PROFILE_STORAGE_KEY);
+  if (!raw) return { ...DEFAULT_PROFILE };
+  try {
+    const parsed = JSON.parse(raw);
+    return {
+      cut_tempo:      parsed.cut_tempo      ?? "",
+      filler_removal: parsed.filler_removal ?? "",
+      frequent_words: Array.isArray(parsed.frequent_words) ? parsed.frequent_words : [],
+    };
+  } catch (e) {
+    return { ...DEFAULT_PROFILE };
+  }
+}
+
+// 프로필 하나를 저장소에 저장.
+function saveProfile(profile) {
+  localStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(profile));
+}
+
+// 저장된 값을 모달 폼에 채워 넣기.
+function applyProfileToForm(profile) {
+  document.getElementById("profile-cut-tempo").value      = profile.cut_tempo;
+  document.getElementById("profile-filler-removal").value = profile.filler_removal;
+  document.getElementById("profile-frequent-words").value = profile.frequent_words.join(", ");
+}
+
+// 모달 폼에서 현재 입력값을 꺼내서 profile 객체로.
+function readProfileFromForm() {
+  return {
+    cut_tempo:      document.getElementById("profile-cut-tempo").value,
+    filler_removal: document.getElementById("profile-filler-removal").value,
+    frequent_words: parseCommaList(document.getElementById("profile-frequent-words").value),
+  };
+}
+
+function openProfileModal() {
+  applyProfileToForm(loadProfile());
+  document.getElementById("profile-save-status").textContent = "";
+  document.getElementById("profile-modal").classList.remove("hidden");
+}
+
+function closeProfileModal() {
+  document.getElementById("profile-modal").classList.add("hidden");
+}
+
+// 이벤트 바인딩
+document.getElementById("btn-profile").addEventListener("click", openProfileModal);
+document.getElementById("profile-modal-close").addEventListener("click", closeProfileModal);
+document.getElementById("profile-modal-backdrop").addEventListener("click", closeProfileModal);
+document.getElementById("btn-profile-cancel").addEventListener("click", closeProfileModal);
+document.getElementById("btn-profile-save").addEventListener("click", function() {
+  const profile = readProfileFromForm();
+  saveProfile(profile);
+  const status = document.getElementById("profile-save-status");
+  status.textContent = "저장되었습니다.";
+  status.className   = "modal-status ok";
+});
+
+// 페이지가 열릴 때 저장된 프로필이 있는지 미리 확인 (지금은 로그만, 나중에 쓸 자리).
+// 공부용: 저장 → 리로드 → 자동으로 불러와지는지 확인용.
+console.log("[profile] 저장된 프로필:", loadProfile());
+
 
 // Init
 renderTimeline();
