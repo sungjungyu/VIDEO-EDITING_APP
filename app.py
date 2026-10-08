@@ -18,7 +18,7 @@ if hasattr(sys.stdout, "reconfigure"):
 if hasattr(sys.stderr, "reconfigure"):
     sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
@@ -48,15 +48,12 @@ class SubtitleSegment(BaseModel):
     end: float = Field(gt=0)
     text: str = Field(min_length=1, max_length=1000)
     cut: bool = False
-    subtitle_color: str = "white"
-    fontsize: int = Field(default=32, ge=16, le=96)
 
 
 class RenderRequest(BaseModel):
     source_file: str
     segments: List[SubtitleSegment] = Field(min_length=1, max_length=1000)
     aspect_ratio: Literal["16:9", "9:16"] = "16:9"
-    style_preset: Literal["매운맛", "순한맛", "정석맛"] = "정석맛"
 
 
 class ReviseRequest(BaseModel):
@@ -66,7 +63,7 @@ class ReviseRequest(BaseModel):
 
 @app.get("/", response_class=HTMLResponse)
 async def home() -> HTMLResponse:
-    return HTMLResponse((STATIC_DIR / "editor.html").read_text(encoding="utf-8"))
+    return HTMLResponse((STATIC_DIR / "index.html").read_text(encoding="utf-8"))
 
 
 @app.post("/upload")
@@ -112,9 +109,7 @@ def _load_pipeline() -> VideoEditingPipeline:
     return pipeline
 
 
-def _analyze_video_with_progress(
-    job_id: str, input_path: Path, stored_name: str, style: str
-) -> None:
+def _analyze_video_with_progress(job_id: str, input_path: Path, stored_name: str) -> None:
     def stage(msg: str, pct: int) -> None:
         analyze_jobs[job_id].update(stage=msg, progress=pct)
 
@@ -133,7 +128,7 @@ def _analyze_video_with_progress(
         segments = pipeline.step2_refine_transcript(segments)
 
         stage("AI 문맥 분석(Gemini) 중...", 75)
-        segments = pipeline.step3_analyze_context(segments, style, video_context)
+        segments = pipeline.step3_analyze_context(segments, video_context)
 
         analyze_jobs[job_id].update(
             status="completed",
@@ -151,10 +146,8 @@ def _analyze_video_with_progress(
 
 
 @app.post("/analyze")
-async def analyze_video(file: UploadFile = File(...), style: str = Form("정석맛")) -> JSONResponse:
+async def analyze_video(file: UploadFile = File(...)) -> JSONResponse:
     """Upload a video, start AI analysis in background, return job_id for polling."""
-    if style not in {"매운맛", "순한맛", "정석맛"}:
-        raise HTTPException(status_code=400, detail="지원하지 않는 스타일입니다.")
     if not (file.content_type or "").startswith("video/"):
         raise HTTPException(status_code=400, detail="영상 파일만 업로드할 수 있습니다.")
 
@@ -178,7 +171,7 @@ async def analyze_video(file: UploadFile = File(...), style: str = Form("정석�
     job_id = uuid.uuid4().hex
     analyze_jobs[job_id] = {"status": "processing", "stage": "업로드 완료, 분석 시작...", "progress": 2}
     asyncio.create_task(
-        asyncio.to_thread(_analyze_video_with_progress, job_id, stored_path, stored_name, style)
+        asyncio.to_thread(_analyze_video_with_progress, job_id, stored_path, stored_name)
     )
     return JSONResponse({"job_id": job_id, "status": "processing"})
 
@@ -237,7 +230,6 @@ def _render_video(
     job_id: str,
     input_path: Path,
     segments: List[Dict[str, Any]],
-    style_preset: str,
 ) -> None:
     output_name = f"cutroom_{job_id}.mp4"
     output_path = OUTPUT_DIR / output_name
@@ -246,7 +238,7 @@ def _render_video(
             render_jobs[job_id].update(progress=pct, message=f"{stage}...")
 
         render_jobs[job_id].update(progress=10, message="렌더링을 준비하는 중...")
-        edit_data = segments_to_edit_data(segments, style_preset=style_preset)
+        edit_data = segments_to_edit_data(segments)
         final_path = me_render_video(str(input_path), edit_data, _progress)
         shutil.copy2(final_path, str(output_path))
 
@@ -281,7 +273,7 @@ async def render_video(request: RenderRequest) -> JSONResponse:
     render_jobs[job_id] = {"status": "processing", "progress": 5, "message": "렌더링을 준비하는 중..."}
     asyncio.create_task(
         asyncio.to_thread(
-            _render_video, job_id, input_path, normalized_segments, request.style_preset
+            _render_video, job_id, input_path, normalized_segments
         )
     )
     return JSONResponse({"job_id": job_id, **render_jobs[job_id]})

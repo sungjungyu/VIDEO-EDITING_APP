@@ -29,8 +29,7 @@ def render_video(
                 "text": str,
                 "words": [{"word": str, "start": float, "end": float}, ...]  # 카라오케용, 선택
             }
-        ],
-        "style_preset": "매운맛" | "순한맛" | "정석맛"
+        ]
     }
 
     progress_callback(stage, percent) → None
@@ -41,8 +40,6 @@ def render_video(
     """
     cuts: list[dict] = edit_data["cuts"]
     subtitles: list[dict] = edit_data.get("subtitles", [])
-    style_preset: str = edit_data.get("style_preset", "정석맛")
-
     cut_path: str | None = None
     ass_path: str | None = None
 
@@ -61,7 +58,7 @@ def render_video(
         # Step 3: .ass 자막 파일 생성
         progress_callback("generating_subtitles", 15)
         ass_path = make_temp_path(".ass")
-        ass_generator.generate(remapped_subs, style_preset, ass_path)
+        ass_generator.generate(remapped_subs, ass_path)
 
         # Step 4: 자막 합성 → 최종 인코딩
         progress_callback("encoding", 20)

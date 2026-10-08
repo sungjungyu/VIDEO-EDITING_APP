@@ -1,5 +1,5 @@
 """
-편집 JSON + 스타일 프리셋 → .ass 자막 파일 생성
+편집 JSON → .ass 자막 파일 생성
 
 ASS 포맷 참고:
   - \\k<centiseconds>  : 카라오케 타이밍 (100분의 1초 단위)
@@ -8,8 +8,23 @@ ASS 포맷 참고:
   - BorderStyle=1      : 외곽선 + 그림자
 """
 import math
-from .style_presets import get_preset
 from .exceptions import SubtitleGenerationError
+
+DEFAULT_STYLE = {
+    "font_name": "NanumGothic",
+    "font_size": 24,
+    "primary_colour": "&H00FFFFFF",
+    "secondary_colour": "&H00FFFFFF",
+    "outline_colour": "&H00000000",
+    "back_colour": "&H00000000",
+    "bold": 0,
+    "italic": 0,
+    "border_style": 1,
+    "outline": 1,
+    "shadow": 0,
+    "alignment": 2,
+    "margin_v": 20,
+}
 
 
 def _seconds_to_ass(seconds: float) -> str:
@@ -43,21 +58,14 @@ def _build_karaoke_text(words: list[dict], sub_start: float) -> str:
 
 def generate(
     subtitles: list[dict],
-    style_preset: str,
     output_path: str,
 ) -> None:
     """
     subtitles: timestamp_mapper 거친 자막 리스트
-    style_preset: "매운맛" | "순한맛" | "정석맛"
     output_path: 생성할 .ass 파일 경로
     """
     try:
-        preset = get_preset(style_preset)
-    except ValueError as e:
-        raise SubtitleGenerationError(str(e)) from e
-
-    try:
-        lines = _render_ass(subtitles, preset)
+        lines = _render_ass(subtitles, DEFAULT_STYLE)
         with open(output_path, "w", encoding="utf-8-sig") as f:
             f.write(lines)
     except SubtitleGenerationError:
@@ -75,16 +83,10 @@ def _render_ass(subtitles: list[dict], preset: dict) -> str:
         start = _seconds_to_ass(sub["start"])
         end = _seconds_to_ass(sub["end"])
 
-        fade = ""
-        fi = preset.get("fade_in", 0)
-        fo = preset.get("fade_out", 0)
-        if fi or fo:
-            fade = f"{{\\fad({fi},{fo})}}"
-
         if sub.get("words"):
-            text = fade + _build_karaoke_text(sub["words"], sub["start"])
+            text = _build_karaoke_text(sub["words"], sub["start"])
         else:
-            text = fade + sub["text"].replace("\n", "\\N")
+            text = sub["text"].replace("\n", "\\N")
 
         event_lines.append(
             f"Dialogue: 0,{start},{end},Default,,0,0,{preset['margin_v']},,{text}"
