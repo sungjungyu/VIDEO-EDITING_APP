@@ -325,11 +325,17 @@
     .setup-tree-title{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
     .setup-tree-dur{flex:0 0 auto;color:var(--muted);font-size:10px}
 
-    /* "편집 시작" 눌렀을 때 보여줄 요청 JSON */
+    /* "편집 시작" 눌렀을 때 보여줄 요청 JSON (또는 AI 결과/오류 메시지) */
     .setup-request-view{background:var(--panel2);border:1px solid var(--border);
       border-radius:6px;padding:9px 11px;font-family:monospace;font-size:10.5px;
       line-height:1.6;color:var(--text);white-space:pre-wrap;word-break:break-all;
       max-height:220px;overflow:auto;margin:0}
+    .setup-request-view.is-error{color:var(--cut);border-color:rgba(255,92,92,.4)}
+    .setup-request-view.is-info{color:var(--analyzing)}
+
+    /* AI가 돌려준 선택 이유를 트리 노드 아래 작게 보여주기 */
+    .setup-tree-reason{font-size:10px;color:var(--analyzing);line-height:1.5;
+      padding:1px 4px 4px;font-style:italic}
 
     /* setup 하단 "편집 시작" 버튼 */
     .setup-footer{flex:0 0 auto;padding:9px 13px;border-top:1px solid var(--border)}
@@ -1980,6 +1986,7 @@ const editSetup = {
   checkedIds:    new Set(),       // 체크된 노드 id (Set: 중복 없는 집합)
   lockedIds:     new Set(),       // 자물쇠 걸린 노드 id
   collapsedIds:  new Set(),       // 접힌 노드 id (자식 숨김)
+  reasons:       {},              // AI가 돌려준 선택 이유 (id → 문자열)
 };
 
 /* ---------------------------------------------------------------------
@@ -2157,6 +2164,7 @@ function openEditSetupWithFakeTree() {
   editSetup.checkedIds   = new Set(allIds);
   editSetup.lockedIds    = new Set();
   editSetup.collapsedIds = new Set();
+  editSetup.reasons      = {};
 
   // 3) 의도 입력 기본값
   editSetup.mode          = "partial";
@@ -2321,7 +2329,17 @@ function renderSetupTreeNode(node, container, depth) {
 
   container.appendChild(row);
 
-  // 6) 자식 렌더 (접힌 상태가 아니면)
+  // 6) AI가 돌려준 선택 이유 (있을 때만 노드 아래에 작게 표시)
+  const reasonText = editSetup.reasons[node.id];
+  if (reasonText) {
+    const reasonEl = document.createElement("div");
+    reasonEl.className        = "setup-tree-reason";
+    reasonEl.style.paddingLeft = (4 + depth * 14 + 48) + "px";
+    reasonEl.textContent      = "💡 " + reasonText;
+    container.appendChild(reasonEl);
+  }
+
+  // 7) 자식 렌더 (접힌 상태가 아니면)
   const isCollapsed = editSetup.collapsedIds.has(node.id);
   if (!isCollapsed) {
     for (const child of node.children) {
@@ -2369,17 +2387,29 @@ function readIntentFromForm() {
 function buildEditRequest() {
   readIntentFromForm();
 
-  // 전체 노드 id - 체크된 id = 제외된 id
-  // 예: 전체 [a,b,c], 체크 [a,c] → 제외 [b]
+  // 전체 노드 id를 한 번만 모아둔다.
+  // 예: 트리에 ["intro","intro-hook","body","tip-1"] 가 있다고 하자.
   const allIds = [];
   collectAllNodeIds(editSetup.tree, allIds);
+
+  // 1) selected_nodes = 사용자가 트리에서 체크한 노드 id 목록.
+  //    manual 모드에서는 이 리스트가 "최종 결과"로 그대로 쓰인다.
+  //    예: 사용자가 ["intro","body"]를 체크 → selected = ["intro","body"]
+  const selectedIds = [];
+  for (const nid of allIds) {
+    if (editSetup.checkedIds.has(nid)) selectedIds.push(nid);
+  }
+
+  // 2) excluded_nodes = 체크 해제된 id 목록 (전체 - 체크된).
+  //    partial/auto 모드에서 AI에게 "이건 빼라"고 알리는 용도.
+  //    예: 전체 [a,b,c], 체크 [a,c] → excluded = [b]
   const excludedIds = [];
   for (const nid of allIds) {
     if (!editSetup.checkedIds.has(nid)) excludedIds.push(nid);
   }
 
-  // locked는 partial 모드에서만 의미 있음.
-  // (manual/auto는 lockedIds가 비어 있어도 되지만, 안전하게 비워서 보냄)
+  // 3) locked는 partial 모드에서만 의미 있음.
+  //    (manual/auto는 비어 있어도 되지만, 포맷을 통일하려고 항상 보낸다)
   let lockedList = [];
   if (editSetup.mode === "partial") {
     lockedList = Array.from(editSetup.lockedIds);
@@ -2387,6 +2417,7 @@ function buildEditRequest() {
 
   return {
     mode:            editSetup.mode,
+    selected_nodes:  selectedIds,
     locked_nodes:    lockedList,
     excluded_nodes:  excludedIds,
     purpose:         editSetup.purpose,
@@ -2401,9 +2432,114 @@ function showEditRequest(request) {
   const section = document.getElementById("setup-request-section");
   const view    = document.getElementById("setup-request-view");
   view.textContent = JSON.stringify(request, null, 2);
+  view.className   = "setup-request-view";
   section.classList.remove("hidden");
   // 스크롤을 요청 영역으로 내려서 사용자가 바로 볼 수 있게
   view.scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+
+/* ---------------------------------------------------------------------
+   setup 하단 상태/결과 메시지 표시
+   ---------------------------------------------------------------------
+   setup-request-section을 재활용해서 세 가지 메시지를 보여준다.
+     - kind="info"  : "AI가 장면을 고르는 중..." 같은 안내 메시지
+     - kind="ok"    : 성공 요약
+     - kind="error" : 실패 사유 (validation.errors)
+--------------------------------------------------------------------- */
+function showSetupStatus(text, kind) {
+  const section = document.getElementById("setup-request-section");
+  const label   = section.querySelector(".setup-section-label");
+  const view    = document.getElementById("setup-request-view");
+
+  if (kind === "error") {
+    label.textContent = "AI 선택 오류";
+    view.className    = "setup-request-view is-error";
+  } else if (kind === "info") {
+    label.textContent = "AI 진행 상태";
+    view.className    = "setup-request-view is-info";
+  } else {
+    label.textContent = "AI 결과";
+    view.className    = "setup-request-view";
+  }
+
+  view.textContent = text;
+  section.classList.remove("hidden");
+  view.scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+
+/* ---------------------------------------------------------------------
+   "편집 시작" 버튼 클릭 → 서버 /select_scenes 호출
+   ---------------------------------------------------------------------
+   흐름:
+     1) 현재 입력(request) + 프로필(profile) + 트리(tree)를 조립
+     2) 버튼을 비활성화하고 "AI가 장면을 고르는 중..." 표시
+     3) fetch로 /select_scenes POST
+     4) 성공: 트리 체크 상태를 selected_ids로 맞추고 reasons를 표시
+        실패: validation.errors를 화면에 보여줌
+     5) finally: 버튼 다시 활성화
+--------------------------------------------------------------------- */
+async function startEditWithAi() {
+  const request = buildEditRequest();
+  const profile = loadProfile();
+  const tree    = editSetup.tree;
+
+  const btn = document.getElementById("btn-start-edit");
+  btn.disabled    = true;
+  btn.textContent = "AI가 장면을 고르는 중...";
+  showSetupStatus("AI가 장면을 고르는 중...", "info");
+
+  try {
+    const res = await fetch("/select_scenes", {
+      method:  "POST",
+      headers: { "Content-Type": "application/json" },
+      body:    JSON.stringify({ profile: profile, request: request, tree: tree }),
+    });
+    if (!res.ok) {
+      throw new Error("HTTP " + res.status);
+    }
+    const data = await res.json();
+    handleSelectScenesResult(data);
+  } catch (err) {
+    showSetupStatus("요청 실패: " + err.message, "error");
+  } finally {
+    btn.disabled    = false;
+    btn.textContent = "편집 시작";
+  }
+}
+
+/* ---------------------------------------------------------------------
+   /select_scenes 응답을 받아 UI에 반영
+   ---------------------------------------------------------------------
+   입력: data = { ok, selected_ids, reasons, validation }
+--------------------------------------------------------------------- */
+function handleSelectScenesResult(data) {
+  // 1) AI가 돌려준 선택 상태를 트리에 반영.
+  const selectedIds = Array.isArray(data.selected_ids) ? data.selected_ids : [];
+  editSetup.checkedIds = new Set(selectedIds);
+  editSetup.reasons    = (data.reasons && typeof data.reasons === "object") ? data.reasons : {};
+
+  // 2) 트리와 요약 다시 그리기.
+  renderSetupTree();
+  updateSetupSummary();
+
+  // 3) 성공/실패에 따라 메시지.
+  if (data.ok) {
+    const totalSec = (data.validation && data.validation.total_duration_sec) || 0;
+    const targetSec = (data.validation && data.validation.target_sec) || 0;
+    const msg = [
+      "AI가 " + selectedIds.length + "개 장면을 골랐습니다.",
+      "총 길이: " + totalSec.toFixed(1) + "초 / 목표: " + targetSec.toFixed(1) + "초",
+    ].join("\n");
+    showSetupStatus(msg, "ok");
+  } else {
+    const errors = (data.validation && Array.isArray(data.validation.errors))
+      ? data.validation.errors
+      : ["알 수 없는 오류"];
+    const msg = ["AI 선택이 검증을 통과하지 못했습니다:"]
+      .concat(errors.map(function(e) { return "- " + e; }))
+      .join("\n");
+    showSetupStatus(msg, "error");
+  }
 }
 
 /* ---------------------------------------------------------------------
@@ -2428,12 +2564,8 @@ document.getElementById("setup-target-minutes").addEventListener("input", functi
   updateSetupSummary();
 });
 
-// "편집 시작" 버튼
-document.getElementById("btn-start-edit").addEventListener("click", function() {
-  const request = buildEditRequest();
-  console.log("[편집 요청]", request);
-  showEditRequest(request);
-});
+// "편집 시작" 버튼: 서버 /select_scenes로 요청을 보내서 AI가 장면을 고르게 한다.
+document.getElementById("btn-start-edit").addEventListener("click", startEditWithAi);
 
 
 /* =====================================================================
