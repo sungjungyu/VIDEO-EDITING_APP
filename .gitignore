@@ -61,3 +61,9 @@ output.mp4
 *.wav
 *.m4a
 audio.mp3
+
+# VIBE CUT 실험 산출물 (scene_analyzer 캐시, 촬영 원본, 장면/트리 결과)
+/.vibecut_cache/
+/raw_clips/
+/scenes*.json
+/scenes*.md
