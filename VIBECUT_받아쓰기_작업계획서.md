@@ -87,23 +87,29 @@ scene_analyzer의 `scenes.json`과 같은 모양으로 맞춘다. 단어 형식�
 
 ### Step 1. 기준선: 로컬 Whisper + 단어 시각 (1일)
 
-- [ ] 새 파일 `transcriber.py` (main.py는 수정하지 않음)
+- [x] 새 파일 `transcriber.py` (main.py는 수정하지 않음) → 사용법은 `transcriber_실행가이드.md`
   - 사용 예: `python transcriber.py --input ./raw_clips --engine whisper-local --out transcript.json`
   - 클립 정렬·offset: scene_analyzer의 함수를 재사용
   - 오디오: FFmpeg로 16kHz 모노 WAV 추출, `.vibecut_cache/`에 캐시
   - Whisper: `transcribe(..., word_timestamps=True)` → `segment["words"]` 사용 (단어 앞 공백 제거)
-- [ ] 결과를 3장 형식의 `transcript.json`과 눈으로 보기 쉬운 `transcript.md` 표로 저장
+- [x] 결과를 3장 형식의 `transcript.json`과 눈으로 보기 쉬운 `transcript.md` 표로 저장
 - 완료 기준: 클립 2개 이상 → 단어 시각이 들어간 `transcript.json` 1개
+- **완료 (10/09)**: TTS 테스트 클립 3개(오디오 없는 클립 포함)로 확인. 받아쓰기 텍스트는 원문과 일치
 
 ### Step 2. 코드로 검증·정리 (반나절)
 
 엔진 출력을 그대로 믿지 않는다 (scene_analyzer의 `clean_scenes`와 같은 방식).
 
-- [ ] 단어 시각이 계속 커지는지(단조 증가), 세그먼트 범위 안에 있는지 확인
-- [ ] 빈 단어 제거, 길이 0이거나 음수인 단어 보정
-- [ ] 세그먼트끼리 겹치면 정리
-- [ ] `text`와 `words`를 이어 붙인 문장이 일치하는지 검사
-- [ ] `tests/test_transcriber.py`: 가짜 Whisper 출력으로 위 규칙을 테스트 (API 없이 실행 가능해야 함)
+- [x] 단어 시각이 계속 커지는지(단조 증가), 세그먼트 범위 안에 있는지 확인
+- [x] 빈 단어 제거, 길이 0이거나 음수인 단어 보정
+- [x] 세그먼트끼리 겹치면 정리
+- [x] `text`와 `words`를 이어 붙인 문장이 일치하는지 검사
+- [x] `tests/test_transcriber.py`: 가짜 Whisper 출력으로 위 규칙을 테스트 (API 없이 실행 가능해야 함)
+  - 실행: `python -m unittest tests.test_transcriber` (22개 통과, media_engine `remap`·카라오케 함수에 넣어 보는 계약 테스트 포함)
+- [x] **추가: 무음 기준 단어 경계 보정** (`refine_with_silence`)
+  - 실측해 보니 Whisper 단어 시각이 문장 앞뒤에서 크게 틀림: 첫 단어 시작 최대 1.1초 빠름, 문장 끝 최대 0.6초 늦음, 말 시작보다 0.2초 늦게 시작(그대로 자르면 앞소리 잘림)
+  - FFmpeg `silencedetect`로 무음 구간을 찾아 단어 경계를 맞춤 → 테스트 클립에서 문장 경계 오차 0.01초 이내
+  - 단어 경계 컷(성준규)에 바로 영향이 있는 부분. 우리 쪽 자체 알고리즘이라 "API만 쓴 것 아니냐"는 심사 질문의 근거로도 쓸 수 있음
 
 ### Step 3. 엔진 비교 실험 (1일) — 담당표의 "받아쓰기 비교"
 
@@ -114,14 +120,22 @@ scene_analyzer의 `scenes.json`과 같은 모양으로 맞춘다. 단어 형식�
 | Gemini 받아쓰기 | 계획서 후보. LLM이 말한 시각이라 단어 시각 정밀도가 가장 의심스러움 |
 
 - 비교 항목: 글자 오류율(정답 자막 대비), 단어 시각 오차(샘플 20개를 파형이나 재생으로 확인), 처리 시간, 비용
+- 엔진마다 무음 보정 켬/끔(`--no-refine`)을 함께 비교. 실제 촬영본으로 `--silence-db` 기준 다시 잡기
 - 산출물: `docs/stt_비교.md` 표 1장 → 팀 회의에서 엔진 결정
-- [ ] 엔진 선택을 `--engine` 옵션으로 바꿀 수 있게 구조화
+- [x] 엔진 선택을 `--engine` 옵션으로 바꿀 수 있게 구조화 (`ENGINES`에 같은 모양의 함수를 추가하면 됨)
+- [ ] Whisper API, Gemini 엔진 추가 (API 키 준비 후)
 
 ### Step 4. 연결 (반나절)
 
-- [ ] `to_subtitles(transcript)`: 미디어엔진 `subtitles` / 백엔드 `SubtitleItem` 형식으로 변환
+- [x] `to_subtitles(transcript)`: 미디어엔진 `subtitles` / 백엔드 `SubtitleItem` 형식으로 변환 (`clip_id`를 주면 한 클립만 클립 안 초로)
 - [ ] Gemini 교정과의 관계 결정: (a) 교정은 `text`에만 하고 `words`는 원본 유지, (b) 교정 후 단어 시각 재정렬 중 선택
 - [ ] 조경우에게 `transcript.json` 샘플 전달 (트리 대사 층 입력), 성준규에게 `words` 샘플 전달
+
+### 발견한 문제 (팀원 코드)
+
+- **scene_analyzer `probe()` 촬영 시각을 못 읽음 (조경우)**: `ffmpeg -v quiet`로 실행해 메타데이터가 출력되지 않음 → 항상 파일 수정 시각으로 정렬됨. 폰에서 복사한 파일은 복사한 시각이 되어 순서가 틀릴 수 있음. 또 `-f null -`이라 메타데이터를 읽으려고 영상 전체를 디코딩함(긴 클립에서 느림).
+  - 제안: `[_FFMPEG, "-hide_banner", "-i", path]`로 실행해 stderr만 파싱 (출력 파일이 없어 종료 코드는 1이지만 메타데이터는 찍힘)
+  - transcriber는 정렬을 scenes.json과 맞추려고 같은 함수를 쓰므로, scene_analyzer가 고쳐지면 같이 고쳐진다 (내 브랜치에서 따로 고치지 않음)
 
 ### 다음 차수 (담당표 2차·3차, 지금은 하지 않음)
 
