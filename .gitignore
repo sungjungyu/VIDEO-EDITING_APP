@@ -67,3 +67,5 @@ audio.mp3
 /raw_clips/
 /scenes*.json
 /scenes*.md
+/transcript*.json
+/transcript*.md
