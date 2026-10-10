@@ -5,9 +5,9 @@ from unittest.mock import patch
 import transcriber
 import numpy as np
 
-from transcriber import (auto_threshold, clean_segments, drop_hallucinations, find_silences, globalize,
-                         hallucination_reason, order_clips, refine_with_silence, to_subtitles,
-                         validate_transcript)
+from transcriber import (_offset_sec, auto_threshold, choose_split_points, clean_segments, drop_hallucinations,
+                         find_silences, globalize, hallucination_reason, order_clips, parse_gemini_response,
+                         refine_with_silence, split_sentences, to_subtitles, validate_transcript)
 
 
 def build_transcript(clips, raw_by_clip):
@@ -84,6 +84,21 @@ class CleanSegmentsTests(unittest.TestCase):
         self.assertEqual([s["text"] for s in segs], ["앞", "뒤"])
         self.assertEqual(segs[1]["words"], [])
 
+    def test_wrong_first_word_start_does_not_reorder_sentences(self):
+        # 실제 Gemini 출력: "오후에는" 시작을 10초 앞당겨 앞 문장보다 먼저 시작하는 것처럼 나옴
+        raw = [
+            {"start": 105.28, "end": 108.48, "text": "이제 기다려 보겠습니다.",
+             "words": [{"word": "이제", "start": 105.28, "end": 105.58},
+                       {"word": "보겠습니다.", "start": 107.68, "end": 108.48}]},
+            {"start": 103.98, "end": 117.68, "text": "오후에는 거예요.",
+             "words": [{"word": "오후에는", "start": 103.98, "end": 114.58},
+                       {"word": "거예요.", "start": 117.18, "end": 117.68}]},
+        ]
+        segs = clean_segments(raw, duration=130.0)
+        self.assertEqual([s["text"] for s in segs], ["이제 기다려 보겠습니다.", "오후에는 거예요."])
+        self.assertEqual(segs[0]["start"], 105.28)              # 앞 문장이 찌그러지지 않음
+        self.assertEqual(segs[1]["words"][0]["start"], 108.48)   # 앞 문장 끝 뒤로 밀림
+
     def test_bad_input_does_not_crash(self):
         self.assertEqual(clean_segments(None, 5.0), [])
         self.assertEqual(clean_segments([{"start": "x", "end": 1, "text": "a"}], 5.0), [])
@@ -127,6 +142,19 @@ class RefineWithSilenceTests(unittest.TestCase):
             self.assertGreaterEqual(cur["start"], prev["end"])
             self.assertGreaterEqual(cur["end"], cur["start"])
 
+    def test_silence_swallowed_at_word_start_is_skipped(self):
+        # 실제 Gemini 출력: 앞 문장 끝(113.08)에 붙어 시작해 0.8초 무음(113.15~113.95)까지 품은 단어
+        segs = clean_segments([{"start": 113.08, "end": 114.58, "text": "오후에는",
+                                "words": [{"word": "오후에는", "start": 113.08, "end": 114.58}]}], 130.0)
+        refine_with_silence(segs, [(113.15, 113.95)])
+        self.assertEqual(segs[0]["words"][0]["start"], 113.95)
+
+    def test_silence_swallowed_at_word_end_is_cut(self):
+        segs = clean_segments([{"start": 10.0, "end": 12.0, "text": "끝",
+                                "words": [{"word": "끝", "start": 10.0, "end": 12.0}]}], 20.0)
+        refine_with_silence(segs, [(11.2, 11.9)])
+        self.assertEqual(segs[0]["words"][0]["end"], 11.2)
+
     def test_no_silences_changes_nothing(self):
         segs = clean_segments(self.RAW, duration=13.17)
         before = [dict(w) for w in segs[0]["words"]]
@@ -152,6 +180,13 @@ class SilenceDetectionTests(unittest.TestCase):
         self.assertEqual(len(find_silences(loud, 0.25, thr)), 3)
         self.assertEqual(find_silences(loud, 0.25, -35.0), [])
 
+    def test_continuous_speech_is_not_treated_as_silence(self):
+        # 쉬는 구간이 10% 미만으로 계속 말하는 경우: 전체가 무음으로 잡히면 단어가 모두 찌그러진다
+        db = self.levels(-70, -20, "#" * 100 + "......" + "#" * 100)
+        thr = auto_threshold(db)
+        self.assertLessEqual(thr, -30.0)
+        self.assertEqual(find_silences(db, 0.25, thr), [(5.0, 5.3)])
+
     def test_short_dips_are_ignored(self):
         db = self.levels(-60, -20, "#" * 10 + "..." + "#" * 10)   # 0.15초 쉼
         self.assertEqual(find_silences(db, 0.25, auto_threshold(db)), [])
@@ -159,6 +194,54 @@ class SilenceDetectionTests(unittest.TestCase):
     def test_silence_until_end_is_closed(self):
         db = self.levels(-60, -20, "#" * 10 + "......")
         self.assertEqual(find_silences(db, 0.25, -40.0), [(0.5, 0.8)])
+
+
+class GeminiEngineTests(unittest.TestCase):
+    # 실제 gemini-3.5-transcribe 응답 형식 (wordTimestamp + diarization)
+    RESP = {"candidates": [{"content": {"parts": [{
+        "text": "안녕하세요. 오늘은 카페에 왔습니다.",
+        "audioTranscription": {
+            "text": "안녕하세요. 오늘은 카페에 왔습니다.", "speakerLabel": "spk:0",
+            "words": [{"word": "안녕하세요.", "startOffset": "1.100s", "endOffset": "2s"},
+                      {"word": "오늘은", "startOffset": "2.900s", "endOffset": "3.300s"},
+                      {"word": "카페에", "startOffset": "4.500s", "endOffset": "5s"},
+                      {"word": "왔습니다.", "startOffset": "5s", "endOffset": "5.700s"}]}}]}}]}
+
+    def test_offset_string(self):
+        self.assertEqual((_offset_sec("1.100s"), _offset_sec("2s"), _offset_sec(None)), (1.1, 2.0, None))
+
+    def test_split_sentences_by_punctuation_and_gap(self):
+        w = lambda t, s, e: {"word": t, "start": s, "end": e}
+        groups = split_sentences([w("네.", 0, 0.5), w("그런데", 0.6, 1.0), w("음", 1.1, 1.3), w("다시", 3.5, 4.0)])
+        self.assertEqual([[x["word"] for x in g] for g in groups], [["네."], ["그런데", "음"], ["다시"]])
+
+    def test_parse_response_makes_sentences_with_offset_and_speaker(self):
+        segs = parse_gemini_response(self.RESP, offset=600.0, chunk_end=1200.0)
+        self.assertEqual([s["text"] for s in segs], ["안녕하세요.", "오늘은 카페에 왔습니다."])
+        self.assertEqual((segs[1]["start"], segs[1]["end"]), (602.9, 605.7))
+        self.assertEqual(segs[0]["speaker"], "spk:0")
+        self.assertEqual(set(segs[0]["words"][0]), {"word", "start", "end"})
+
+    def test_parse_empty_response(self):
+        # 실제: 소음만 있는 클립은 parts 없이 돌아옴
+        self.assertEqual(parse_gemini_response({"candidates": [{"content": {"role": "model"}}]}, 0, 10), [])
+        self.assertEqual(parse_gemini_response({}, 0, 10), [])
+
+    def test_parse_text_without_word_times(self):
+        resp = {"candidates": [{"content": {"parts": [{"audioTranscription": {"text": "네"}}]}}]}
+        self.assertEqual(parse_gemini_response(resp, 60, 120),
+                         [{"start": 60, "end": 120, "text": "네", "words": []}])
+
+    def test_split_points_never_exceed_chunk_and_prefer_silence(self):
+        # 0.05초 프레임, 말소리(-20dB) 사이사이 쉼(-70dB). 40초짜리 오디오를 15초 단위로
+        db = np.full(800, -20.0)
+        for start in (180, 230, 520):              # 9초, 11.5초, 26초 지점에 0.5초 쉼
+            db[start:start + 10] = -70.0
+        points = choose_split_points(db, chunk_sec=15, search_sec=5)
+        bounds = [0.0] + points + [40.0]
+        self.assertTrue(all(b - a <= 15 + 1e-6 for a, b in zip(bounds, bounds[1:])))
+        self.assertAlmostEqual(points[0], 11.75)    # 15초 앞 5초 안의 쉼 가운데
+        self.assertEqual(choose_split_points(db[:200], chunk_sec=15), [])
 
 
 class HallucinationTests(unittest.TestCase):
@@ -233,6 +316,18 @@ class TranscriptTests(unittest.TestCase):
         problems = validate_transcript(self.t)
         self.assertTrue(any("겹침" in p for p in problems))
         self.assertTrue(any("c99" in p for p in problems))
+
+    def test_detects_abnormally_long_word(self):
+        self.t["segments"][0]["words"][0]["start"] = -3.0
+        self.t["segments"][0]["start"] = -3.0
+        problems = validate_transcript(self.t)
+        self.assertTrue(any("비정상적으로 긴 단어" in p for p in problems))
+
+    def test_speaker_label_is_kept(self):
+        clip = {"id": "c01", "duration": 10.0, "offset": 0.0}
+        raw = [{"start": 0, "end": 1, "text": "네", "speaker": "spk:1",
+                "words": [{"word": "네", "start": 0.2, "end": 0.6}]}]
+        self.assertEqual(globalize(clean_segments(raw, 10.0), clip)[0]["speaker"], "spk:1")
 
     def test_to_subtitles_matches_media_engine_format(self):
         subs = to_subtitles(self.t)
