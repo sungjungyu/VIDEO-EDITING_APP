@@ -18,14 +18,16 @@ import argparse
 import json
 import os
 import re
-import subprocess
 import sys
 import time
+import wave
 from datetime import datetime
 from pathlib import Path
 
+import numpy as np
+
 # 클립 수집·길이/촬영 시각 읽기는 scene_analyzer와 같은 함수를 쓴다 (정렬 결과가 같아야 함)
-from scene_analyzer import _FFMPEG, collect_inputs, fmt_time, probe, run
+from scene_analyzer import collect_inputs, fmt_time, probe, run
 
 DEFAULT_INITIAL_PROMPT = os.getenv(
     "WHISPER_INITIAL_PROMPT",
@@ -108,6 +110,49 @@ ENGINES = {
 
 # ---------------------------------------------------------------- 결과 정리·검증
 
+def _squash(text: str) -> str:
+    return re.sub(r"\s+", "", text)
+
+
+def _bigram_overlap(text: str, ref: str) -> float:
+    """text의 글자 2개 묶음 중 ref에도 있는 비율 (0~1). 문장부호·공백은 무시."""
+    a, b = re.sub(r"[\W_]+", "", text), re.sub(r"[\W_]+", "", ref)
+    grams = [a[i:i + 2] for i in range(len(a) - 1)]
+    if not grams:
+        return 0.0
+    ref_grams = {b[i:i + 2] for i in range(len(b) - 1)}
+    return sum(g in ref_grams for g in grams) / len(grams)
+
+
+def hallucination_reason(seg: dict, initial_prompt: str = "") -> str | None:
+    """말소리가 없는데 Whisper가 지어낸 세그먼트면 이유를, 아니면 None을 돌려준다 (원본 세그먼트 기준).
+    실측: 소음만 있는 10초 클립에서 initial_prompt 문구를 섞어 그대로 출력함
+    (no_speech_prob 0.59, 평균 단어 확률 0.17. 실제 말소리는 소음이 있어도 0.93)."""
+    text = str(seg.get("text", ""))
+    if initial_prompt and len(_squash(text)) >= 6 and _bigram_overlap(text, initial_prompt) >= 0.6:
+        return "안내 문구(initial_prompt) 반복"
+    probs = [float(w["probability"]) for w in seg.get("words") or [] if w.get("probability") is not None]
+    no_speech = seg.get("no_speech_prob")
+    if probs and no_speech is not None:
+        mean_p = sum(probs) / len(probs)
+        if mean_p < 0.4 and no_speech >= 0.4:
+            return f"말소리 아님 (단어 확률 {mean_p:.2f}, 무음 확률 {no_speech:.2f})"
+    return None
+
+
+def drop_hallucinations(raw: list, initial_prompt: str = "") -> tuple[list, list]:
+    """(남길 세그먼트, 버린 세그먼트)로 나눈다. 버린 것도 결과 파일에 이유와 함께 남긴다."""
+    kept, dropped = [], []
+    for s in raw or []:
+        reason = hallucination_reason(s, initial_prompt)
+        if reason:
+            dropped.append({"start": s.get("start"), "end": s.get("end"),
+                            "text": str(s.get("text", "")).strip(), "reason": reason})
+        else:
+            kept.append(s)
+    return kept, dropped
+
+
 def clean_segments(raw: list, duration: float) -> list[dict]:
     """엔진 출력을 믿지 않고 코드로 정리한다 (클립 기준 초).
     - 단어 앞뒤 공백 제거, 빈 단어·시각 없는 단어 제거
@@ -163,28 +208,54 @@ def clean_segments(raw: list, duration: float) -> list[dict]:
 # Whisper 단어 시각은 문장 앞뒤에서 크게 틀린다 (실측: 첫 단어 시작이 앞 무음까지 최대 1.1초 당겨짐,
 # 문장 끝이 뒤 무음까지 0.6초 늘어남, 말 시작보다 0.2초 늦게 시작해 앞소리가 잘림).
 # 오디오에서 무음 구간을 직접 찾아, 무음 경계에 단어 경계를 맞춘다.
+#
+# 무음 기준을 고정값(-35dB 등)으로 두면 배경 소음이 있을 때 무음이 잘게 쪼개지거나 아예 안 잡힌다.
+# 그래서 클립마다 음량 분포를 보고 기준을 자동으로 정한다:
+#   배경 소음 = 하위 10% 음량, 말소리 = 상위 10% 음량, 기준 = 소음 + max(6dB, 둘 차이의 30%)
 
-def detect_silences(wav: Path, noise_db: float, min_sec: float, duration: float) -> list[tuple[float, float]]:
-    """FFmpeg silencedetect로 무음 구간 [(start, end), ...]을 찾는다 (클립 기준 초)."""
-    r = subprocess.run(
-        [_FFMPEG, "-hide_banner", "-nostats", "-i", str(wav),
-         "-af", f"silencedetect=noise={noise_db}dB:d={min_sec}", "-f", "null", "-"],
-        capture_output=True, text=True, encoding="utf-8", errors="replace",
-    )
-    return parse_silences(r.stderr, duration)
+FRAME_SEC = 0.05
 
 
-def parse_silences(log: str, duration: float) -> list[tuple[float, float]]:
-    silences, start = [], None
-    for kind, value in re.findall(r"silence_(start|end): (-?[\d.]+)", log):
-        if kind == "start":
-            start = max(0.0, float(value))
-        elif start is not None:
-            silences.append((start, min(float(value), duration)))
+def frame_levels(wav: Path, frame_sec: float = FRAME_SEC) -> np.ndarray:
+    """16bit 모노 WAV를 frame_sec 단위로 잘라 프레임별 음량(RMS, dB)을 돌려준다."""
+    with wave.open(str(wav)) as w:
+        sr = w.getframerate()
+        x = np.frombuffer(w.readframes(w.getnframes()), dtype=np.int16).astype(np.float32) / 32768
+    n = int(sr * frame_sec)
+    if len(x) < n:
+        return np.zeros(0)
+    x = x[: len(x) // n * n].reshape(-1, n)
+    return 20 * np.log10(np.sqrt((x ** 2).mean(axis=1)) + 1e-10)
+
+
+def auto_threshold(db: np.ndarray, ratio: float = 0.3, min_gap_db: float = 6.0) -> float:
+    floor = max(float(np.percentile(db, 10)), -70.0)
+    loud = float(np.percentile(db, 90))
+    return floor + max(min_gap_db, (loud - floor) * ratio)
+
+
+def find_silences(db: np.ndarray, min_sec: float, threshold: float,
+                  frame_sec: float = FRAME_SEC) -> list[tuple[float, float]]:
+    """threshold보다 작은 프레임이 min_sec 이상 이어지는 구간 [(start, end), ...] (초)."""
+    out, start = [], None
+    for i, quiet in enumerate(np.append(db < threshold, False)):
+        if quiet and start is None:
+            start = i
+        elif not quiet and start is not None:
+            if (i - start) * frame_sec >= min_sec - 1e-9:
+                out.append((round(start * frame_sec, 3), round(i * frame_sec, 3)))
             start = None
-    if start is not None:                       # 파일이 무음으로 끝나면 end가 안 찍힌다
-        silences.append((start, duration))
-    return silences
+    return out
+
+
+def detect_silences(wav: Path, min_sec: float,
+                    noise_db: float | None = None) -> tuple[list[tuple[float, float]], float | None]:
+    """무음 구간과 실제로 쓴 기준(dB)을 돌려준다. noise_db를 주면 자동 대신 그 값을 쓴다."""
+    db = frame_levels(wav)
+    if db.size == 0:
+        return [], None
+    threshold = noise_db if noise_db is not None else auto_threshold(db)
+    return find_silences(db, min_sec, threshold), round(threshold, 1)
 
 
 def refine_with_silence(segs: list[dict], silences: list[tuple[float, float]], reach: float = 0.3) -> list[dict]:
@@ -229,10 +300,6 @@ def globalize(segs: list[dict], clip: dict) -> list[dict]:
     return out
 
 
-def _squash(text: str) -> str:
-    return re.sub(r"\s+", "", text)
-
-
 def validate_transcript(transcript: dict) -> list[str]:
     """transcript.json 규칙 검사. 문제 목록(빈 리스트면 통과)을 돌려준다.
     Gemini 교정 등으로 text를 바꾼 뒤에도 다시 돌려서 words와 어긋났는지 확인한다."""
@@ -250,6 +317,8 @@ def validate_transcript(transcript: dict) -> list[str]:
             problems.append(f"{sid}: 앞 세그먼트와 겹침 ({s['start']} < {prev_end})")
         prev_end = max(prev_end, s["end"])
         words = s.get("words") or []
+        if words and s["end"] - s["start"] < EPS:
+            problems.append(f"{sid}: 길이 0 세그먼트")
         w_prev = s["start"]
         for w in words:
             if w["start"] < w_prev - EPS or w["end"] < w["start"]:
@@ -293,6 +362,11 @@ def write_markdown(result: dict, path: Path, low_prob: float = 0.5):
         low = [w["word"] for w in s["words"] if w.get("probability", 1.0) < low_prob]
         lines.append(f"| {s['seg_id']} | {s['clip_id']} | {fmt_time(s['start'])} | {fmt_time(s['end'])} | "
                      f"{s['text']} | {len(s['words'])} | {', '.join(low)} |")
+    if result.get("dropped"):
+        lines += ["", "## 환각 의심으로 제외한 세그먼트 (클립 안 초)", "",
+                  "| 클립 | 시작 | 끝 | 문장 | 이유 |", "| --- | --- | --- | --- | --- |"]
+        lines += [f"| {d['clip_id']} | {d['start']:.2f} | {d['end']:.2f} | {d['text']} | {d['reason']} |"
+                  for d in result["dropped"]]
     if result["warnings"]:
         lines += ["", "## 검증 경고", ""] + [f"- {p}" for p in result["warnings"]]
     path.write_text("\n".join(lines), encoding="utf-8")
@@ -310,8 +384,10 @@ def main():
     ap.add_argument("--language", default="ko")
     ap.add_argument("--initial-prompt", default=DEFAULT_INITIAL_PROMPT)
     ap.add_argument("--no-refine", action="store_true", help="무음 기준 단어 경계 보정을 끔 (비교용)")
-    ap.add_argument("--silence-db", type=float, default=-35.0, help="이보다 작은 소리를 무음으로 봄")
+    ap.add_argument("--silence-db", type=float, default=None,
+                    help="무음 기준(dB, RMS). 안 주면 클립마다 배경 소음을 보고 자동으로 정함")
     ap.add_argument("--min-silence", type=float, default=0.25, help="이보다 짧은 무음은 무시 (초)")
+    ap.add_argument("--keep-hallucinations", action="store_true", help="환각 의심 세그먼트를 버리지 않음 (비교용)")
     ap.add_argument("--cache", default=".vibecut_cache")
     ap.add_argument("--refresh", action="store_true", help="받아쓰기 캐시 무시하고 다시 실행")
     ap.add_argument("--dry-run", action="store_true", help="정렬·오디오 추출만 하고 받아쓰기는 안 함")
@@ -335,7 +411,7 @@ def main():
     cache.mkdir(exist_ok=True)
     transcribe = ENGINES[args.engine]
 
-    segments, t0 = [], time.time()
+    segments, dropped, t0 = [], [], time.time()
     for c in clips:
         key = f"{c['file'].stem}_{c['file'].stat().st_size}"
         wav = cache / f"{key}_16k.wav"
@@ -355,12 +431,18 @@ def main():
             print("받아쓰기…", end=" ", flush=True)
             raw = transcribe(wav, args)
             raw_cache.write_text(json.dumps(raw, ensure_ascii=False), encoding="utf-8")
+        gone = []
+        if not args.keep_hallucinations:
+            raw, gone = drop_hallucinations(raw, args.initial_prompt)
+            dropped += [{"clip_id": c["id"], **d} for d in gone]
         segs = clean_segments(raw, c["duration"])
         if not args.no_refine:
-            segs = refine_with_silence(segs, detect_silences(wav, args.silence_db, args.min_silence, c["duration"]))
+            silences, c["silence_db"] = detect_silences(wav, args.min_silence, args.silence_db)
+            segs = refine_with_silence(segs, silences)
         segs = globalize(segs, c)
         segments += segs
-        print(f"세그먼트 {len(segs)}개, 단어 {sum(len(s['words']) for s in segs)}개")
+        print(f"세그먼트 {len(segs)}개, 단어 {sum(len(s['words']) for s in segs)}개"
+              + (f", 환각 의심 {len(gone)}개 제외" if gone else ""))
 
     if args.dry_run:
         return
@@ -371,22 +453,26 @@ def main():
     result = {
         "meta": {
             "engine": args.engine, "model": args.model, "language": args.language,
-            "refine": None if args.no_refine else {"silence_db": args.silence_db, "min_silence": args.min_silence},
+            "refine": None if args.no_refine else {"silence_db": "auto" if args.silence_db is None else args.silence_db,
+                                                   "min_silence": args.min_silence},
             "elapsed_sec": round(time.time() - t0, 1),
             "created_at": datetime.now().isoformat(timespec="seconds"),
         },
         "clips": [{"id": c["id"], "file": c["file"].name, "duration": round(c["duration"], 2),
-                   "offset": round(c["offset"], 2), "has_audio": c["has_audio"]} for c in clips],
+                   "offset": round(c["offset"], 2), "has_audio": c["has_audio"],
+                   **({"silence_db": c["silence_db"]} if c.get("silence_db") is not None else {})}
+                  for c in clips],
         "segments": [{k: s[k] for k in ("seg_id", "clip_id", "start", "end", "clip_start", "clip_end",
                                          "text", "words")} for s in segments],
+        "dropped": dropped,
     }
     result["warnings"] = validate_transcript(result)
 
     out = Path(args.out)
     out.write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
     write_markdown(result, out.with_suffix(".md"))
-    print(f"\n완료: {out}, {out.with_suffix('.md')} "
-          f"(세그먼트 {len(segments)}개, {result['meta']['elapsed_sec']}초, 경고 {len(result['warnings'])}건)")
+    print(f"\n완료: {out}, {out.with_suffix('.md')} (세그먼트 {len(segments)}개, "
+          f"환각 의심 제외 {len(dropped)}개, {result['meta']['elapsed_sec']}초, 경고 {len(result['warnings'])}건)")
 
 
 if __name__ == "__main__":

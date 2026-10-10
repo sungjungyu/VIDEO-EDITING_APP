@@ -3,8 +3,11 @@ from pathlib import Path
 from unittest.mock import patch
 
 import transcriber
-from transcriber import (clean_segments, globalize, order_clips, parse_silences, refine_with_silence,
-                         to_subtitles, validate_transcript)
+import numpy as np
+
+from transcriber import (auto_threshold, clean_segments, drop_hallucinations, find_silences, globalize,
+                         hallucination_reason, order_clips, refine_with_silence, to_subtitles,
+                         validate_transcript)
 
 
 def build_transcript(clips, raw_by_clip):
@@ -129,11 +132,67 @@ class RefineWithSilenceTests(unittest.TestCase):
         before = [dict(w) for w in segs[0]["words"]]
         self.assertEqual(refine_with_silence(segs, [])[0]["words"], before)
 
-    def test_parse_silences_handles_trailing_silence(self):
-        log = ("[silencedetect @ 0x1] silence_start: 0\n"
-               "[silencedetect @ 0x1] silence_end: 1.121224 | silence_duration: 1.12\n"
-               "[silencedetect @ 0x1] silence_start: 9.258413\n")
-        self.assertEqual(parse_silences(log, 13.17), [(0.0, 1.121224), (9.258413, 13.17)])
+class SilenceDetectionTests(unittest.TestCase):
+    @staticmethod
+    def levels(noise_db, speech_db, pattern):
+        """pattern: 0.05초 프레임마다 '.'=무음(배경 소음), '#'=말소리"""
+        return np.array([speech_db if ch == "#" else noise_db for ch in pattern], dtype=float)
+
+    def test_finds_pauses_in_clean_audio(self):
+        db = self.levels(-80, -20, "......" + "#" * 10 + "....." + "#" * 10 + "...")   # 끝 쉼은 0.15초라 무시
+        thr = auto_threshold(db)
+        self.assertEqual(find_silences(db, 0.25, thr), [(0.0, 0.3), (0.8, 1.05)])
+
+    def test_threshold_follows_background_noise(self):
+        # 같은 쉼 패턴이라도 배경 소음이 크면 기준이 따라 올라가서 쉼을 찾는다 (고정 -35dB면 하나도 못 찾음)
+        pattern = "......" + "#" * 10 + "....." + "#" * 10 + "......"
+        loud = self.levels(-32, -17, pattern)
+        thr = auto_threshold(loud)
+        self.assertGreater(thr, -32)
+        self.assertEqual(len(find_silences(loud, 0.25, thr)), 3)
+        self.assertEqual(find_silences(loud, 0.25, -35.0), [])
+
+    def test_short_dips_are_ignored(self):
+        db = self.levels(-60, -20, "#" * 10 + "..." + "#" * 10)   # 0.15초 쉼
+        self.assertEqual(find_silences(db, 0.25, auto_threshold(db)), [])
+
+    def test_silence_until_end_is_closed(self):
+        db = self.levels(-60, -20, "#" * 10 + "......")
+        self.assertEqual(find_silences(db, 0.25, -40.0), [(0.5, 0.8)])
+
+
+class HallucinationTests(unittest.TestCase):
+    PROMPT = "다음은 자연스러운 한국어 영상 자막입니다. 고유명사, 제품명, 숫자와 단위를 정확히 표기하세요."
+
+    @staticmethod
+    def seg(text, probs, no_speech):
+        return {"start": 0, "end": 1, "text": text, "no_speech_prob": no_speech,
+                "words": [{"word": "w", "start": 0, "end": 1, "probability": p} for p in probs]}
+
+    def test_prompt_echo_is_dropped(self):
+        # 실제 출력: 소음만 있는 클립에서 나온 문장
+        s = self.seg(" 한국어 자막은 제품명과 단위를 정확히 표기하세요.", [0.05, 0.46, 0.26, 0.08, 0.1, 0.1], 0.59)
+        self.assertIn("안내 문구", hallucination_reason(s, self.PROMPT))
+
+    def test_low_confidence_non_speech_is_dropped(self):
+        s = self.seg(" 감사합니다.", [0.12, 0.2], 0.7)
+        self.assertIn("말소리 아님", hallucination_reason(s, self.PROMPT))
+
+    def test_real_speech_is_kept_even_with_noise(self):
+        # 실제 출력: 센 배경 소음 클립 (평균 단어 확률 0.93, 무음 확률 0.16)
+        s = self.seg(" 안녕하세요. 오늘은 친구들과 함께 카페에 왔습니다.", [0.86, 0.96, 0.99, 0.99, 0.97, 0.99], 0.16)
+        self.assertIsNone(hallucination_reason(s, self.PROMPT))
+
+    def test_quiet_but_confident_speech_is_kept(self):
+        self.assertIsNone(hallucination_reason(self.seg(" 네", [0.9], 0.55), self.PROMPT))
+
+    def test_drop_hallucinations_splits_and_records_reason(self):
+        real = self.seg(" 맛있다", [0.9], 0.1)
+        fake = self.seg(" 한국어 자막은 제품명과 단위를 정확히 표기하세요.", [0.1] * 6, 0.59)
+        kept, dropped = drop_hallucinations([real, fake], self.PROMPT)
+        self.assertEqual(kept, [real])
+        self.assertEqual(len(dropped), 1)
+        self.assertEqual(set(dropped[0]), {"start", "end", "text", "reason"})
 
 
 class OrderClipsTests(unittest.TestCase):
