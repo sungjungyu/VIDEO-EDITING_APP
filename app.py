@@ -27,6 +27,7 @@ import uvicorn
 from config import config
 from main import VideoEditingPipeline
 from media_engine import render_video as me_render_video, segments_to_edit_data
+from scene_selector import select_scenes as _run_select_scenes
 
 BASE_DIR = Path(__file__).resolve().parent
 STATIC_DIR = BASE_DIR / "static"
@@ -224,6 +225,51 @@ async def revise_segments(request: ReviseRequest) -> JSONResponse:
     except Exception as error:
         traceback.print_exc()
         return JSONResponse({"ok": False, "message": f"AI 수정 실패: {error}"})
+
+
+# ── Select Scenes ───────────────────────────────────────────────────────────
+
+class SelectScenesRequest(BaseModel):
+    """/select_scenes가 받는 요청 본문의 형태.
+
+    [필드]
+      profile : 사용자 편집 스타일 dict (예: {"cut_tempo": "빠름"})
+      request : 이번 요청 dict (mode, target_minutes, locked_nodes, 등)
+      tree    : 장면 트리 (정규화 전/후 모두 OK)
+    """
+    profile: Dict[str, Any] = Field(default_factory=dict)
+    request: Dict[str, Any] = Field(default_factory=dict)
+    tree: Any = None
+
+
+@app.post("/select_scenes")
+async def select_scenes_endpoint(payload: SelectScenesRequest) -> JSONResponse:
+    """편집 시작 버튼이 눌렸을 때 호출되는 엔드포인트.
+
+    [무엇을 하는지]
+      scene_selector.select_scenes를 백그라운드 스레드로 실행한 뒤,
+      그 결과(dict)를 그대로 JSON으로 돌려준다.
+
+    [입력]  {"profile": {...}, "request": {...}, "tree": [...]}
+    [출력]  {"ok":..., "selected_ids":..., "reasons":..., "validation":...}
+    """
+    try:
+        result = await asyncio.to_thread(
+            _run_select_scenes, payload.profile, payload.request, payload.tree,
+        )
+        return JSONResponse(result)
+    except Exception as error:
+        traceback.print_exc()
+        return JSONResponse({
+            "ok": False,
+            "selected_ids": [],
+            "reasons": {},
+            "validation": {
+                "ok": False,
+                "errors": [f"서버 오류: {error}"],
+                "warnings": [],
+            },
+        })
 
 
 def _render_video(

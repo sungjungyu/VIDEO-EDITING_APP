@@ -4,8 +4,8 @@
 test_prompt_builder.py
 
 prompt_builder 모듈의 수동 테스트 스크립트.
-세 모드(manual / partial / auto)에 대한 가짜 입력으로 지시문을 조립해 보고,
-일부러 틀린 AI 응답(없는 id, 고정 노드 누락, 분량 초과)에 대해 validate_response가
+두 모드(manual / auto)에 대한 가짜 입력으로 지시문을 조립해 보고,
+일부러 틀린 AI 응답(없는 id, 분량 초과/부족)에 대해 validate_response가
 오류를 잡는지 확인한다.
 """
 
@@ -79,38 +79,19 @@ RAW_TREE = [
     },
 ]
 
-# 요청 세 가지
+# 요청 두 가지 (새 포맷)
 REQUEST_MANUAL = {
     "mode": "manual",
-    "locked_nodes": [],
-    "excluded_nodes": [],
-    "purpose": "사용자가 직접 편집",
     "target_minutes": 3,
-    "tone": "자유",
-    "must_include": [],
-    "must_exclude": [],
-}
-
-REQUEST_PARTIAL = {
-    "mode": "partial",
-    "locked_nodes": ["intro-hook", "tip-2"],  # 반드시 넣기
-    "excluded_nodes": ["outro-next"],          # 반드시 빼기
-    "purpose": "쇼츠용 핵심 요약",
-    "target_minutes": 3,                       # 180초
-    "tone": "경쾌하고 빠르게",
-    "must_include": ["꿀팁"],
-    "must_exclude": ["광고"],
+    "user_prompt": "사용자가 직접 체크한 장면으로 편집",
+    "selected_nodes": ["intro-hook", "tip-2", "outro-cta"],
 }
 
 REQUEST_AUTO = {
     "mode": "auto",
-    "locked_nodes": [],
-    "excluded_nodes": [],
-    "purpose": "틱톡용 하이라이트 자동 선정",
     "target_minutes": 2,
-    "tone": "임팩트 있게",
-    "must_include": [],
-    "must_exclude": [],
+    "user_prompt": "틱톡용 하이라이트, 임팩트 있게",
+    "selected_nodes": [],
 }
 
 
@@ -150,7 +131,7 @@ def main() -> None:
     # 전체 트리 길이 참고용
     all_ids = ["intro", "body", "outro"]
     print(f"\n[참고] 루트 3개(intro+body+outro) 총 길이 = {calc_duration(all_ids, tree):.1f}s")
-    # 부모+자식 중복 선택 테스트: body 와 tip-1 을 함께 선택해도 body 길이만 치는지
+    # 부모+자식 중복 선택 테스트
     dedup_check = calc_duration(["body", "tip-1", "tip-1-demo"], tree)
     print(f"[참고] body + tip-1 + tip-1-demo 중복 선택 길이 = {dedup_check:.1f}s (body 300s 기대)")
 
@@ -158,11 +139,7 @@ def main() -> None:
     prompt_manual = build_prompt(PROFILE, REQUEST_MANUAL, tree)
     _show_prompt("manual", prompt_manual)
 
-    # 2) partial
-    prompt_partial = build_prompt(PROFILE, REQUEST_PARTIAL, tree)
-    _show_prompt("partial", prompt_partial)
-
-    # 3) auto
+    # 2) auto
     prompt_auto = build_prompt(PROFILE, REQUEST_AUTO, tree)
     _show_prompt("auto", prompt_auto)
 
@@ -170,40 +147,39 @@ def main() -> None:
     # 검증 테스트 (일부러 틀린 답도 넣는다)
     # ---------------------------------------------------------------
 
-    # (A) partial - 올바른 답: 고정 포함, 제외 미포함, 180초 ±10% 안
-    #     intro-hook(10) + tip-2(100) + tip-1-demo(40) + outro-cta(30) = 180s → 정확히 맞음
-    good_partial = ["intro-hook", "tip-2", "tip-1-demo", "outro-cta"]
-    _show_validation(
-        "partial - 정상 응답",
-        validate_response(good_partial, REQUEST_PARTIAL, tree),
-    )
-
-    # (B) partial - 틀린 답: 없는 id + 고정 노드 누락 + 제외 노드 포함
-    bad_partial = ["intro-hook", "ghost-node", "outro-next"]  # tip-2 누락, ghost-node 없음, outro-next 제외인데 포함
-    _show_validation(
-        "partial - 비정상 응답(없는 id/고정 누락/제외 포함)",
-        validate_response(bad_partial, REQUEST_PARTIAL, tree),
-    )
-
-    # (C) auto - 분량 초과 (목표 2분=120s인데 300s 짜리 body 통째로 선택)
+    # (A) auto - 분량 초과 (목표 2분=120s인데 300s 짜리 body 통째로 선택)
     over_auto = ["body"]
     _show_validation(
         "auto - 분량 초과(목표 2분인데 body 전체 선택)",
         validate_response(over_auto, REQUEST_AUTO, tree),
     )
 
-    # (D) auto - 분량 부족 (목표 2분인데 10초짜리만)
+    # (B) auto - 분량 부족 (목표 2분인데 10초짜리만)
     under_auto = ["intro-hook"]
     _show_validation(
         "auto - 분량 부족(10초만 선택)",
         validate_response(under_auto, REQUEST_AUTO, tree),
     )
 
-    # (E) auto - 길이 적정 (목표 2분=120s, tip-2 100s + outro-cta 30s = 130s → 1.08 OK)
+    # (C) auto - 길이 적정 (목표 2분=120s, tip-2 100s + outro-cta 30s = 130s → 1.08 OK)
     ok_auto = ["tip-2", "outro-cta"]
     _show_validation(
         "auto - 길이 적정",
         validate_response(ok_auto, REQUEST_AUTO, tree),
+    )
+
+    # (D) auto - 없는 id가 섞인 응답
+    bad_auto = ["tip-2", "ghost-node"]
+    _show_validation(
+        "auto - 없는 id 섞임",
+        validate_response(bad_auto, REQUEST_AUTO, tree),
+    )
+
+    # (E) manual - 사용자가 고른 nodes의 총 길이 검증
+    #     intro-hook(10) + tip-2(100) + outro-cta(30) = 140s, 목표 180s → 0.78 → 부족
+    _show_validation(
+        "manual - 사용자 선택 길이 검증 (부족 예상)",
+        validate_response(REQUEST_MANUAL["selected_nodes"], REQUEST_MANUAL, tree),
     )
 
 
