@@ -90,6 +90,12 @@ def _is_transient_gemini_error(error: Exception) -> bool:
     text = str(error)
     return any(code in text for code in ("503", "UNAVAILABLE", "500", "INTERNAL", "504", "DEADLINE_EXCEEDED"))
 
+
+def _is_quota_gemini_error(error: Exception) -> bool:
+    """사용 한도 초과(429). 같은 모델로는 다시 시도해도 소용없고, 다른 모델은 한도가 따로다."""
+    text = str(error)
+    return "429" in text or "RESOURCE_EXHAUSTED" in text
+
 # 한국어 폰트 설정 (macOS 기본 경로)
 # Windows: "C:/Windows/Fonts/malgun.ttf"
 # Linux: "/usr/share/fonts/truetype/nanum/NanumGothic.ttf"
@@ -367,14 +373,52 @@ class VideoEditingPipeline:
     
     def step2_transcribe_audio(self, audio_path: str) -> List[Dict[str, Any]]:
         """
-        Step 2: 로컬 Whisper로 음성 인식 및 타임스탬프 추출
-        
-        Args:
-            audio_path (str): 오디오 파일 경로
-            
+        Step 2: 음성 인식 및 타임스탬프 추출
+
+        기본은 Gemini 받아쓰기(transcriber.py, gemini-3.5-transcribe)다. 로컬 Whisper는 CPU에서 너무 느리고
+        문장을 빼먹는 경우가 있어 보류했다 (docs/stt_비교.md). 환경 변수 STT_ENGINE=whisper-local이면 로컬 Whisper.
+
         Returns:
-            List[Dict]: 텍스트와 타임스탬프 정보
+            List[Dict]: [{"start", "end", "text", "words": [{"word", "start", "end"}]}]  (Whisper는 words 없음)
         """
+        if os.getenv("STT_ENGINE", "gemini") == "whisper-local":
+            return self._transcribe_whisper_local(audio_path)
+        return self._transcribe_gemini(audio_path)
+
+    def _transcribe_gemini(self, audio_path: str) -> List[Dict[str, Any]]:
+        """transcriber.py의 Gemini 엔진 → 정리(clean_segments) → 무음 기준 단어 경계 보정."""
+        import wave
+        from pathlib import Path
+        from types import SimpleNamespace
+        import transcriber
+
+        args = SimpleNamespace(
+            model=os.getenv("GEMINI_STT_MODEL", transcriber.DEFAULT_MODELS["gemini"]),
+            language="ko", diarize=False, vocab=os.getenv("STT_VOCAB", ""), chunk_sec=600, retries=2,
+        )
+        print(f"🎤 Step 2: Gemini 받아쓰기({args.model}) 중...")
+        wav = Path(audio_path)
+        with wave.open(str(wav)) as w:
+            duration = w.getnframes() / w.getframerate()
+        try:
+            out = transcriber.transcribe_gemini(wav, args)   # 실패(키 없음·한도 초과 등)하면 예외 → 분석 실패로 표시
+        except RuntimeError as error:
+            if "429" in str(error) or "RESOURCE_EXHAUSTED" in str(error):
+                raise RuntimeError(f"Gemini 받아쓰기({args.model}) 사용 한도를 다 썼습니다. 무료 키는 하루 25회입니다. "
+                                   "한도가 다시 차면(보통 다음 날) 다시 시도하거나 유료 키를 쓰세요.") from error
+            raise
+        segments = transcriber.clean_segments(out["segments"], duration)
+        silences, _ = transcriber.detect_silences(wav, 0.25)
+        segments = transcriber.refine_with_silence(segments, silences)
+        result = [{
+            "start": round(s["start"], 3), "end": round(s["end"], 3), "text": s["text"],
+            "words": [{"word": w["word"], "start": round(w["start"], 3), "end": round(w["end"], 3)} for w in s["words"]],
+        } for s in segments if s["end"] > s["start"]]
+        print(f"✅ 음성 인식 완료: {len(result)}개 문장")
+        return result
+
+    def _transcribe_whisper_local(self, audio_path: str) -> List[Dict[str, Any]]:
+        """로컬 Whisper (보류, STT_ENGINE=whisper-local일 때만 사용)"""
         print("🎤 Step 2: 로컬 Whisper로 음성 인식 중...")
         
         print(f"📥 Whisper {self.whisper_model_name} 모델 로딩 중...")
@@ -498,6 +542,7 @@ class VideoEditingPipeline:
 
         503(혼잡)·500·504·시간 초과 같은 일시 오류는 잠시 기다렸다 다시 시도하고,
         그래도 안 되면 가벼운 모델(GEMINI_FALLBACK_MODEL, 기본 gemini-3.5-flash-lite)로 한 번 더 시도합니다.
+        사용 한도 초과(429)도 가벼운 모델로 넘깁니다 (무료 한도는 모델마다 따로라서).
         """
         fallback = os.getenv("GEMINI_FALLBACK_MODEL", "gemini-3.5-flash-lite")
         models = [self.gemini_model_name] + ([fallback] if fallback and fallback != self.gemini_model_name else [])
@@ -508,6 +553,9 @@ class VideoEditingPipeline:
                     return self._call_gemini_once(prompt, model_name)
                 except Exception as error:
                     last_error = error
+                    if _is_quota_gemini_error(error):
+                        print(f"⚠️ Gemini 사용 한도 초과({model_name}) → 다음 모델로 넘어갑니다")
+                        break
                     if not _is_transient_gemini_error(error):
                         raise
                     print(f"⚠️ Gemini 일시 오류({model_name}, {attempt + 1}회차): {str(error)[:120]}")
@@ -600,7 +648,7 @@ class VideoEditingPipeline:
 
         다음 음성 인식 데이터를 분석하여 편집 명령어를 생성해주세요:
 
-        {json.dumps(segments, ensure_ascii=False, indent=2)}
+        {json.dumps([{k: s[k] for k in ("start", "end", "text") if k in s} for s in segments], ensure_ascii=False, indent=2)}
 
         영상 문맥 메모:
         {json.dumps(video_context or {}, ensure_ascii=False, indent=2)}

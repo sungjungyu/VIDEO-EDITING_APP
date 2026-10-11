@@ -105,12 +105,9 @@ def _load_pipeline() -> VideoEditingPipeline:
     api_key = config.load_api_key()
     if not api_key:
         raise RuntimeError("Gemini API 키가 설정되지 않았습니다. GEMINI_API_KEY 또는 gemini_key.txt를 확인하세요.")
-    pipeline = VideoEditingPipeline(api_key)
-    try:
-        pipeline.verify_gemini_connection()
-    except Exception as error:
-        print(f"Gemini 연결 확인 실패, 로컬 fallback으로 계속 진행합니다: {error}")
-    return pipeline
+    # 예전에는 여기서 verify_gemini_connection()으로 매번 짧은 요청을 보냈는데, 결과에 쓰이지 않으면서
+    # 무료 한도(모델당 하루 20회)를 분석·수정 요청마다 1회씩 써서 뺐다. 연결 문제는 실제 호출에서 드러난다.
+    return VideoEditingPipeline(api_key)
 
 
 def _analyze_video_with_progress(job_id: str, input_path: Path, stored_name: str) -> None:
@@ -125,7 +122,7 @@ def _analyze_video_with_progress(job_id: str, input_path: Path, stored_name: str
         stage("음성 추출 중...", 10)
         audio_path = pipeline.step1_extract_audio(str(input_path))
 
-        stage("음성 인식(Whisper) 처리 중... (가장 오래 걸립니다)", 15)
+        stage("음성 인식(Gemini 받아쓰기) 중...", 15)
         segments = pipeline.step2_transcribe_audio(audio_path)
 
         stage("자막 교정 중...", 65)

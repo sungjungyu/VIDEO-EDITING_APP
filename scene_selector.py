@@ -137,6 +137,9 @@ def _call_gemini(client: genai.Client, prompt: str) -> str:
                 return text
             except Exception as error:
                 last_error = error
+                # 사용 한도 초과(429)는 같은 모델로 다시 해도 소용없으니 바로 다음 모델로 (한도는 모델마다 따로)
+                if "429" in str(error) or "RESOURCE_EXHAUSTED" in str(error):
+                    break
                 if not any(code in str(error) for code in ("503", "UNAVAILABLE", "500", "INTERNAL", "504")):
                     raise
                 time.sleep(2 * (attempt + 1))
