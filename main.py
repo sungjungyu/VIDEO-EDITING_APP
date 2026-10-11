@@ -445,7 +445,7 @@ class VideoEditingPipeline:
         print("✅ 자막 표기 교정 완료 (타임스탬프 유지)")
         return refined_segments
     
-    def _build_local_commands(self, segments: List[Dict[str, Any]], style_preset: str) -> List[Dict[str, Any]]:
+    def _build_local_commands(self, segments: List[Dict[str, Any]], style_preset: str = "정석맛") -> List[Dict[str, Any]]:
         """Gemini 없이도 바로 사용할 수 있는 로컬 편집 명령어 생성"""
         if not segments:
             return [{
