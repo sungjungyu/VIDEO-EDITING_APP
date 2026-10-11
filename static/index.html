@@ -99,6 +99,10 @@
     .clip-add-btn{flex:0 0 auto;background:none;border:1px solid var(--border);border-radius:4px;
       color:var(--muted);font-size:11px;padding:2px 6px;cursor:pointer;transition:border-color .15s,color .15s}
     .clip-add-btn:hover{border-color:var(--keep);color:var(--keep)}
+    .clip-delete-btn{flex:0 0 auto;background:none;border:1px solid var(--border);border-radius:4px;
+      color:var(--muted);font-size:12px;padding:2px 6px;cursor:pointer;line-height:1;
+      transition:border-color .15s,color .15s;margin-left:4px}
+    .clip-delete-btn:hover{border-color:var(--cut);color:var(--cut)}
 
     /* Placeholder panels */
     .placeholder-panel{flex:1;display:flex;flex-direction:column;align-items:center;
@@ -494,7 +498,45 @@
        - .preview-col 은 그대로 두고, 그 안에 .scene-tabs-section 이 보인다.
        ===================================================================== */
 
-    body.setup-active .obj-panel { display: none !important; }
+    body.setup-active .obj-panel      { display: none !important; }
+    /* 편집 설정 화면일 때만: 왼쪽 미디어 패널과 아래 타임라인을 숨겨
+       가운데 영역(영상 미리보기 + 장면 탭/목록)이 가로·세로로 커지게 한다.
+       왼쪽 세로 아이콘 바(.icon-bar)와 오른쪽 AI 패널(.ai-panel)은 그대로. */
+    body.setup-active .ctx-panel      { display: none !important; }
+    body.setup-active .timeline-panel { display: none !important; }
+    /* 넓어진 세로 공간을 "영상 미리보기" 와 "장면 탭/목록" 이 반반 나눠 갖도록
+       flex 비율을 조정한다. 그래서 둘 다 크게 보인다. */
+    body.setup-active .preview-area        { flex: 1 1 0; }
+    body.setup-active .scene-tabs-section  { flex: 1 1 0; max-height: none; min-height: 240px; }
+
+    /* 편집 설정 화면 전용: 가운데를 "장면 탭/목록" 전용으로 바꾼다.
+       ---------------------------------------------------------------
+       왜 이렇게 하나?
+         편집 설정에서는 사용자가 트리에서 장면을 체크하고 AI 가편집을
+         실행하는 데에 집중한다. 영상 미리보기 상자와 재생 컨트롤은
+         이 단계에서는 쓰지 않으므로 숨기고, 가운데 영역을 트리 목록이
+         위아래 전체를 채우게 넓힌다.
+
+       무엇을 숨기나?
+         - .preview-area      : "타임라인에서 클립을 선택하거나…" 안내가
+                                들어 있는 영상 미리보기 상자 전체
+         - .preview-controls  : 그 아래 재생 버튼과 "0:00 / 0:00" 시간,
+                                진행 바
+       # video 요소를 지우지 않고 CSS 로만 숨기므로 재생 위치(currentTime)
+       와 재생/일시정지 상태가 그대로 유지된다. 편집 설정을 끄면 바로
+       같은 자리에서 다시 보이고 재생할 수 있다. */
+    body.setup-active .preview-area     { display: none; }
+    body.setup-active .preview-controls { display: none; }
+
+    /* 장면 탭/목록이 가운데 영역(.preview-col) 의 위아래 전체를 채우게.
+       scene-list 안쪽은 overflow-y:auto 라 장면이 많으면 자동으로
+       세로 스크롤이 생긴다. */
+    body.setup-active .scene-tabs-section {
+      flex:       1 1 auto;
+      margin-top: 0;        /* preview-controls 와 떨어뜨리던 간격은 더 필요 없음 */
+      max-height: none;
+      min-height: 0;
+    }
 
     /* 자막 미리보기 상자 (스타일 목록 아이템 안에서 재사용된다) */
     .ss-preview-box { padding: 0; }
@@ -1449,12 +1491,18 @@ function makeClipEl(media) {
         <span class="clip-dur" id="dur-${media.id}">${media.duration ? fmt(media.duration) : "--:--"}</span>
       </div>
     </div>
-    <button class="clip-add-btn" title="타임라인에 추가">+</button>`;
+    <button class="clip-add-btn" title="타임라인에 추가">+</button>
+    <button class="clip-delete-btn" title="삭제">🗑</button>`;
   el.addEventListener("dragstart", e => { DRAGGING_MEDIA_ID = media.id; e.dataTransfer.effectAllowed = "copy"; });
   el.addEventListener("dragend",   () => { DRAGGING_MEDIA_ID = null; });
   el.addEventListener("dblclick",  () => previewMedia(media));
   el.querySelector(".clip-add-btn").addEventListener("click", e => {
     e.stopPropagation(); addToTimeline(media.id, totalTimelineDuration());
+  });
+  // 휴지통 버튼: 확인 창으로 삭제 (분석 중이면 거부). 세부 로직은 deleteMediaById.
+  el.querySelector(".clip-delete-btn").addEventListener("click", e => {
+    e.stopPropagation();
+    deleteMediaById(media.id);
   });
   return el;
 }
@@ -1473,6 +1521,107 @@ function statusLabel(s) {
   return { uploading:"업로드 중", ready:"준비됨", analyzing:"분석 중",
            review:"검토 중", analyzed:"분석 완료", failed:"실패" }[s] || s;
 }
+
+/* =====================================================================
+   클립 삭제 (화면 목록에서만 제거, 서버 파일은 그대로)
+   ---------------------------------------------------------------------
+   흉지통 버튼이 눌리면 deleteMediaById(id) 하나로 시작한다.
+   아래 작은 함수들로 쪼개 두어서 각 단계가 분명하게 읽힌다.
+===================================================================== */
+
+/* 미디어 id 로 미디어 객체 찾기.
+   입력:  mediaId (문자열)
+   출력:  찾으면 media 객체, 못 찾으면 null
+   예시)  findMediaById("m3a4b…") → {id:"m3a4b…", filename:"a.mp4", ...} */
+function findMediaById(mediaId) {
+  for (const media of project.media_list) {
+    if (media.id === mediaId) return media;
+  }
+  return null;
+}
+
+/* 분석 작업 중이라서 지금은 삭제하면 안 되는지 확인.
+   입력:  media 객체
+   출력:  true (삭제 금지) / false (삭제 가능)
+   예시)  analysis_status === "analyzing" → true
+          analysis_status === "analyzed"  → false */
+function isMediaBusyAnalyzing(media) {
+  const s = media.analysis_status;
+  return s === "analyzing" || s === "review";
+}
+
+/* 지금 영상 미리보기가 이 클립을 재생/표시 중이면 미리보기 영역을 비우기.
+   입력:  mediaId (삭제될 미디어 id)
+   출력:  없음 (전역 PREVIEW_MEDIA_ID, 비디오 엘리먼트, 버튼 상태 변경) */
+function clearPreviewIfShowing(mediaId) {
+  if (PREVIEW_MEDIA_ID !== mediaId) return;
+  PREVIEW_MEDIA_ID = null;
+
+  // 비디오 요소 비우기 (학생용 설명: src 를 지우고 load 로 재적용)
+  videoEl.pause();
+  videoEl.removeAttribute("src");
+  videoEl.load();
+
+  // 미리보기 안내 문구 다시 보이기, 재생 버튼 끄기, 자막 오버레이 숨기기
+  document.getElementById("preview-empty").classList.remove("hidden");
+  document.getElementById("btn-play").disabled = true;
+  document.getElementById("sub-overlay").style.display = "none";
+}
+
+/* 선택된 클립이 이 클립이면 선택을 해제하고 오른쪽 속성 패널 숨기기.
+   입력:  mediaId (삭제될 미디어 id)
+   출력:  없음 */
+function clearSelectionIfSelected(mediaId) {
+  if (SELECTED_CLIP_ID !== mediaId) return;
+  hideObjPanel();  // hideObjPanel 안에서 SELECTED_CLIP_ID = null 로 리셋함
+}
+
+/* 미디어 리스트에서 한 개를 제거한다.
+   입력:  mediaId (문자열)
+   출력:  없음 (project.media_list 수정)
+   참고:  blob URL 메모리도 해제한다 (브라우저에 쓸데없는 참조 안 남기기). */
+function removeMediaFromList(mediaId) {
+  const idx = project.media_list.findIndex(m => m.id === mediaId);
+  if (idx < 0) return;
+  const media = project.media_list[idx];
+  if (media.blob_url) {
+    // 미리 만들어 둔 blob: URL 을 revoke 해서 메모리 해제
+    try { URL.revokeObjectURL(media.blob_url); } catch (err) { /* 무시 */ }
+  }
+  project.media_list.splice(idx, 1);
+}
+
+/* [공개 함수] 휴지통 버튼이 호출.
+   흐름:
+     1) 미디어 찾기 → 없으면 끝
+     2) 분석 중이면 안내만 하고 끝
+     3) "이 영상을 삭제할까요?" 확인창 → 취소하면 끝
+     4) 미리보기/선택 중이면 비우기 → 리스트에서 제거
+     5) 화면(클립 목록 / 타임라인 / 내보내기 버튼) 다시 그리기
+   예시)  타임라인에 올려 둔 클립을 삭제 → 타임라인에서도 함께 사라지고,
+          분석된 클립이면 "내보내기" 버튼이 다시 비활성화 될 수 있다. */
+function deleteMediaById(mediaId) {
+  const media = findMediaById(mediaId);
+  if (!media) return;
+
+  if (isMediaBusyAnalyzing(media)) {
+    window.alert("분석 중에는 삭제할 수 없습니다");
+    return;
+  }
+
+  const confirmed = window.confirm("이 영상을 삭제할까요?");
+  if (!confirmed) return;
+
+  clearPreviewIfShowing(mediaId);
+  clearSelectionIfSelected(mediaId);
+  removeMediaFromList(mediaId);
+
+  // 화면 다시 그리기
+  renderClipList();
+  renderTimeline();
+  updateExportBtn();
+}
+
 
 /* =====================================================================
    Timeline placement
