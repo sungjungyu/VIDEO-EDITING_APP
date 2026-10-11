@@ -7,7 +7,7 @@ ASS 포맷 참고:
   - BorderStyle=3      : 불투명 배경 박스(필박스)
   - BorderStyle=1      : 외곽선 + 그림자
 """
-import math
+from .style_presets import get_preset
 from .exceptions import SubtitleGenerationError
 
 DEFAULT_STYLE = {
@@ -25,6 +25,17 @@ DEFAULT_STYLE = {
     "alignment": 2,
     "margin_v": 20,
 }
+
+
+def _css_hex_to_ass(hex_color: str) -> str:
+    """CSS #RRGGBB → ASS &H00BBGGRR (알파=00, BGR 바이트 순서)."""
+    h = hex_color.lstrip("#")
+    if len(h) == 3:
+        h = "".join(c * 2 for c in h)
+    if len(h) != 6:
+        return "&H00FFFFFF"
+    r, g, b = h[0:2], h[2:4], h[4:6]
+    return f"&H00{b}{g}{r}".upper()
 
 
 def _seconds_to_ass(seconds: float) -> str:
@@ -59,13 +70,55 @@ def _build_karaoke_text(words: list[dict], sub_start: float) -> str:
 def generate(
     subtitles: list[dict],
     output_path: str,
+    style_overrides: dict | None = None,
 ) -> None:
     """
-    subtitles: timestamp_mapper 거친 자막 리스트
-    output_path: 생성할 .ass 파일 경로
+    subtitles      : timestamp_mapper 거친 자막 리스트
+    style_preset   : "매운맛" | "순한맛" | "정석맛"
+    output_path    : 생성할 .ass 파일 경로
+    style_overrides: 프론트엔드에서 전달한 세부 설정 (프리셋 기본값을 덮어씀)
+                     keys: font, color, size, outline, outline_width,
+                           background_box, karaoke, fade
     """
     try:
-        lines = _render_ass(subtitles, DEFAULT_STYLE)
+        preset = dict(get_preset(style_preset))   # 원본 변경 방지를 위해 복사
+    except ValueError as e:
+        raise SubtitleGenerationError(str(e)) from e
+
+    if style_overrides:
+        ov = style_overrides
+        if ov.get("font"):
+            preset["font_name"] = ov["font"]
+        if ov.get("color"):
+            preset["primary_colour"] = _css_hex_to_ass(ov["color"])
+        if ov.get("size") is not None:
+            preset["font_size"] = int(ov["size"])
+        # 외곽선 on/off + 두께
+        if ov.get("outline") is not None:
+            if not ov["outline"]:
+                preset["outline"] = 0
+                preset["shadow"]  = 0
+            elif ov.get("outline_width") is not None:
+                preset["outline"] = float(ov["outline_width"])
+        elif ov.get("outline_width") is not None:
+            preset["outline"] = float(ov["outline_width"])
+        # 배경 박스 (BorderStyle 3=필박스 / 1=외곽선)
+        if ov.get("background_box") is not None:
+            preset["border_style"] = 3 if ov["background_box"] else 1
+        # 카라오케 off → words 있어도 일반 텍스트로 강제
+        if ov.get("karaoke") is not None:
+            preset["_karaoke"] = bool(ov["karaoke"])
+        # 페이드 on/off
+        if ov.get("fade") is not None:
+            if ov["fade"]:
+                preset.setdefault("fade_in",  150)
+                preset.setdefault("fade_out", 150)
+            else:
+                preset["fade_in"]  = 0
+                preset["fade_out"] = 0
+
+    try:
+        lines = _render_ass(subtitles, preset)
         with open(output_path, "w", encoding="utf-8-sig") as f:
             f.write(lines)
     except SubtitleGenerationError:
@@ -78,13 +131,21 @@ def _render_ass(subtitles: list[dict], preset: dict) -> str:
     header = _script_info() + _styles_section(preset) + "[Events]\n"
     header += "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n"
 
+    use_karaoke = preset.get("_karaoke", True)   # False면 words가 있어도 일반 텍스트 강제
+
     event_lines = []
     for sub in subtitles:
         start = _seconds_to_ass(sub["start"])
         end = _seconds_to_ass(sub["end"])
 
-        if sub.get("words"):
-            text = _build_karaoke_text(sub["words"], sub["start"])
+        fade = ""
+        fi = preset.get("fade_in", 0)
+        fo = preset.get("fade_out", 0)
+        if fi or fo:
+            fade = f"{{\\fad({fi},{fo})}}"
+
+        if sub.get("words") and use_karaoke:
+            text = fade + _build_karaoke_text(sub["words"], sub["start"])
         else:
             text = sub["text"].replace("\n", "\\N")
 
