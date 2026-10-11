@@ -201,8 +201,6 @@ class VideoEditingPipeline:
             "end": end,
             "text": text,
             "cut": bool(normalized.get("cut", False)),
-            "subtitle_color": str(normalized.get("subtitle_color", "white")),
-            "fontsize": int(normalized.get("fontsize", 36) or 36),
             "scene_type": str(normalized.get("scene_type", "dialogue")),
             "emphasis": bool(normalized.get("emphasis", False)),
             "punch_in": bool(normalized.get("punch_in", False)),
@@ -260,19 +258,20 @@ class VideoEditingPipeline:
 
         return subtitle
     
-    def _create_subtitle_image(self, text: str, fontsize: int, color: str, video_width: int):
+    def _create_subtitle_image(self, text: str, video_width: int):
         """
         PIL로 자막 이미지를 직접 생성 (ImageMagick 불필요)
         
         Args:
             text (str): 자막 텍스트
-            fontsize (int): 폰트 크기
-            color (str): 자막 색상
             video_width (int): 영상 너비 (자막 폭 계산용)
             
         Returns:
             np.ndarray: RGBA 이미지 배열
         """
+        font_size = 32
+        color = "white"
+
         # 한국어 지원 폰트 로드
         font_candidates = [
             "C:/Windows/Fonts/malgun.ttf",
@@ -287,7 +286,7 @@ class VideoEditingPipeline:
         for font_path in font_candidates:
             if os.path.exists(font_path):
                 try:
-                    font = ImageFont.truetype(font_path, fontsize)
+                    font = ImageFont.truetype(font_path, font_size)
                     break
                 except Exception:
                     continue
@@ -446,28 +445,7 @@ class VideoEditingPipeline:
         print("✅ 자막 표기 교정 완료 (타임스탬프 유지)")
         return refined_segments
     
-    def _build_dummy_commands(self, segments: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        """Gemini 호출 실패 시 사용할 기본 편집 명령어"""
-        dummy_commands = []
-        for i, segment in enumerate(segments[:5]):
-            dummy_commands.append({
-                "start": segment["start"],
-                "end": segment["end"],
-                "text": segment["text"],
-                "cut": i % 2 == 1,
-                "subtitle_color": "yellow" if i % 2 == 0 else "red",
-                "fontsize": 45,
-                "scene_type": "hook" if i == 0 else "dialogue",
-                "emphasis": i == 0,
-                "punch_in": i == 0,
-                "transition_type": "fade" if i == 0 else "cut",
-                "subtitle_mode": "headline" if i == 0 else "caption",
-                "retain_pause": False,
-                "broll_needed": False,
-            })
-        return dummy_commands
-
-    def _build_local_commands(self, segments: List[Dict[str, Any]], style_preset: str) -> List[Dict[str, Any]]:
+    def _build_local_commands(self, segments: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """Gemini 없이도 바로 사용할 수 있는 로컬 편집 명령어 생성"""
         if not segments:
             return [{
@@ -475,8 +453,6 @@ class VideoEditingPipeline:
                 "end": 3.0,
                 "text": "영상 편집 완료",
                 "cut": False,
-                "subtitle_color": "white",
-                "fontsize": 36,
                 "scene_type": "intro",
                 "emphasis": True,
                 "punch_in": True,
@@ -485,13 +461,6 @@ class VideoEditingPipeline:
                 "retain_pause": False,
                 "broll_needed": False,
             }]
-
-        style_colors = {
-            "매운맛": ("yellow", 44),
-            "순한맛": ("white", 34),
-            "정석맛": ("cyan", 32),
-        }
-        color, fontsize = style_colors.get(style_preset, style_colors["정석맛"])
 
         commands = []
         for i, segment in enumerate(segments):
@@ -505,15 +474,13 @@ class VideoEditingPipeline:
                 "end": end,
                 "text": text,
                 "cut": cut,
-                "subtitle_color": color,
-                "fontsize": fontsize,
                 "scene_type": "hook" if i == 0 else ("reaction" if len(text) <= 10 else "dialogue"),
                 "emphasis": len(text) <= 10 or "!" in text or "?" in text,
                 "punch_in": i == 0 or len(text) <= 10,
                 "transition_type": "fade" if i == 0 else "cut",
                 "subtitle_mode": "headline" if len(text) <= 10 else "caption",
                 "retain_pause": duration >= 2.8,
-                "broll_needed": style_preset == "정석맛" and duration >= 3.5,
+                "broll_needed": duration >= 3.5,
             })
         return commands
 
@@ -556,7 +523,6 @@ class VideoEditingPipeline:
     def step3_analyze_context(
         self,
         segments: List[Dict[str, Any]],
-        style_preset: str,
         video_context: Optional[Dict[str, Any]] = None,
     ) -> List[Dict[str, Any]]:
         """
@@ -564,41 +530,15 @@ class VideoEditingPipeline:
         
         Args:
             segments (List[Dict]): Whisper 결과 세그먼트
-            style_preset (str): AI 스타일 프리셋
-            
         Returns:
             List[Dict]: 편집 명령어가 포함된 JSON 데이터
         """
-        print(f"🧠 Step 3-4: Gemini 문맥 분석 중 (스타일: {style_preset})...")
-        
-        # 스타일 프리셋별 시스템 프롬프트
-        style_prompts = {
-            "매운맛": """
-            당신은 예능/숏폼 영상 편집 전문가입니다.
-            - 오디오 공백이 1초 이상이면 컷 편집(삭제)을 고려하세요
-            - 자막은 크고 화려하게 (폰트 크기 40-50, 밝은 색상)
-            - 역동적인 느낌을 주도록 편집하세요
-            """,
-            "순한맛": """
-            당신은 브이로그 편집 전문가입니다.
-            - 최소한의 컷 편집으로 자연스러운 호흡을 유지하세요
-            - 자막은 차분하고 조화롭게 (폰트 크기 30-35, 부드러운 색상)
-            - 감성적이고 따뜻한 분위기를 만드세요
-            """,
-            "정석맛": """
-            당신은 지식/정보 전달 영상 편집 전문가입니다.
-            - 말버릇("음", "어" 등)과 불필요한 공백만 제거하세요
-            - 자막은 가독성 중심 (폰트 크기 28-32, 배경 박스 포함)
-            - 전문적이고 신뢰감 있는 느낌을 주세요
-            """
-        }
-        
+        print("🧠 Step 3-4: Gemini 문맥 분석 중...")
+
         # Gemini 프롬프트 구성
         full_prompt = f"""
         당신은 AI 기반 영상 편집 전문가입니다. 주어진 음성 인식 데이터와 영상 문맥 메모를 분석하여
         각 문장별로 최적의 편집 명령어와 화면 연출 계획을 생성하세요.
-
-        {style_prompts.get(style_preset, style_prompts["정석맛"])}
 
         추가 출력 규칙:
         - 단순 컷 여부뿐 아니라 scene_type, emphasis, punch_in, transition_type,
@@ -614,8 +554,6 @@ class VideoEditingPipeline:
         - end: 종료 시간 (초)
         - text: 텍스트 내용
         - cut: 컷 편집 여부 (true/false)
-        - subtitle_color: 자막 색상 (예: "red", "blue", "white", "yellow")
-        - fontsize: 자막 크기 (숫자)
         - scene_type: 장면 유형 (intro, hook, dialogue, reaction, explanation, closing)
         - emphasis: 강조 여부 (true/false)
         - punch_in: 약한 줌인 여부 (true/false)
@@ -628,7 +566,7 @@ class VideoEditingPipeline:
         임의로 바꾸지 말고 그대로 사용하세요.
 
         예시 출력:
-        [{{"start": 0.0, "end": 2.5, "text": "안녕하세요", "cut": false, "subtitle_color": "red", "fontsize": 40}}]
+        [{{"start": 0.0, "end": 2.5, "text": "안녕하세요", "cut": false}}]
 
         다음 음성 인식 데이터를 분석하여 편집 명령어를 생성해주세요:
 
@@ -637,20 +575,19 @@ class VideoEditingPipeline:
         영상 문맥 메모:
         {json.dumps(video_context or {}, ensure_ascii=False, indent=2)}
 
-        스타일 프리셋: {style_preset}
         """
         
         # Gemini API 호출은 선택적으로 사용하고, 실패/지연 시에는 로컬 명령으로 대체
         if not segments:
             print("⚠️ 인식된 세그먼트가 없어 기본 편집 명령어를 생성합니다.")
-            return self._build_local_commands(segments, style_preset)
+            return self._build_local_commands(segments)
 
         try:
             response_text = self._call_gemini(full_prompt)
         except Exception as e:
             print(f"❌ Gemini API 호출 오류: {e}")
             print("로컬 편집 명령어를 사용합니다...")
-            return self._build_local_commands(segments, style_preset)
+            return self._build_local_commands(segments)
         
         # JSON 파싱
         try:
@@ -691,7 +628,7 @@ class VideoEditingPipeline:
             result = [self._normalize_edit_command(command, index) for index, command in enumerate(result)]
             print(f"✅ 문맥 분석 완료: {len(result)}개 편집 명령어")
             if not result:
-                return self._build_local_commands(segments, style_preset)
+                return self._build_local_commands(segments)
             return result
             
         except json.JSONDecodeError as e:
@@ -699,7 +636,7 @@ class VideoEditingPipeline:
             print(f"원본 응답: {response_text}")
             print("🔄 로컬 편집 명령어로 대체합니다...")
             
-            return self._build_local_commands(segments, style_preset)
+            return self._build_local_commands(segments)
     
     def _apply_aspect_ratio(self, clip, aspect_ratio: str):
         """Center-crop a clip to a standard landscape or short-form canvas."""
@@ -757,8 +694,6 @@ class VideoEditingPipeline:
                 "end": video.duration,
                 "text": "영상 편집 완료",
                 "cut": False,
-                "subtitle_color": "white",
-                "fontsize": 36,
                 "scene_type": "closing",
                 "emphasis": True,
                 "punch_in": True,
@@ -788,8 +723,6 @@ class VideoEditingPipeline:
                 "end": video.duration,
                 "text": "영상 편집 완료",
                 "cut": False,
-                "subtitle_color": "white",
-                "fontsize": 36,
                 "scene_type": "closing",
                 "emphasis": True,
                 "punch_in": True,
@@ -816,15 +749,8 @@ class VideoEditingPipeline:
             if not cmd.get("cut", False):
                 try:
                     subtitle_duration = max(0.1, float(cmd.get("end", 0) or 0) - float(cmd.get("start", 0) or 0))
-                    font_size = int(cmd.get("fontsize", 36) or 36)
-                    if cmd.get("subtitle_mode") == "headline":
-                        font_size = max(font_size, 40)
-                    elif cmd.get("subtitle_mode") == "clean":
-                        font_size = max(28, font_size - 2)
                     subtitle_img = self._create_subtitle_image(
                         cmd["text"],
-                        font_size,
-                        cmd["subtitle_color"],
                         framed_video.w
                     )
                     subtitle = self._build_subtitle_clip(subtitle_img, current_time, subtitle_duration, framed_video.w)
@@ -872,19 +798,17 @@ class VideoEditingPipeline:
         
         print(f"✅ 최종 영상 생성 완료: {output_path}")
     
-    def run_pipeline(self, input_video_path: str, style_preset: str, output_path: str = "output.mp4"):
+    def run_pipeline(self, input_video_path: str, output_path: str = "output.mp4"):
         """
         전체 파이프라인 실행
         
         Args:
             input_video_path (str): 입력 영상 경로
-            style_preset (str): 스타일 프리셋 ("매운맛", "순한맛", "정석맛")
             output_path (str): 출력 영상 경로
         """
         try:
             print("🚀 AI 기반 영상 편집 파이프라인 시작!")
             print(f"📁 입력 파일: {input_video_path}")
-            print(f"🎨 스타일 프리셋: {style_preset}")
             print("=" * 50)
             
             # Step 1: 오디오 추출
@@ -898,7 +822,7 @@ class VideoEditingPipeline:
             segments = self.step2_refine_transcript(segments)
 
             # Step 3-4: 문맥 분석
-            edit_commands = self.step3_analyze_context(segments, style_preset, video_context)
+            edit_commands = self.step3_analyze_context(segments, video_context)
             
             # Step 5: 최종 영상 생성
             self.step5_create_final_video(input_video_path, edit_commands, output_path)
@@ -966,20 +890,11 @@ def main():
                 {"start": 2.5, "end": 5.0, "text": "AI 영상 편집 테스트입니다"}
             ]
             
-            print("🎨 스타일 프리셋을 선택하세요:")
-            print("1. 매운맛 (예능/숏폼)")
-            print("2. 순한맛 (브이로그)")
-            print("3. 정석맛 (지식/정보)")
-            
             try:
-                choice = input("선택 (1-3): ").strip()
-                style_map = {"1": "매운맛", "2": "순한맛", "3": "정석맛"}
-                style_preset = style_map.get(choice, "정석맛")
-                
                 # 파이프라인 테스트 (실제 영상 없이)
                 pipeline = VideoEditingPipeline(api_key)
                 print("🧠 Gemini 문맥 분석 테스트 중...")
-                edit_commands = pipeline.step3_analyze_context(dummy_segments, style_preset)
+                edit_commands = pipeline.step3_analyze_context(dummy_segments)
                 print("✅ 테스트 완료!")
                 print(f"생성된 편집 명령어: {len(edit_commands)}개")
                 return
@@ -988,24 +903,10 @@ def main():
                 print("\n👋 프로그램 종료")
                 return
     
-    # 스타일 프리셋 선택
-    print("🎨 스타일 프리셋을 선택하세요:")
-    print("1. 매운맛 (예능/숏폼)")
-    print("2. 순한맛 (브이로그)")
-    print("3. 정석맛 (지식/정보)")
-    
-    try:
-        choice = input("선택 (1-3): ").strip()
-        style_map = {"1": "매운맛", "2": "순한맛", "3": "정석맛"}
-        style_preset = style_map.get(choice, "정석맛")
-    except KeyboardInterrupt:
-        print("\n👋 프로그램 종료")
-        return
-    
     # 파이프라인 실행
     pipeline = VideoEditingPipeline(api_key)
     pipeline.verify_gemini_connection()
-    pipeline.run_pipeline(input_file, style_preset, "output.mp4")
+    pipeline.run_pipeline(input_file, "output.mp4")
 
 if __name__ == "__main__":
     main()
