@@ -974,7 +974,7 @@
         <div class="ai-setup-top">
           <label class="setup-field">
             <span>목표 분량 (분)</span>
-            <input type="number" id="setup-target-minutes" min="0" step="0.5" value="3">
+            <input type="number" id="setup-target-minutes" min="0" step="0.1" value="3">
           </label>
 
           <label class="setup-field">
@@ -2122,6 +2122,9 @@ async function analyzeSelectedClip() {
       if (job.status === "completed") {
         media.analysis_status = "review";
         if (job.source_file) media.source_file = job.source_file;
+        // 영상분석 + 대사로 만든 장면 트리 (편집 설정 화면에서 가짜 트리 대신 쓴다)
+        media.scene_tree  = Array.isArray(job.scene_tree) ? job.scene_tree : null;
+        media.scene_error = job.scene_error || null;
         updateClipEl(media); renderVideoTrack();
         const summary = job.scene_summary || buildSummary(job.segments);
         showReview(job.segments, summary);
@@ -2739,18 +2742,28 @@ function openEditSetup() {
   // 3) 레이아웃 전환
   document.body.classList.add("setup-active");
 
-  // 4) 가짜 트리로 초기화 (백엔드가 트리를 넘겨주기 전까지의 임시 데이터)
-  editSetup.tree       = normalizeFakeTree(FAKE_RAW_TREE);
+  // 4) 분석된 클립의 장면 트리 (선택한 클립 우선). 분석 전이면 가짜 트리로 둔다.
+  const treeMedia = project.media_list.find(m => m.id === SELECTED_CLIP_ID && m.scene_tree)
+                 || project.media_list.find(m => m.scene_tree);
+  editSetup.tree       = normalizeFakeTree(treeMedia ? treeMedia.scene_tree : FAKE_RAW_TREE);
   editSetup.checkedIds = new Set();                 // 처음엔 아무것도 체크되지 않은 상태
   editSetup.reasons    = {};
   editSetup.activeDepth = 0;
 
   // 5) 입력값/상태 리셋
-  editSetup.targetMinutes = 3;
+  // 목표 분량 기본값: 실제 트리면 영상 길이의 절반 (예시 트리는 3분)
+  const totalSec = editSetup.tree.reduce((a, n) => a + Math.max(0, n.end - n.start), 0);
+  editSetup.targetMinutes = treeMedia ? Math.max(0.1, Math.round(totalSec / 2 / 60 * 10) / 10) : 3;
   editSetup.userPrompt    = "";
-  document.getElementById("setup-target-minutes").value = "3";
+  document.getElementById("setup-target-minutes").value = String(editSetup.targetMinutes);
   document.getElementById("setup-user-prompt").value    = "";
-  setSetupStatus("", "empty");
+  if (!treeMedia) {
+    setSetupStatus("아직 분석한 영상이 없어 예시 트리를 보여 줍니다. 영상을 AI 분석하면 실제 장면 트리로 바뀝니다.", "info");
+  } else if (treeMedia.scene_error) {
+    setSetupStatus(treeMedia.scene_error, "error");
+  } else {
+    setSetupStatus(`"${treeMedia.filename}" 영상분석 + 대사로 만든 장면 트리입니다.`, "info");
+  }
 
   // 6) 가운데/오른쪽 패널을 setup 단계로
   renderSceneTabs();

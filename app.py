@@ -28,6 +28,8 @@ from config import config
 from main import VideoEditingPipeline
 from media_engine import render_video as me_render_video, segments_to_edit_data
 from scene_selector import select_scenes as _run_select_scenes
+from scene_tree import analyze_scenes, build_tree
+from concurrent.futures import ThreadPoolExecutor
 
 BASE_DIR = Path(__file__).resolve().parent
 STATIC_DIR = BASE_DIR / "static"
@@ -115,27 +117,51 @@ def _analyze_video_with_progress(job_id: str, input_path: Path, stored_name: str
         analyze_jobs[job_id].update(stage=msg, progress=pct)
 
     pipeline = _load_pipeline()
+    executor = ThreadPoolExecutor(max_workers=1)
     try:
         stage("영상 정보 수집 중...", 5)
         video_context = pipeline.step0_collect_video_context(str(input_path))
 
+        # 영상분석(scene_analyzer, Gemini)은 받아쓰기와 동시에 돌린다
+        scene_future = executor.submit(
+            analyze_scenes, str(input_path), config.load_api_key(), pipeline.temp_dir
+        )
+
         stage("음성 추출 중...", 10)
         audio_path = pipeline.step1_extract_audio(str(input_path))
 
-        stage("음성 인식(Gemini 받아쓰기) 중...", 15)
+        stage("음성 인식(Gemini 받아쓰기) + 영상분석 중...", 15)
         segments = pipeline.step2_transcribe_audio(audio_path)
 
-        stage("자막 교정 중...", 65)
+        stage("자막 교정 중...", 55)
         segments = pipeline.step2_refine_transcript(segments)
+
+        stage("영상분석 결과 기다리는 중...", 65)
+        scene_error = None
+        try:
+            scenes = scene_future.result(timeout=600)
+        except Exception as error:      # 영상분석이 실패해도 분석 전체는 계속한다 (대사만으로 트리)
+            traceback.print_exc()
+            scenes, scene_error = [], f"영상분석 실패, 대사만으로 장면 트리를 만들었습니다: {str(error)[:200]}"
+        if scenes:
+            # 컷 판단(step3)에 화면 내용(장소·활동·사건)도 함께 넘긴다
+            video_context["scenes"] = [{k: sc.get(k) for k in ("start", "end", "place", "activity", "event", "summary")}
+                                       for sc in scenes]
 
         stage("AI 문맥 분석(Gemini) 중...", 75)
         segments = pipeline.step3_analyze_context(segments, video_context)
+
+        stage("장면 트리 만드는 중...", 95)
+        scene_tree = build_tree(scenes, segments, float(video_context.get("duration") or 0))
 
         analyze_jobs[job_id].update(
             status="completed",
             stage="분석 완료",
             progress=100,
             segments=segments,
+            scenes=scenes,
+            scene_tree=scene_tree,
+            scene_error=scene_error,
             source_file=stored_name,
             source_url=f"/media/{stored_name}",
         )
@@ -143,6 +169,7 @@ def _analyze_video_with_progress(job_id: str, input_path: Path, stored_name: str
         traceback.print_exc()
         analyze_jobs[job_id].update(status="failed", stage="분석 실패", message=str(error))
     finally:
+        executor.shutdown(wait=True)    # 영상분석이 임시 폴더를 쓰는 중일 수 있으니 끝난 뒤 지운다
         shutil.rmtree(pipeline.temp_dir, ignore_errors=True)
 
 
