@@ -1418,6 +1418,8 @@ async function handleFiles(files) {
       media.source_file = data.source_file; media.analysis_status = "ready";
     } catch(err) { media.analysis_status = "failed"; console.error("[upload]", err); }
     updateClipEl(media);
+    // 업로드 중에 타임라인에 올려 선택해 둔 경우, 업로드가 끝나면 분석 버튼을 켠다
+    if (media.id === SELECTED_CLIP_ID) refreshAnalyzeBtn();
   }
 }
 
@@ -1453,6 +1455,7 @@ function makeClipEl(media) {
   el.addEventListener("dblclick",  () => previewMedia(media));
   el.querySelector(".clip-add-btn").addEventListener("click", e => {
     e.stopPropagation(); addToTimeline(media.id, totalTimelineDuration());
+    selectClip(media.id);   // 드래그로 올릴 때처럼 바로 선택 → 분석 버튼이 켜진다
   });
   return el;
 }
@@ -1905,18 +1908,29 @@ function setToggle(id, val) {
   el.classList.toggle("off", !val);
 }
 
+// 버튼이 꺼져 있을 때는 왜 꺼져 있는지 버튼 글자로 알려 준다.
 function updateAnalyzeBtn(media) {
   const btn = document.getElementById("btn-analyze");
-  if (!media || AI_STAGE !== "idle") { btn.disabled = true; btn.textContent = "AI 분석 시작"; return; }
+  if (AI_STAGE !== "idle") { btn.disabled = true; btn.textContent = "AI 분석 시작"; return; }
+  if (!media) { btn.disabled = true; btn.textContent = "타임라인의 클립을 선택하세요"; return; }
   if (media.analysis_status === "ready") {
     btn.disabled = false; btn.textContent = `"${media.filename.slice(0,16)}…" 분석 시작`;
   } else if (media.analysis_status === "analyzed") {
     btn.disabled = false; btn.textContent = "재분석";
   } else if (media.analysis_status === "analyzing") {
     btn.disabled = true; btn.textContent = "분석 중...";
+  } else if (media.analysis_status === "uploading") {
+    btn.disabled = true; btn.textContent = "업로드 중... (끝나면 자동으로 켜집니다)";
+  } else if (media.analysis_status === "failed") {
+    btn.disabled = false; btn.textContent = "다시 분석";
   } else {
     btn.disabled = true; btn.textContent = "AI 분석 시작";
   }
+}
+
+// 지금 타임라인에서 선택된 클립 기준으로 분석 버튼을 다시 계산한다.
+function refreshAnalyzeBtn() {
+  updateAnalyzeBtn(project.media_list.find(m => m.id === SELECTED_CLIP_ID) || null);
 }
 
 /* =====================================================================
@@ -2774,6 +2788,7 @@ function closeEditSetup() {
   const prev = openEditSetup._prevStage || "idle";
   openEditSetup._prevStage = null;
   setAiStage(prev);
+  refreshAnalyzeBtn();   // 편집 설정 중에는 버튼이 꺼지므로, 돌아오면 다시 계산
 }
 
 /* ---------------------------------------------------------------------
