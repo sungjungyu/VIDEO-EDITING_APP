@@ -252,11 +252,11 @@
     .btn-apply:hover{filter:brightness(1.1)}
 
     /* =====================================================================
-       편집 설정 단계 (setup stage) - 공부용으로 추가된 CSS
-       - 패널 헤더의 "내 프로필" 버튼
-       - idle 단계에서 setup으로 넘어가는 "가짜 트리로 테스트" 버튼
-       - setup 단계의 모드/의도/트리/요약/요청JSON UI
-       - "내 프로필" 모달
+       편집 설정 화면 - 전부 이 블록에 모아 둔다 (공부용)
+       - 왼쪽 아이콘 바의 "편집 설정" 버튼을 눌렀을 때만 보이는 UI
+       - 가운데: 영상 미리보기 + 아래 장면 탭/목록
+       - 오른쪽 위: 목표 분량 + AI 프롬프트 + "AI 가편집하기" 버튼
+       - 오른쪽 아래: 스타일 목록 (자막 / 제목 / 촬영지 자막 ...)
        ===================================================================== */
 
     /* 패널 헤더 오른쪽 버튼 묶음 */
@@ -265,84 +265,96 @@
       border-radius:4px;cursor:pointer;padding:2px 8px;transition:background .15s,color .15s}
     .btn-profile:hover{background:var(--panel2);color:var(--text)}
 
-    /* idle 단계 - 가짜 트리로 테스트 버튼 */
-    .idle-divider{font-size:10px;color:var(--muted);text-align:center;padding:4px 0 2px}
-    .btn-setup-test{width:100%;padding:9px;background:var(--panel2);color:var(--text);
-      border:1px solid var(--border);border-radius:7px;cursor:pointer;font-size:12px;
-      transition:border-color .15s,color .15s}
-    .btn-setup-test:hover{border-color:var(--accent);color:var(--accent)}
-
-    /* setup 단계 전체 - 스크롤 가능한 세로 레이아웃 */
-    #ai-setup{overflow:hidden}
-    .setup-scroll{flex:1 1 auto;overflow-y:auto;padding:10px 13px;
-      display:flex;flex-direction:column;gap:14px}
-
-    /* 상단 "현재 선택 길이 / 목표" 요약 바 */
+    /* 요약 바 (현재 선택 길이 / 목표 분량) */
     .setup-summary-bar{padding:8px 10px;background:var(--panel2);border:1px solid var(--border);
       border-radius:6px;font-size:11px;line-height:1.6}
     .setup-summary-bar .duration-ok{color:var(--keep);font-weight:700}
     .setup-summary-bar .duration-off{color:var(--cut);font-weight:700}
 
-    /* setup 섹션 공통 */
-    .setup-section{display:flex;flex-direction:column;gap:6px}
-    .setup-section.hidden{display:none}
+    /* 섹션 라벨 */
     .setup-section-label{font-size:9px;font-weight:700;color:var(--muted);
       text-transform:uppercase;letter-spacing:.07em}
 
-    /* 모드 선택 버튼들 */
-    .setup-mode-btns{display:flex;flex-direction:column;gap:4px}
-    .setup-mode-btn{padding:7px 10px;background:var(--panel2);border:1px solid var(--border);
-      border-radius:5px;color:var(--text);font-size:11px;cursor:pointer;text-align:left;
-      transition:border-color .15s,color .15s}
-    .setup-mode-btn:hover{border-color:var(--keep)}
-    .setup-mode-btn.active{border-color:var(--accent);color:var(--accent)}
-
-    /* 입력 필드(라벨+입력) */
+    /* 입력 필드(라벨+입력/텍스트에어리어) */
     .setup-field{display:flex;flex-direction:column;gap:3px;font-size:11px}
     .setup-field > span{font-size:10px;color:var(--muted)}
-    .setup-field input,.setup-field select{background:var(--panel2);border:1px solid var(--border);
-      border-radius:5px;padding:5px 8px;color:var(--text);font-size:11px;
+    .setup-field input,
+    .setup-field select,
+    .setup-field textarea{background:var(--panel2);border:1px solid var(--border);
+      border-radius:5px;padding:6px 9px;color:var(--text);font-size:11px;
       font-family:inherit;outline:none}
-    .setup-field input:focus,.setup-field select:focus{border-color:var(--keep)}
+    .setup-field textarea{resize:vertical;line-height:1.5;min-height:70px}
+    .setup-field input:focus,
+    .setup-field select:focus,
+    .setup-field textarea:focus{border-color:var(--keep)}
 
-    /* 장면 트리 */
-    .setup-tree{display:flex;flex-direction:column;gap:1px;background:var(--panel2);
-      border:1px solid var(--border);border-radius:6px;padding:5px;
-      max-height:260px;overflow-y:auto}
-    .setup-tree-row{display:flex;align-items:center;gap:5px;padding:3px 4px;
-      border-radius:4px;font-size:11px}
-    .setup-tree-row:hover{background:rgba(255,255,255,.04)}
-    .setup-tree-collapse{flex:0 0 14px;background:none;border:none;color:var(--muted);
-      cursor:pointer;font-size:10px;line-height:1;padding:0;text-align:center}
-    .setup-tree-collapse.empty{visibility:hidden}
-    .setup-tree-check{flex:0 0 auto;cursor:pointer;margin:0}
-    .setup-tree-lock{flex:0 0 auto;background:none;border:1px solid var(--border);
-      border-radius:3px;color:var(--muted);font-size:10px;cursor:pointer;padding:1px 5px;
-      transition:border-color .15s,color .15s}
-    .setup-tree-lock:hover{border-color:var(--accent);color:var(--accent)}
-    .setup-tree-lock.locked{background:var(--accent);color:#fff;border-color:var(--accent)}
-    .setup-tree-lock.hidden{display:none}
-    .setup-tree-title{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-    .setup-tree-dur{flex:0 0 auto;color:var(--muted);font-size:10px}
-
-    /* "편집 시작" 눌렀을 때 보여줄 요청 JSON (또는 AI 결과/오류 메시지) */
-    .setup-request-view{background:var(--panel2);border:1px solid var(--border);
-      border-radius:6px;padding:9px 11px;font-family:monospace;font-size:10.5px;
-      line-height:1.6;color:var(--text);white-space:pre-wrap;word-break:break-all;
-      max-height:220px;overflow:auto;margin:0}
-    .setup-request-view.is-error{color:var(--cut);border-color:rgba(255,92,92,.4)}
-    .setup-request-view.is-info{color:var(--analyzing)}
-
-    /* AI가 돌려준 선택 이유를 트리 노드 아래 작게 보여주기 */
-    .setup-tree-reason{font-size:10px;color:var(--analyzing);line-height:1.5;
-      padding:1px 4px 4px;font-style:italic}
-
-    /* setup 하단 "편집 시작" 버튼 */
-    .setup-footer{flex:0 0 auto;padding:9px 13px;border-top:1px solid var(--border)}
+    /* "AI 가편집하기" 버튼과 상태 메시지 */
     .btn-start-edit{width:100%;padding:10px;background:var(--accent);color:#fff;
       font-weight:700;font-size:13px;border:none;border-radius:7px;cursor:pointer;
       transition:filter .15s}
-    .btn-start-edit:hover{filter:brightness(1.1)}
+    .btn-start-edit:hover:not(:disabled){filter:brightness(1.1)}
+    .btn-start-edit:disabled{opacity:.5;cursor:not-allowed}
+    .setup-status{font-size:11px;line-height:1.6;padding:7px 9px;border-radius:5px;
+      background:var(--panel2);border:1px solid var(--border);color:var(--muted);
+      white-space:pre-wrap;word-break:break-word}
+    .setup-status.is-empty{display:none}
+    .setup-status.is-info{color:var(--analyzing)}
+    .setup-status.is-ok{color:#5ca85c}
+    .setup-status.is-error{color:var(--cut);border-color:rgba(255,92,92,.4)}
+
+    /* 오른쪽 setup 패널의 위/아래 두 영역 */
+    #ai-setup{overflow:hidden}
+    .ai-setup-top{flex:1 1 auto;padding:10px 13px;overflow-y:auto;
+      display:flex;flex-direction:column;gap:10px;min-height:0}
+    .ai-setup-divider{flex:0 0 1px;background:var(--border)}
+    .ai-setup-bottom{flex:1 1 auto;padding:10px 13px;overflow-y:auto;
+      display:flex;flex-direction:column;gap:8px;min-height:0}
+
+    /* 스타일 목록 (자막/제목/촬영지 자막 ...) */
+    .style-list{display:flex;flex-direction:column;gap:4px}
+    .style-item{background:var(--panel2);border:1px solid var(--border);
+      border-radius:6px;overflow:hidden}
+    .style-item.open{border-color:var(--accent)}
+    .style-item-head{display:flex;align-items:center;padding:7px 10px;cursor:pointer;gap:8px}
+    .style-item-head:hover{background:rgba(255,255,255,.03)}
+    .style-item-caret{color:var(--muted);font-size:10px;width:10px;text-align:center}
+    .style-item-num{color:var(--muted);font-size:10px;min-width:14px}
+    .style-item-name{flex:1;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .style-item-del{background:none;border:1px solid var(--border);border-radius:4px;
+      color:var(--muted);font-size:10px;padding:1px 7px;cursor:pointer;
+      transition:color .15s,border-color .15s}
+    .style-item-del:hover{color:var(--cut);border-color:var(--cut)}
+    .style-item-body{padding:10px 12px;border-top:1px solid var(--border);background:var(--panel)}
+    .style-add-btn{padding:8px;background:var(--panel2);border:1px dashed var(--border);
+      border-radius:6px;color:var(--muted);font-size:11px;cursor:pointer;
+      transition:color .15s,border-color .15s}
+    .style-add-btn:hover{color:var(--accent);border-color:var(--accent)}
+
+    /* 장면 탭 + 장면 목록 (가운데 영역 아래쪽) */
+    .scene-tabs-section{display:none;flex:0 0 auto;flex-direction:column;
+      margin-top:12px;max-height:38vh;min-height:160px;
+      background:var(--panel);border:1px solid var(--border);
+      border-radius:var(--radius);overflow:hidden}
+    body.setup-active .scene-tabs-section{display:flex}
+    .scene-tabs{flex:0 0 auto;display:flex;border-bottom:1px solid var(--border);
+      background:var(--panel2)}
+    .scene-tab{flex:1;padding:9px 10px;background:none;border:none;color:var(--muted);
+      font-size:11px;cursor:pointer;border-bottom:2px solid transparent;
+      transition:color .15s,border-color .15s;font-family:inherit}
+    .scene-tab:hover{color:var(--text)}
+    .scene-tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+    .scene-list{flex:1 1 auto;overflow-y:auto;padding:6px 8px;
+      display:flex;flex-direction:column;gap:2px}
+    .scene-row{display:flex;align-items:center;gap:9px;padding:7px 9px;border-radius:5px;
+      cursor:pointer;flex-wrap:wrap;transition:background .15s}
+    .scene-row:hover{background:var(--panel2)}
+    .scene-row-check{flex:0 0 auto;cursor:pointer;margin:0}
+    .scene-row-title{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;
+      white-space:nowrap;font-size:12px}
+    .scene-row-dur{flex:0 0 auto;color:var(--muted);font-size:10px}
+    .scene-row-reason{flex:1 1 100%;margin-left:26px;font-size:10px;
+      color:var(--analyzing);font-style:italic;line-height:1.5}
+    .scene-list-empty{padding:22px;text-align:center;color:var(--muted);font-size:11px}
 
     /* 프로필 모달 */
     .modal-panel-sm{max-width:380px}
@@ -475,6 +487,31 @@
     .btn-primary:hover{filter:brightness(1.08)}
     .btn-primary:disabled{opacity:.4;cursor:not-allowed;filter:none}
 
+    /* =====================================================================
+       편집 설정 화면이 켜졌을 때 (body.setup-active) 레이아웃
+       ---------------------------------------------------------------------
+       - 오른쪽 .obj-panel 은 숨긴다 (스타일 목록이 오른쪽 패널 아래쪽에 들어감)
+       - .preview-col 은 그대로 두고, 그 안에 .scene-tabs-section 이 보인다.
+       ===================================================================== */
+
+    body.setup-active .obj-panel { display: none !important; }
+
+    /* 자막 미리보기 상자 (스타일 목록 아이템 안에서 재사용된다) */
+    .ss-preview-box { padding: 0; }
+    .ss-preview-stage { position: relative; width: 100%; min-height: 120px;
+      background: #0a0d12; border-radius: var(--radius); overflow: hidden;
+      display: flex; justify-content: center; padding: 12px 10%;
+      align-items: flex-end; transition: padding .15s; }
+    .ss-preview-text { display: inline-block; color: #fff; font-size: 24px;
+      line-height: 1.5; text-align: center; max-width: 100%;
+      white-space: pre-line; word-break: break-word; transition: none; }
+
+    /* 기본값으로 버튼 */
+    .btn-ss-reset { width: 100%; padding: 7px; background: var(--panel2);
+      color: var(--text); border: 1px solid var(--border); border-radius: 5px;
+      cursor: pointer; font-size: 11px; transition: border-color .15s, color .15s; }
+    .btn-ss-reset:hover { border-color: var(--accent); color: var(--accent); }
+
     ::-webkit-scrollbar{width:5px;height:5px}
     ::-webkit-scrollbar-track{background:transparent}
     ::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
@@ -545,6 +582,19 @@
           <line x1="3" y1="13" x2="17" y2="13"/><circle cx="13" cy="13" r="2.5" fill="var(--panel3)" stroke="currentColor"/>
         </svg>필터
       </button>
+
+      <!-- 편집 설정 버튼 (하단, 공부용 추가):
+           - 다른 아이콘 버튼과 같은 모양 (SVG 아이콘 + 글자).
+           - 클릭하면 가운데/오른쪽 패널이 "편집 설정 화면"으로 바뀌고,
+             다시 누르거나 다른 메뉴(미디어/오디오/텍스트)를 누르면
+             원래 화면으로 돌아온다. 토글 처리는 JS 쪽. -->
+      <div class="icon-divider"></div>
+      <button class="icon-btn" id="btn-editsetup-icon" title="편집 설정 (장면 트리 + 의도 + 자막 스타일)">
+        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="10" cy="10" r="2.5"/>
+          <path d="M10 2v3M10 15v3M2 10h3M15 10h3M4.5 4.5l2 2M13.5 13.5l2 2M4.5 15.5l2-2M13.5 6.5l2-2"/>
+        </svg>편집 설정
+      </button>
     </nav>
 
     <!-- Middle column -->
@@ -594,7 +644,12 @@
           </div>
         </aside>
 
-        <!-- ③ Preview -->
+        <!-- ③ Preview + 편집 설정 화면의 아래쪽 "장면 탭/목록"
+             ---------------------------------------------------------
+             평상시에는 preview-area 와 preview-controls 만 보인다.
+             body.setup-active 가 켜지면 scene-tabs-section 이 보이게 되어
+             사용자는 영상 미리보기 아래에서 장면 탭 ①장소 ②일 ③상황 ④대사
+             를 눌러 장면 목록을 체크할 수 있다. -->
         <section class="preview-col">
           <div class="preview-area">
             <div class="preview-box">
@@ -612,6 +667,12 @@
             <div class="preview-progress" id="preview-progress">
               <div class="preview-progress-fill" id="preview-progress-fill"></div>
             </div>
+          </div>
+
+          <!-- 장면 탭/목록 - 편집 설정 모드에서만 보임 -->
+          <div class="scene-tabs-section" id="scene-tabs-section">
+            <div class="scene-tabs" id="scene-tabs"></div>
+            <div class="scene-list" id="scene-list"></div>
           </div>
         </section>
 
@@ -637,31 +698,46 @@
             <div class="obj-tab-pane" id="obj-tab-speed"><div class="obj-placeholder">속도 조절 준비 중</div></div>
           </div>
 
-          <!-- Subtitle style pane (자막 트랙 헤더 클릭 시 표시) -->
+          <!-- Subtitle style pane
+               ----------------------------------------------------------
+               이 요소는 여러 자리에서 "같은 DOM"으로 재사용된다:
+                 (1) 평상시          → obj-panel 안 (자막 트랙 헤더 클릭 시)
+                 (2) 편집 설정 화면 → 스타일 목록 항목이 펼쳐지면 그 안으로
+               두 번 그리지 않고 하나의 요소를 appendChild로 옮겨서 쓴다.
+               (attachSubStylePaneTo / toggleStyleItem 참고) -->
           <div id="sub-style-pane" style="display:none">
-            <div class="ss-label">프리셋</div>
+
+            <!-- 미리보기 상자 (설정이 바뀌면 바로 반영됨) -->
+            <div class="ss-label">자막 미리보기</div>
+            <div class="ss-preview-box">
+              <div class="ss-preview-stage" id="ss-preview-stage">
+                <span class="ss-preview-text" id="ss-preview-text">예시 자막입니다. 이렇게 보여요.</span>
+              </div>
+            </div>
+
+            <!-- 프리셋 (매운맛 / 순한맛 / 정석맛) -->
+            <div class="ss-label" style="margin-top:12px">프리셋</div>
             <div class="ss-preset-row">
               <button class="ss-preset-btn" data-preset="매운맛">매운맛</button>
               <button class="ss-preset-btn" data-preset="순한맛">순한맛</button>
               <button class="ss-preset-btn active" data-preset="정석맛">정석맛</button>
             </div>
+
+            <!-- 글꼴 -->
             <div class="ss-row">
-              <span class="ss-row-label">폰트</span>
+              <span class="ss-row-label">글꼴</span>
               <div class="ss-row-ctrl">
                 <select class="ss-select" id="ss-font">
                   <option value="Malgun Gothic">맑은 고딕</option>
                   <option value="NanumGothic">나눔고딕</option>
-                  <option value="NanumBarunGothic">나눔바른고딕</option>
+                  <option value="NanumMyeongjo">나눔명조</option>
+                  <option value="Noto Sans KR">본고딕</option>
                   <option value="Arial">Arial</option>
                 </select>
               </div>
             </div>
-            <div class="ss-row">
-              <span class="ss-row-label">색상</span>
-              <div class="ss-row-ctrl">
-                <input type="color" class="ss-color" id="ss-color" value="#ffffff">
-              </div>
-            </div>
+
+            <!-- 크기 (슬라이더) -->
             <div class="ss-row">
               <span class="ss-row-label">크기</span>
               <div class="ss-row-ctrl">
@@ -669,36 +745,151 @@
                 <span class="ss-slider-val" id="ss-size-val">24px</span>
               </div>
             </div>
+
+            <!-- 굵기 -->
+            <div class="ss-row">
+              <span class="ss-row-label">굵기</span>
+              <div class="ss-row-ctrl">
+                <select class="ss-select" id="ss-weight">
+                  <option value="normal">보통</option>
+                  <option value="bold">굵게</option>
+                  <option value="extra-bold">아주 굵게</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- 기울임 -->
+            <div class="ss-row">
+              <span class="ss-row-label">기울임</span>
+              <div class="ss-row-ctrl">
+                <button class="ss-toggle off" id="ss-italic"></button>
+              </div>
+            </div>
+
+            <!-- 글자 색 -->
+            <div class="ss-row">
+              <span class="ss-row-label">글자 색</span>
+              <div class="ss-row-ctrl">
+                <input type="color" class="ss-color" id="ss-color" value="#ffffff">
+              </div>
+            </div>
+
+            <!-- 외곽선 (켜기/끄기) -->
             <div class="ss-row">
               <span class="ss-row-label">외곽선</span>
               <div class="ss-row-ctrl">
                 <button class="ss-toggle on" id="ss-outline"></button>
               </div>
             </div>
+
+            <!-- 외곽선 색 (외곽선이 켜져 있을 때만 보임) -->
+            <div class="ss-row" id="ss-outline-color-row">
+              <span class="ss-row-label" style="padding-left:8px">외곽선 색</span>
+              <div class="ss-row-ctrl">
+                <input type="color" class="ss-color" id="ss-outline-color" value="#000000">
+              </div>
+            </div>
+
+            <!-- 외곽선 두께 -->
             <div class="ss-row" id="ss-outline-row">
-              <span class="ss-row-label" style="padding-left:8px">두께</span>
+              <span class="ss-row-label" style="padding-left:8px">외곽선 두께</span>
               <div class="ss-row-ctrl">
                 <input type="range" class="ss-slider" id="ss-outline-w" min="0" max="5" step="0.5" value="1">
                 <span class="ss-slider-val" id="ss-outline-w-val">1</span>
               </div>
             </div>
+
+            <!-- 그림자 (켜기/끄기) -->
+            <div class="ss-row">
+              <span class="ss-row-label">그림자</span>
+              <div class="ss-row-ctrl">
+                <button class="ss-toggle off" id="ss-shadow"></button>
+              </div>
+            </div>
+
+            <!-- 그림자 거리 -->
+            <div class="ss-row" id="ss-shadow-dist-row">
+              <span class="ss-row-label" style="padding-left:8px">그림자 거리</span>
+              <div class="ss-row-ctrl">
+                <input type="range" class="ss-slider" id="ss-shadow-dist" min="0" max="10" step="1" value="2">
+                <span class="ss-slider-val" id="ss-shadow-dist-val">2</span>
+              </div>
+            </div>
+
+            <!-- 배경 박스 (없음 / 반투명 박스) -->
             <div class="ss-row">
               <span class="ss-row-label">배경 박스</span>
               <div class="ss-row-ctrl">
                 <button class="ss-toggle off" id="ss-bg-box"></button>
               </div>
             </div>
+
+            <!-- 박스 색 -->
+            <div class="ss-row" id="ss-bg-color-row">
+              <span class="ss-row-label" style="padding-left:8px">박스 색</span>
+              <div class="ss-row-ctrl">
+                <input type="color" class="ss-color" id="ss-bg-color" value="#000000">
+              </div>
+            </div>
+
+            <!-- 박스 투명도 (0 ~ 100%) -->
+            <div class="ss-row" id="ss-bg-opacity-row">
+              <span class="ss-row-label" style="padding-left:8px">박스 투명도</span>
+              <div class="ss-row-ctrl">
+                <input type="range" class="ss-slider" id="ss-bg-opacity" min="0" max="100" step="5" value="60">
+                <span class="ss-slider-val" id="ss-bg-opacity-val">60%</span>
+              </div>
+            </div>
+
+            <!-- 위치 (위 / 가운데 / 아래) -->
+            <div class="ss-row">
+              <span class="ss-row-label">위치</span>
+              <div class="ss-row-ctrl">
+                <select class="ss-select" id="ss-position">
+                  <option value="top">위</option>
+                  <option value="center">가운데</option>
+                  <option value="bottom" selected>아래</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- 아래쪽 여백 (px) -->
+            <div class="ss-row">
+              <span class="ss-row-label">아래쪽 여백</span>
+              <div class="ss-row-ctrl">
+                <input type="range" class="ss-slider" id="ss-bottom-margin" min="0" max="60" step="2" value="10">
+                <span class="ss-slider-val" id="ss-bottom-margin-val">10</span>
+              </div>
+            </div>
+
+            <!-- 한 줄 최대 글자 수 -->
+            <div class="ss-row">
+              <span class="ss-row-label">한 줄 최대 글자</span>
+              <div class="ss-row-ctrl">
+                <input type="range" class="ss-slider" id="ss-max-chars" min="5" max="40" step="1" value="20">
+                <span class="ss-slider-val" id="ss-max-chars-val">20</span>
+              </div>
+            </div>
+
+            <!-- 카라오케 (기존 유지) -->
             <div class="ss-row">
               <span class="ss-row-label">카라오케</span>
               <div class="ss-row-ctrl">
                 <button class="ss-toggle off" id="ss-karaoke"></button>
               </div>
             </div>
+
+            <!-- 페이드 인/아웃 (기존 유지) -->
             <div class="ss-row">
               <span class="ss-row-label">페이드 인/아웃</span>
               <div class="ss-row-ctrl">
                 <button class="ss-toggle off" id="ss-fade"></button>
               </div>
+            </div>
+
+            <!-- 기본값으로 리셋 (정석맛 프리셋을 다시 적용) -->
+            <div style="margin-top:12px">
+              <button class="btn-ss-reset" id="btn-ss-reset" type="button">기본값으로</button>
             </div>
           </div>
         </aside>
@@ -750,13 +941,16 @@
         </div>
       </div>
 
-      <!-- Stage: idle -->
+      <!-- Stage: idle
+           ----------------------------------------------------------------
+           기존 "가짜 트리로 테스트" 버튼은 왼쪽 아이콘 바의 "편집 설정"
+           버튼으로 대체되었다. 이 자리는 분석 안내만 남겨 둔다. -->
       <div class="ai-stage" id="ai-idle">
-        <p class="ai-idle-hint">타임라인에서 클립을 선택하고<br>AI 분석을 시작하세요.</p>
+        <p class="ai-idle-hint">
+          타임라인에서 클립을 선택하고 AI 분석을 시작하세요.<br>
+          편집 설정(장면 트리 + 자막 스타일)은 왼쪽 아이콘 바에서 열 수 있습니다.
+        </p>
         <button class="btn-analyze" id="btn-analyze" disabled>AI 분석 시작</button>
-        <!-- 아직 백엔드가 장면 트리를 못 주므로, 가짜 트리로 setup 단계를 미리 체험 -->
-        <div class="idle-divider">— 또는 —</div>
-        <button class="btn-setup-test" id="btn-setup-test">가짜 트리로 테스트</button>
       </div>
 
       <!-- Stage: analyzing -->
@@ -768,10 +962,27 @@
         </div>
       </div>
 
-      <!-- Stage: setup (편집 설정 단계) -->
+      <!-- Stage: setup (편집 설정 단계 - 오른쪽 패널)
+           ----------------------------------------------------------------
+           - 위쪽 (.ai-setup-top): 목표 분량 / AI 프롬프트 / 선택 길이 요약
+             / "AI 가편집하기" 버튼 / 상태 메시지
+           - 아래쪽 (.ai-setup-bottom): 스타일 목록 (자막/제목/촬영지 자막…)
+           두 영역은 .ai-setup-divider 로 가로줄 하나로 나눈다. -->
       <div class="ai-stage hidden" id="ai-setup">
-        <div class="setup-scroll">
-          <!-- 상단: 현재 선택 길이 / 목표 분량 실시간 요약 -->
+
+        <!-- 위쪽: 목표 분량 + AI 프롬프트 + "AI 가편집하기" -->
+        <div class="ai-setup-top">
+          <label class="setup-field">
+            <span>목표 분량 (분)</span>
+            <input type="number" id="setup-target-minutes" min="0" step="0.5" value="3">
+          </label>
+
+          <label class="setup-field">
+            <span>AI 프롬프트</span>
+            <textarea id="setup-user-prompt" rows="4"
+              placeholder="예: 쇼츠용으로 재밌는 장면 위주로, 친구 얼굴 나오는 부분은 빼줘"></textarea>
+          </label>
+
           <div class="setup-summary-bar">
             현재 선택 길이:
             <span id="setup-selected-duration">0.0초</span>
@@ -779,71 +990,18 @@
             <span id="setup-target-display">3분 (180.0초)</span>
           </div>
 
-          <!-- 1) 편집 모드 선택 -->
-          <div class="setup-section">
-            <div class="setup-section-label">1. 편집 모드</div>
-            <div class="setup-mode-btns">
-              <button class="setup-mode-btn" data-mode="manual">
-                직접 고르기 (manual)
-              </button>
-              <button class="setup-mode-btn active" data-mode="partial">
-                일부 고정 + AI가 채우기 (partial)
-              </button>
-              <button class="setup-mode-btn" data-mode="auto">
-                AI에게 전부 맡기기 (auto)
-              </button>
-            </div>
-          </div>
+          <button class="btn-start-edit" id="btn-start-edit">AI 가편집하기</button>
 
-          <!-- 2) 의도 입력 -->
-          <div class="setup-section">
-            <div class="setup-section-label">2. 의도</div>
-            <label class="setup-field">
-              <span>영상 목적 (선택)</span>
-              <input type="text" id="setup-purpose" placeholder="예: 쇼츠용 핵심 요약">
-            </label>
-            <label class="setup-field">
-              <span>목표 분량 (분)</span>
-              <input type="number" id="setup-target-minutes" min="0" step="0.5" value="3">
-            </label>
-            <label class="setup-field">
-              <span>톤</span>
-              <select id="setup-tone">
-                <option value="">(선택 없음)</option>
-                <option>경쾌하고 빠르게</option>
-                <option>차분하게 정보 전달</option>
-                <option>임팩트 있게</option>
-                <option>잔잔하게</option>
-              </select>
-            </label>
-            <label class="setup-field">
-              <span>꼭 넣을 키워드 (쉼표로 구분)</span>
-              <input type="text" id="setup-must-include" placeholder="예: 꿀팁, 결론">
-            </label>
-            <label class="setup-field">
-              <span>뺄 키워드 (쉼표로 구분)</span>
-              <input type="text" id="setup-must-exclude" placeholder="예: 광고, 홍보">
-            </label>
-          </div>
-
-          <!-- 3) 장면 트리 -->
-          <div class="setup-section">
-            <div class="setup-section-label">
-              3. 장면 트리 (체크=포함, 해제=제외, 자물쇠=반드시 포함)
-            </div>
-            <div class="setup-tree" id="setup-tree"></div>
-          </div>
-
-          <!-- 4) 편집 시작 눌렀을 때만 표시되는 요청 JSON -->
-          <div class="setup-section hidden" id="setup-request-section">
-            <div class="setup-section-label">편집 요청 JSON (서버 전송 전)</div>
-            <pre class="setup-request-view" id="setup-request-view"></pre>
-          </div>
+          <div class="setup-status is-empty" id="setup-status"></div>
         </div>
 
-        <!-- 하단: 편집 시작 버튼 -->
-        <div class="setup-footer">
-          <button class="btn-start-edit" id="btn-start-edit">편집 시작</button>
+        <div class="ai-setup-divider"></div>
+
+        <!-- 아래쪽: 스타일 목록 -->
+        <div class="ai-setup-bottom">
+          <div class="setup-section-label">스타일 목록</div>
+          <div class="style-list" id="style-list"></div>
+          <button class="style-add-btn" id="btn-style-add" type="button">+ 스타일 추가</button>
         </div>
       </div>
 
@@ -977,14 +1135,92 @@ let AI_REVIEW_CLIP_ID = null;
 let PREVIEW_MEDIA_ID  = null;
 let OBJ_PANEL_MODE    = null; // "clip" | "subtitle"
 
-const SUBTITLE_STYLE = {
-  preset:"정석맛", font:"Malgun Gothic", color:"#ffffff", size:24,
-  outline:true, outline_width:1, background_box:false, karaoke:false, fade:false
+/* 자막 스타일 기본값 (정석맛과 동일).
+   - 프로필에 저장된 값이 있으면 applySubtitleStyleFromProfile()이 덮어쓴다.
+   - 새 필드가 추가돼도 저장된 값에 그 필드가 없으면 여기 기본값이 유지된다. */
+const SUBTITLE_STYLE_DEFAULTS = {
+  preset:         "정석맛",
+  font:           "Malgun Gothic",
+  color:          "#ffffff",
+  size:           24,
+  weight:         "normal",       // "normal" | "bold" | "extra-bold"
+  italic:         false,
+  outline:        true,
+  outline_color:  "#000000",
+  outline_width:  1,
+  shadow:         false,
+  shadow_distance:2,              // px
+  background_box: false,
+  bg_color:       "#000000",
+  bg_opacity:     60,             // 0 ~ 100 (%)
+  position:       "bottom",       // "top" | "center" | "bottom"
+  bottom_margin:  10,             // px
+  max_chars_per_line: 20,
+  karaoke:        false,
+  fade:           false,
 };
+const SUBTITLE_STYLE = { ...SUBTITLE_STYLE_DEFAULTS };
+
+/* ---------------------------------------------------------------------
+   스타일 목록 (편집 설정 화면의 오른쪽 아래)
+   ---------------------------------------------------------------------
+   항목 하나 = { id, name, data, previewText, deletable } 객체.
+     - id       : 내부 식별자 (예: "subtitle")
+     - name     : 사용자가 보는 이름 (예: "자막")
+     - data     : 스타일 값 객체 (SUBTITLE_STYLE 과 같은 구조)
+     - previewText : 미리보기 상자에 보여줄 예시 문장
+     - deletable: 삭제 가능 여부 (기본 3개는 false)
+
+   "자막" 항목의 data 는 전역 SUBTITLE_STYLE 과 "같은 객체"를 공유한다.
+   → 사용자가 자막 스타일을 바꾸면 렌더 요청(style_overrides) 에도 그대로
+     반영된다. (buildRenderPayload 는 SUBTITLE_STYLE 을 읽는다)
+
+   activeStyleItem 은 지금 폼이 편집하는 "활성 항목" 을 가리킨다.
+   사용자가 다른 항목을 펼치면 activeStyleItem 을 그 항목으로 바꾸고
+   syncSubStyleForm() 을 호출해 폼을 다시 그 데이터로 채운다.
+--------------------------------------------------------------------- */
+
+// 기본 스타일 데이터 하나를 새로 만든다. (매번 서로 다른 객체여야 함)
+function makeDefaultStyleData(overrides) {
+  const base = { ...SUBTITLE_STYLE_DEFAULTS };
+  if (overrides) Object.assign(base, overrides);
+  return base;
+}
+
+const styleItems = [
+  { id: "subtitle", name: "자막",       data: SUBTITLE_STYLE,
+    previewText: "예시 자막입니다. 이렇게 보여요.", deletable: false },
+  { id: "title",    name: "제목",       data: makeDefaultStyleData({ size: 36, weight: "bold" }),
+    previewText: "큰 제목 글자",                 deletable: false },
+  { id: "location", name: "촬영지 자막", data: makeDefaultStyleData({ size: 20 }),
+    previewText: "📍 홍대 입구",                  deletable: false },
+];
+
+let activeStyleItem = styleItems[0];  // 현재 폼이 편집하는 항목
+let expandedStyleId = null;           // 지금 펼쳐져 있는 항목 id (null = 전부 접힘)
+
 const SUBTITLE_PRESET_DEFAULTS = {
-  "매운맛":{ font:"Malgun Gothic", color:"#ffff00", size:28, outline:true, outline_width:2, background_box:true,  karaoke:true,  fade:true  },
-  "순한맛":{ font:"Malgun Gothic", color:"#ffffff", size:22, outline:true, outline_width:2, background_box:false, karaoke:true,  fade:true  },
-  "정석맛":{ font:"Malgun Gothic", color:"#ffffff", size:24, outline:true, outline_width:1, background_box:false, karaoke:false, fade:false }
+  "매운맛": { font:"Malgun Gothic", color:"#ffff00", size:28,
+              weight:"bold",   italic:false,
+              outline:true,  outline_color:"#000000", outline_width:2,
+              shadow:true,   shadow_distance:3,
+              background_box:true,  bg_color:"#000000", bg_opacity:70,
+              position:"bottom", bottom_margin:14, max_chars_per_line:16,
+              karaoke:true,  fade:true  },
+  "순한맛": { font:"Malgun Gothic", color:"#ffffff", size:22,
+              weight:"normal", italic:false,
+              outline:true,  outline_color:"#000000", outline_width:2,
+              shadow:false,  shadow_distance:0,
+              background_box:false, bg_color:"#000000", bg_opacity:50,
+              position:"bottom", bottom_margin:10, max_chars_per_line:22,
+              karaoke:true,  fade:true  },
+  "정석맛": { font:"Malgun Gothic", color:"#ffffff", size:24,
+              weight:"normal", italic:false,
+              outline:true,  outline_color:"#000000", outline_width:1,
+              shadow:false,  shadow_distance:0,
+              background_box:false, bg_color:"#000000", bg_opacity:50,
+              position:"bottom", bottom_margin:10, max_chars_per_line:20,
+              karaoke:false, fade:false },
 };
 
 /* =====================================================================
@@ -1435,31 +1671,232 @@ function hideObjPanel() {
 }
 
 function showSubStylePanel() {
+  // 편집 설정 화면이 켜져 있을 땐 obj-panel 이 숨겨져 있다.
+  // 그래서 자막 항목을 "스타일 목록" 쪽에서 펼쳐 주고 끝낸다.
+  if (document.body.classList.contains("setup-active")) {
+    if (expandedStyleId !== "subtitle") {
+      expandedStyleId = "subtitle";
+      renderStyleList();
+    }
+    return;
+  }
+
   OBJ_PANEL_MODE = "subtitle";
   if (SELECTED_CLIP_ID) { SELECTED_CLIP_ID = null; renderVideoTrack(); updateAnalyzeBtn(null); }
   document.getElementById("obj-panel").classList.remove("hidden");
   document.getElementById("obj-panel-name").textContent = "자막 스타일";
   document.querySelector(".obj-tabs").style.display = "none";
   document.querySelector(".obj-tab-body").style.display = "none";
-  document.getElementById("sub-style-pane").style.display = "block";
+
+  // 평상시엔 "자막" 항목(= SUBTITLE_STYLE 과 같은 데이터)을 폼이 편집하도록.
+  activeStyleItem = styleItems[0];
+
+  // #sub-style-pane 이 다른 자리(스타일 목록)로 이동해 있을 수 있으니 돌려받는다.
+  const pane     = document.getElementById("sub-style-pane");
+  const objPanel = document.getElementById("obj-panel");
+  if (pane && objPanel && pane.parentNode !== objPanel) {
+    objPanel.appendChild(pane);
+  }
+  if (pane) pane.style.display = "block";
   syncSubStyleForm();
 }
 
+/* activeStyleItem.data → 폼 입력값 전부 반영.
+   프리셋 선택, 리셋, 프로필 로드 또는 다른 스타일 항목을 펼쳤을 때처럼
+   "데이터가 통째로 바뀌었을 때" 한 번에 UI 를 맞춰 준다. */
 function syncSubStyleForm() {
-  document.getElementById("ss-font").value = SUBTITLE_STYLE.font;
-  document.getElementById("ss-color").value = SUBTITLE_STYLE.color;
-  document.getElementById("ss-size").value = SUBTITLE_STYLE.size;
-  document.getElementById("ss-size-val").textContent = SUBTITLE_STYLE.size + "px";
-  document.getElementById("ss-outline-w").value = SUBTITLE_STYLE.outline_width;
-  document.getElementById("ss-outline-w-val").textContent = SUBTITLE_STYLE.outline_width;
-  document.getElementById("ss-outline-row").style.display = SUBTITLE_STYLE.outline ? "" : "none";
-  setToggle("ss-outline",  SUBTITLE_STYLE.outline);
-  setToggle("ss-bg-box",   SUBTITLE_STYLE.background_box);
-  setToggle("ss-karaoke",  SUBTITLE_STYLE.karaoke);
-  setToggle("ss-fade",     SUBTITLE_STYLE.fade);
+  const S = activeStyleItem.data;
+
+  document.getElementById("ss-font").value             = S.font;
+  document.getElementById("ss-color").value            = S.color;
+
+  document.getElementById("ss-size").value             = S.size;
+  document.getElementById("ss-size-val").textContent   = S.size + "px";
+
+  document.getElementById("ss-weight").value           = S.weight;
+  setToggle("ss-italic", S.italic);
+
+  setToggle("ss-outline", S.outline);
+  document.getElementById("ss-outline-color").value    = S.outline_color;
+  document.getElementById("ss-outline-w").value        = S.outline_width;
+  document.getElementById("ss-outline-w-val").textContent = String(S.outline_width);
+  document.getElementById("ss-outline-row").style.display       = S.outline ? "" : "none";
+  document.getElementById("ss-outline-color-row").style.display = S.outline ? "" : "none";
+
+  setToggle("ss-shadow", S.shadow);
+  document.getElementById("ss-shadow-dist").value      = S.shadow_distance;
+  document.getElementById("ss-shadow-dist-val").textContent = String(S.shadow_distance);
+  document.getElementById("ss-shadow-dist-row").style.display = S.shadow ? "" : "none";
+
+  setToggle("ss-bg-box", S.background_box);
+  document.getElementById("ss-bg-color").value         = S.bg_color;
+  document.getElementById("ss-bg-opacity").value       = S.bg_opacity;
+  document.getElementById("ss-bg-opacity-val").textContent = S.bg_opacity + "%";
+  document.getElementById("ss-bg-color-row").style.display   = S.background_box ? "" : "none";
+  document.getElementById("ss-bg-opacity-row").style.display = S.background_box ? "" : "none";
+
+  document.getElementById("ss-position").value         = S.position;
+
+  document.getElementById("ss-bottom-margin").value    = S.bottom_margin;
+  document.getElementById("ss-bottom-margin-val").textContent = String(S.bottom_margin);
+
+  document.getElementById("ss-max-chars").value        = S.max_chars_per_line;
+  document.getElementById("ss-max-chars-val").textContent = String(S.max_chars_per_line);
+
+  setToggle("ss-karaoke", S.karaoke);
+  setToggle("ss-fade",    S.fade);
+
   document.querySelectorAll(".ss-preset-btn").forEach(b =>
-    b.classList.toggle("active", b.dataset.preset === SUBTITLE_STYLE.preset)
+    b.classList.toggle("active", b.dataset.preset === S.preset)
   );
+
+  renderSubtitlePreview();
+}
+
+/* 자막 미리보기 (예시 문장을 현재 SUBTITLE_STYLE 로 렌더) ------------------- */
+
+// 한 줄 최대 글자 수에 맞춰 간단히 N 글자마다 줄바꿈한다.
+// (학생용: 공백 단위 word-wrap 대신 N 글자 자르기 - 단순하고 보기 쉬움)
+function wrapTextForPreview(text, maxChars) {
+  if (!text) return "";
+  if (!maxChars || maxChars <= 0) return text;
+  const lines = [];
+  for (let i = 0; i < text.length; i += maxChars) {
+    lines.push(text.slice(i, i + maxChars));
+  }
+  return lines.join("\n");
+}
+
+// 외곽선과 그림자를 CSS text-shadow 문자열 하나로 조립.
+function buildSubtitleTextShadow(S) {
+  const parts = [];
+  if (S.outline && S.outline_width > 0) {
+    const w = S.outline_width, c = S.outline_color;
+    // 네 방향으로 작은 그림자를 겹쳐서 외곽선처럼 보이게 한다.
+    parts.push(`-${w}px 0 0 ${c}`);
+    parts.push(`${w}px 0 0 ${c}`);
+    parts.push(`0 -${w}px 0 ${c}`);
+    parts.push(`0 ${w}px 0 ${c}`);
+  }
+  if (S.shadow) {
+    const d = S.shadow_distance;
+    parts.push(`${d}px ${d}px ${Math.max(1, d)}px rgba(0,0,0,0.75)`);
+  }
+  return parts.join(", ");
+}
+
+// #RRGGBB + 0~100(%) → rgba() 문자열.
+function hexToRgba(hex, pct) {
+  const h = (hex || "#000000").replace("#", "");
+  const r = parseInt(h.slice(0, 2), 16);
+  const g = parseInt(h.slice(2, 4), 16);
+  const b = parseInt(h.slice(4, 6), 16);
+  const a = Math.max(0, Math.min(100, pct || 0)) / 100;
+  return `rgba(${r}, ${g}, ${b}, ${a.toFixed(2)})`;
+}
+
+// 미리보기 상자(stage)와 안쪽 글자(text)에 현재 스타일을 inline 으로 반영.
+// 미리보기 문장은 activeStyleItem.previewText 를 사용한다 (항목마다 다름).
+function renderSubtitlePreview() {
+  const stage = document.getElementById("ss-preview-stage");
+  const text  = document.getElementById("ss-preview-text");
+  if (!stage || !text) return;
+  const S = activeStyleItem.data;
+
+  // 위치: flex align-items 로 위/가운데/아래 정렬
+  const align = { top: "flex-start", center: "center", bottom: "flex-end" }[S.position] || "flex-end";
+  stage.style.alignItems    = align;
+  stage.style.paddingTop    = (S.position === "top"    ? S.bottom_margin : 12) + "px";
+  stage.style.paddingBottom = (S.position === "bottom" ? S.bottom_margin : 12) + "px";
+
+  // 글자 스타일
+  text.style.fontFamily = S.font;
+  text.style.fontSize   = S.size + "px";
+  text.style.color      = S.color;
+  text.style.fontWeight = S.weight === "extra-bold" ? "900"
+                        : (S.weight === "bold" ? "700" : "400");
+  text.style.fontStyle  = S.italic ? "italic" : "normal";
+  text.style.textShadow = buildSubtitleTextShadow(S);
+
+  // 배경 박스
+  if (S.background_box) {
+    text.style.backgroundColor = hexToRgba(S.bg_color, S.bg_opacity);
+    text.style.padding         = "4px 10px";
+    text.style.borderRadius    = "4px";
+  } else {
+    text.style.backgroundColor = "transparent";
+    text.style.padding         = "0";
+    text.style.borderRadius    = "0";
+  }
+
+  // 한 줄 최대 글자 수로 줄바꿈 (예시 문장은 활성 항목의 previewText 사용)
+  const previewText = activeStyleItem.previewText || "예시 자막";
+  text.textContent  = wrapTextForPreview(previewText, S.max_chars_per_line);
+
+  // 영상 위 자막 미리보기도 "자막" 항목(= SUBTITLE_STYLE) 스타일을 그대로 반영
+  // (지금 폼이 "제목"/"촬영지 자막" 을 편집 중이어도, 영상 위 overlay 는
+  //  항상 "자막" 설정을 쓰므로 호출은 안전하다 — 아래 함수가 매번 재적용)
+  applySubtitleStyleToVideoOverlay();
+}
+
+/* ---------------------------------------------------------------------
+   영상 위 자막 미리보기(#sub-overlay)에 "자막" 스타일 적용
+   ---------------------------------------------------------------------
+   SUBTITLE_STYLE(= styleItems[0].data) 하나만 쓴다. 폼이 어떤 항목을
+   편집 중이든, 영상 위에 그려지는 자막은 "자막" 항목의 스타일을 따른다.
+
+   호출 시점:
+     - renderSubtitlePreview 끝 (사용자가 폼 값을 바꿀 때)
+     - updateSubtitleOverlay 끝 (재생 중 새 조각 텍스트를 그릴 때)
+
+   예시) 사용자가 글자 크기를 24 → 36 으로 바꾸면
+         .sub-overlay-text 의 font-size 가 36px 로 inline 적용되어
+         영상 위에 큰 자막이 바로 보인다.
+--------------------------------------------------------------------- */
+function applySubtitleStyleToVideoOverlay() {
+  const overlay = document.getElementById("sub-overlay");
+  if (!overlay) return;
+  const S = SUBTITLE_STYLE;
+
+  // 1) 글자 요소들에 폰트/크기/색/굵기/기울임/외곽선·그림자/배경박스 적용
+  const textEls = overlay.querySelectorAll(".sub-overlay-text");
+  for (const el of textEls) {
+    el.style.fontFamily = S.font;
+    el.style.fontSize   = S.size + "px";
+    el.style.color      = S.color;
+    el.style.fontWeight = S.weight === "extra-bold" ? "900"
+                       : (S.weight === "bold" ? "700" : "400");
+    el.style.fontStyle  = S.italic ? "italic" : "normal";
+    el.style.textShadow = buildSubtitleTextShadow(S);
+
+    if (S.background_box) {
+      el.style.backgroundColor = hexToRgba(S.bg_color, S.bg_opacity);
+      el.style.padding         = "4px 10px";
+      el.style.borderRadius    = "4px";
+    } else {
+      el.style.backgroundColor = "transparent";
+      el.style.padding         = "0";
+      el.style.borderRadius    = "0";
+    }
+  }
+
+  // 2) overlay 상자의 세로 위치(위/가운데/아래) + 여백
+  //    예시) position="top", bottom_margin=12 → top:12px, bottom:auto
+  //          position="center"               → top:50%,  transform:translateY(-50%)
+  //          position="bottom", bottom_margin=10 → bottom:10px, top:auto
+  if (S.position === "top") {
+    overlay.style.top       = S.bottom_margin + "px";
+    overlay.style.bottom    = "auto";
+    overlay.style.transform = "none";
+  } else if (S.position === "center") {
+    overlay.style.top       = "50%";
+    overlay.style.bottom    = "auto";
+    overlay.style.transform = "translateY(-50%)";
+  } else {
+    overlay.style.top       = "auto";
+    overlay.style.bottom    = S.bottom_margin + "px";
+    overlay.style.transform = "none";
+  }
 }
 
 function setToggle(id, val) {
@@ -1623,7 +2060,12 @@ function updateSubtitleOverlay() {
   overlay.style.display = "";
   overlay.className = "sub-overlay" + (seg.cut ? " sub-overlay-cut" : "");
   const badge = seg.cut ? `<span class="sub-overlay-badge">cut</span>` : "";
-  overlay.innerHTML = `<span class="sub-overlay-text">${seg.text}${badge}</span>`;
+  // "자막" 스타일의 한 줄 최대 글자 수에 맞춰 줄바꿈해서 넣는다.
+  // .sub-overlay-text 는 white-space:pre-wrap 이라 \n 이 그대로 줄바꿈된다.
+  const wrapped = wrapTextForPreview(seg.text, SUBTITLE_STYLE.max_chars_per_line);
+  overlay.innerHTML = `<span class="sub-overlay-text">${wrapped}${badge}</span>`;
+  // innerHTML 로 요소를 새로 만들었으니 inline 스타일을 다시 적용해야 한다.
+  applySubtitleStyleToVideoOverlay();
 }
 videoEl.addEventListener("loadedmetadata", updatePlaybackUI);
 videoEl.addEventListener("play",  () => { document.getElementById("icon-play").style.display="none"; document.getElementById("icon-pause").style.display=""; });
@@ -1741,14 +2183,24 @@ function buildRenderPayload() {
     segments: segs,
     style_preset: SUBTITLE_STYLE.preset,
     style_overrides: {
-      font:          SUBTITLE_STYLE.font,
-      color:         SUBTITLE_STYLE.color,
-      size:          SUBTITLE_STYLE.size,
-      outline:       SUBTITLE_STYLE.outline,
-      outline_width: SUBTITLE_STYLE.outline_width,
-      background_box:SUBTITLE_STYLE.background_box,
-      karaoke:       SUBTITLE_STYLE.karaoke,
-      fade:          SUBTITLE_STYLE.fade,
+      font:               SUBTITLE_STYLE.font,
+      color:              SUBTITLE_STYLE.color,
+      size:               SUBTITLE_STYLE.size,
+      weight:             SUBTITLE_STYLE.weight,
+      italic:             SUBTITLE_STYLE.italic,
+      outline:            SUBTITLE_STYLE.outline,
+      outline_color:      SUBTITLE_STYLE.outline_color,
+      outline_width:      SUBTITLE_STYLE.outline_width,
+      shadow:             SUBTITLE_STYLE.shadow,
+      shadow_distance:    SUBTITLE_STYLE.shadow_distance,
+      background_box:     SUBTITLE_STYLE.background_box,
+      bg_color:           SUBTITLE_STYLE.bg_color,
+      bg_opacity:         SUBTITLE_STYLE.bg_opacity,
+      position:           SUBTITLE_STYLE.position,
+      bottom_margin:      SUBTITLE_STYLE.bottom_margin,
+      max_chars_per_line: SUBTITLE_STYLE.max_chars_per_line,
+      karaoke:            SUBTITLE_STYLE.karaoke,
+      fade:               SUBTITLE_STYLE.fade,
     },
     aspect_ratio: project.aspect_ratio,
     _clip_name: clip.filename
@@ -1802,16 +2254,33 @@ document.getElementById("btn-render").addEventListener("click", async () => {
 
 /* =====================================================================
    Icon bar + context panel
+   ---------------------------------------------------------------------
+   - 미디어/오디오/텍스트 버튼: ctx 패널만 전환. 편집 설정 모드였다면
+     closeEditSetup() 으로 먼저 원래 화면으로 돌아간다.
+   - 편집 설정 버튼: openEditSetup / closeEditSetup 토글.
 ===================================================================== */
 document.querySelectorAll(".icon-btn[data-panel]").forEach(btn => {
   btn.addEventListener("click", () => {
     if (btn.classList.contains("icon-disabled")) return;
+    // 편집 설정 모드였으면 먼저 끈다 (사용자: "다른 메뉴를 누르면 원래 화면으로")
+    if (document.body.classList.contains("setup-active")) {
+      closeEditSetup();
+    }
     document.querySelectorAll(".icon-btn").forEach(b => b.classList.remove("icon-active"));
     document.querySelectorAll(".ctx-inner").forEach(p => p.classList.remove("active"));
     btn.classList.add("icon-active");
     const panel = document.getElementById("ctx-" + btn.dataset.panel);
     if (panel) panel.classList.add("active");
   });
+});
+
+// 편집 설정 아이콘 자체는 ctx 전환이 아니므로 별도로 토글만 바인딩.
+document.getElementById("btn-editsetup-icon").addEventListener("click", () => {
+  if (document.body.classList.contains("setup-active")) {
+    closeEditSetup();
+  } else {
+    openEditSetup();
+  }
 });
 
 /* =====================================================================
@@ -1865,40 +2334,111 @@ document.getElementById("btn-snap").addEventListener("click", () => {
 ===================================================================== */
 document.getElementById("sub-track-label").addEventListener("click", showSubStylePanel);
 
+/* 자막 스타일 폼 - 입력 이벤트 바인딩
+   ---------------------------------------------------------------------
+   각 컨트롤이 바뀔 때마다 activeStyleItem.data 를 갱신하고
+   renderSubtitlePreview() 로 미리보기 상자를 다시 그린다.
+
+   activeStyleItem 은 "지금 어떤 스타일 항목(자막/제목/촬영지 자막/추가 항목)
+   을 편집 중인가" 를 나타낸다. 평상시엔 자막(styleItems[0]) 이고,
+   스타일 목록에서 다른 항목을 펼치면 거기에 맞게 바뀐다. */
+
 document.querySelectorAll(".ss-preset-btn").forEach(btn => {
   btn.addEventListener("click", () => {
-    SUBTITLE_STYLE.preset = btn.dataset.preset;
-    Object.assign(SUBTITLE_STYLE, SUBTITLE_PRESET_DEFAULTS[btn.dataset.preset]);
+    const preset = btn.dataset.preset;
+    activeStyleItem.data.preset = preset;
+    Object.assign(activeStyleItem.data, SUBTITLE_PRESET_DEFAULTS[preset]);
     syncSubStyleForm();
   });
 });
 
-document.getElementById("ss-font").addEventListener("change", e => { SUBTITLE_STYLE.font = e.target.value; });
-document.getElementById("ss-color").addEventListener("input",  e => { SUBTITLE_STYLE.color = e.target.value; });
+document.getElementById("ss-font").addEventListener("change", e => {
+  activeStyleItem.data.font = e.target.value; renderSubtitlePreview();
+});
+document.getElementById("ss-color").addEventListener("input",  e => {
+  activeStyleItem.data.color = e.target.value; renderSubtitlePreview();
+});
 document.getElementById("ss-size").addEventListener("input", e => {
-  SUBTITLE_STYLE.size = +e.target.value;
+  activeStyleItem.data.size = +e.target.value;
   document.getElementById("ss-size-val").textContent = e.target.value + "px";
+  renderSubtitlePreview();
+});
+document.getElementById("ss-weight").addEventListener("change", e => {
+  activeStyleItem.data.weight = e.target.value; renderSubtitlePreview();
+});
+document.getElementById("ss-italic").addEventListener("click", () => {
+  activeStyleItem.data.italic = !activeStyleItem.data.italic;
+  setToggle("ss-italic", activeStyleItem.data.italic);
+  renderSubtitlePreview();
 });
 document.getElementById("ss-outline").addEventListener("click", () => {
-  SUBTITLE_STYLE.outline = !SUBTITLE_STYLE.outline;
-  setToggle("ss-outline", SUBTITLE_STYLE.outline);
-  document.getElementById("ss-outline-row").style.display = SUBTITLE_STYLE.outline ? "" : "none";
+  activeStyleItem.data.outline = !activeStyleItem.data.outline;
+  setToggle("ss-outline", activeStyleItem.data.outline);
+  document.getElementById("ss-outline-row").style.display       = activeStyleItem.data.outline ? "" : "none";
+  document.getElementById("ss-outline-color-row").style.display = activeStyleItem.data.outline ? "" : "none";
+  renderSubtitlePreview();
+});
+document.getElementById("ss-outline-color").addEventListener("input", e => {
+  activeStyleItem.data.outline_color = e.target.value; renderSubtitlePreview();
 });
 document.getElementById("ss-outline-w").addEventListener("input", e => {
-  SUBTITLE_STYLE.outline_width = +e.target.value;
+  activeStyleItem.data.outline_width = +e.target.value;
   document.getElementById("ss-outline-w-val").textContent = e.target.value;
+  renderSubtitlePreview();
+});
+document.getElementById("ss-shadow").addEventListener("click", () => {
+  activeStyleItem.data.shadow = !activeStyleItem.data.shadow;
+  setToggle("ss-shadow", activeStyleItem.data.shadow);
+  document.getElementById("ss-shadow-dist-row").style.display = activeStyleItem.data.shadow ? "" : "none";
+  renderSubtitlePreview();
+});
+document.getElementById("ss-shadow-dist").addEventListener("input", e => {
+  activeStyleItem.data.shadow_distance = +e.target.value;
+  document.getElementById("ss-shadow-dist-val").textContent = e.target.value;
+  renderSubtitlePreview();
 });
 document.getElementById("ss-bg-box").addEventListener("click", () => {
-  SUBTITLE_STYLE.background_box = !SUBTITLE_STYLE.background_box;
-  setToggle("ss-bg-box", SUBTITLE_STYLE.background_box);
+  activeStyleItem.data.background_box = !activeStyleItem.data.background_box;
+  setToggle("ss-bg-box", activeStyleItem.data.background_box);
+  document.getElementById("ss-bg-color-row").style.display   = activeStyleItem.data.background_box ? "" : "none";
+  document.getElementById("ss-bg-opacity-row").style.display = activeStyleItem.data.background_box ? "" : "none";
+  renderSubtitlePreview();
+});
+document.getElementById("ss-bg-color").addEventListener("input", e => {
+  activeStyleItem.data.bg_color = e.target.value; renderSubtitlePreview();
+});
+document.getElementById("ss-bg-opacity").addEventListener("input", e => {
+  activeStyleItem.data.bg_opacity = +e.target.value;
+  document.getElementById("ss-bg-opacity-val").textContent = e.target.value + "%";
+  renderSubtitlePreview();
+});
+document.getElementById("ss-position").addEventListener("change", e => {
+  activeStyleItem.data.position = e.target.value; renderSubtitlePreview();
+});
+document.getElementById("ss-bottom-margin").addEventListener("input", e => {
+  activeStyleItem.data.bottom_margin = +e.target.value;
+  document.getElementById("ss-bottom-margin-val").textContent = e.target.value;
+  renderSubtitlePreview();
+});
+document.getElementById("ss-max-chars").addEventListener("input", e => {
+  activeStyleItem.data.max_chars_per_line = +e.target.value;
+  document.getElementById("ss-max-chars-val").textContent = e.target.value;
+  renderSubtitlePreview();
 });
 document.getElementById("ss-karaoke").addEventListener("click", () => {
-  SUBTITLE_STYLE.karaoke = !SUBTITLE_STYLE.karaoke;
-  setToggle("ss-karaoke", SUBTITLE_STYLE.karaoke);
+  activeStyleItem.data.karaoke = !activeStyleItem.data.karaoke;
+  setToggle("ss-karaoke", activeStyleItem.data.karaoke);
 });
 document.getElementById("ss-fade").addEventListener("click", () => {
-  SUBTITLE_STYLE.fade = !SUBTITLE_STYLE.fade;
-  setToggle("ss-fade", SUBTITLE_STYLE.fade);
+  activeStyleItem.data.fade = !activeStyleItem.data.fade;
+  setToggle("ss-fade", activeStyleItem.data.fade);
+});
+
+/* "기본값으로" 버튼 - 정석맛 프리셋 defaults 로 활성 항목만 리셋 */
+document.getElementById("btn-ss-reset").addEventListener("click", () => {
+  activeStyleItem.data.preset = "정석맛";
+  Object.assign(activeStyleItem.data, SUBTITLE_PRESET_DEFAULTS["정석맛"]);
+  syncSubStyleForm();
 });
 
 /* =====================================================================
@@ -1909,10 +2449,10 @@ document.getElementById("ss-fade").addEventListener("click", () => {
    서로 참조하지 않는다.
 
    흐름:
-     [1] "가짜 트리로 테스트" 버튼 → openEditSetupWithFakeTree()
+     [1] 왼쪽 아이콘 바의 "편집 설정" 버튼 → openEditSetup()
      [2] setup 단계 UI에서 모드/의도/트리 체크/자물쇠를 조작
-     [3] "편집 시작" 버튼 → buildEditRequest() 로 request JSON 조립
-         → 콘솔에 출력하고 화면 하단에도 보여준다 (서버 전송은 아직 안 함)
+     [3] "편집 시작" 버튼 → buildEditRequest() 로 request 를 조립해
+         /select_scenes 로 전송 → 결과를 트리에 반영
 ===================================================================== */
 
 /* ---------------------------------------------------------------------
@@ -1971,22 +2511,22 @@ const FAKE_RAW_TREE = [
 /* ---------------------------------------------------------------------
    편집 설정 상태 (editSetup)
    ---------------------------------------------------------------------
-   setup 단계 동안 UI가 보여줘야 할 모든 상태를 한 객체에 모아 둔다.
-   왜 전역 하나로 모으냐? → 여러 함수가 공유해야 하는데, 매번 함수
-   매개변수로 넘기면 코드가 복잡해져서. 공부용으로는 단순함이 우선.
+   편집 설정 화면 전역 상태. 여러 함수가 공유하는 값을 한 곳에 모은다.
+
+   공부 포인트:
+     - mode 는 저장하지 않는다. "AI 가편집하기" 버튼을 누르면 auto,
+       누르지 않고 사용자가 체크만 바꾸면 manual 로 간주한다.
+     - 요청에 보낼 값은 target_minutes, user_prompt, selected_nodes 뿐이다.
 --------------------------------------------------------------------- */
+const SCENE_DEPTH_LABELS = ["장소", "일", "상황", "대사"]; // depth 0~3
+
 const editSetup = {
-  tree:          [],              // 정규화된 트리 (내부 포맷)
-  mode:          "partial",       // "manual" | "partial" | "auto"
-  purpose:       "",              // 영상 목적
-  targetMinutes: 3,               // 목표 분량(분)
-  tone:          "",              // 톤
-  mustInclude:   [],              // 꼭 넣을 키워드 리스트
-  mustExclude:   [],              // 뺄 키워드 리스트
-  checkedIds:    new Set(),       // 체크된 노드 id (Set: 중복 없는 집합)
-  lockedIds:     new Set(),       // 자물쇠 걸린 노드 id
-  collapsedIds:  new Set(),       // 접힌 노드 id (자식 숨김)
-  reasons:       {},              // AI가 돌려준 선택 이유 (id → 문자열)
+  tree:          [],         // 정규화된 트리 (내부 포맷)
+  targetMinutes: 3,          // 목표 분량(분)
+  userPrompt:    "",         // AI 프롬프트 (사용자 요청 글)
+  checkedIds:    new Set(),  // 체크된 노드 id
+  reasons:       {},         // AI가 돌려준 선택 이유 (id → 문자열)
+  activeDepth:   0,          // 현재 보고 있는 탭 depth (0..3)
 };
 
 /* ---------------------------------------------------------------------
@@ -2149,54 +2689,95 @@ function cascadeCheck(node, shouldCheck, checkedIds) {
 }
 
 /* ---------------------------------------------------------------------
-   setup 단계 진입 (가짜 트리로 시작)
-   ---------------------------------------------------------------------
-   "가짜 트리로 테스트" 버튼을 눌렀을 때 실행된다.
-   editSetup 상태를 초기화하고 setup 단계로 이동한다.
+   쉼표 구분 문자열 → 깔끔한 리스트. (프로필 입력 등에서 재사용)
+   예시) " 꿀팁, 결론 ,  " → ["꿀팁", "결론"]
 --------------------------------------------------------------------- */
-function openEditSetupWithFakeTree() {
-  // 1) 트리 정규화 후 상태에 저장
-  editSetup.tree = normalizeFakeTree(FAKE_RAW_TREE);
-
-  // 2) 초기 상태: 모든 노드 체크, 아무것도 locked 아님, 아무것도 접히지 않음
-  const allIds = [];
-  collectAllNodeIds(editSetup.tree, allIds);
-  editSetup.checkedIds   = new Set(allIds);
-  editSetup.lockedIds    = new Set();
-  editSetup.collapsedIds = new Set();
-  editSetup.reasons      = {};
-
-  // 3) 의도 입력 기본값
-  editSetup.mode          = "partial";
-  editSetup.purpose       = "";
-  editSetup.targetMinutes = 3;
-  editSetup.tone          = "";
-  editSetup.mustInclude   = [];
-  editSetup.mustExclude   = [];
-
-  // 4) 화면 입력 필드도 기본값으로 리셋
-  document.getElementById("setup-purpose").value         = "";
-  document.getElementById("setup-target-minutes").value  = "3";
-  document.getElementById("setup-tone").value            = "";
-  document.getElementById("setup-must-include").value    = "";
-  document.getElementById("setup-must-exclude").value    = "";
-  document.getElementById("setup-request-section").classList.add("hidden");
-
-  // 5) 모드 버튼 활성화 상태 반영
-  updateSetupModeButtons();
-
-  // 6) 트리와 요약 다시 그리기
-  renderSetupTree();
-  updateSetupSummary();
-
-  // 7) 단계 전환
-  setAiStage("setup");
+function parseCommaList(text) {
+  const result = [];
+  const parts = text.split(",");
+  for (const part of parts) {
+    const trimmed = part.trim();
+    if (trimmed.length > 0) result.push(trimmed);
+  }
+  return result;
 }
 
 /* ---------------------------------------------------------------------
-   요약 바 업데이트 ("현재 선택 길이 / 목표 분량")
+   편집 설정 화면 열기 / 닫기
    ---------------------------------------------------------------------
-   체크/언체크, 목표 분량 변경 등이 생길 때마다 호출.
+   왼쪽 아이콘 바의 "편집 설정" 버튼이 호출한다.
+     openEditSetup()  : 트리/입력값 초기화 → 오른쪽 패널을 setup 단계로 전환
+     closeEditSetup() : 레이아웃을 원래대로 돌리고 AI 패널 복원
+
+   스타일 목록이 열려 있었다면 #sub-style-pane 을 다시 obj-panel 로 돌려서
+   평상시 자막 스타일 편집(타임라인 자막 라벨 클릭)이 그대로 동작하게 한다.
+--------------------------------------------------------------------- */
+function openEditSetup() {
+  // 1) 이전 AI 단계 저장 (닫을 때 복원용)
+  if (AI_STAGE !== "setup") {
+    openEditSetup._prevStage = AI_STAGE;
+  }
+
+  // 2) 아이콘바 활성 표시 변경 (편집 설정만 active)
+  document.querySelectorAll(".icon-btn").forEach(b => b.classList.remove("icon-active"));
+  document.getElementById("btn-editsetup-icon").classList.add("icon-active");
+
+  // 3) 레이아웃 전환
+  document.body.classList.add("setup-active");
+
+  // 4) 가짜 트리로 초기화 (백엔드가 트리를 넘겨주기 전까지의 임시 데이터)
+  editSetup.tree       = normalizeFakeTree(FAKE_RAW_TREE);
+  editSetup.checkedIds = new Set();                 // 처음엔 아무것도 체크되지 않은 상태
+  editSetup.reasons    = {};
+  editSetup.activeDepth = 0;
+
+  // 5) 입력값/상태 리셋
+  editSetup.targetMinutes = 3;
+  editSetup.userPrompt    = "";
+  document.getElementById("setup-target-minutes").value = "3";
+  document.getElementById("setup-user-prompt").value    = "";
+  setSetupStatus("", "empty");
+
+  // 6) 가운데/오른쪽 패널을 setup 단계로
+  renderSceneTabs();
+  renderSceneList();
+  updateSetupSummary();
+  renderStyleList();
+  setAiStage("setup");
+}
+
+function closeEditSetup() {
+  document.body.classList.remove("setup-active");
+
+  // 왼쪽 아이콘 바: 현재 열려 있는 ctx 탭(media/audio/text)에 맞춰 active 복원
+  document.querySelectorAll(".icon-btn").forEach(b => b.classList.remove("icon-active"));
+  const activeCtx = document.querySelector(".ctx-inner.active");
+  if (activeCtx) {
+    const panelName = activeCtx.id.replace("ctx-", "");    // "media" / "audio" / "text"
+    const btn = document.querySelector(`.icon-btn[data-panel="${panelName}"]`);
+    if (btn) btn.classList.add("icon-active");
+  }
+
+  // #sub-style-pane 을 다시 obj-panel 로 돌려 둔다 (평상시 흐름을 깨지 않도록).
+  const pane     = document.getElementById("sub-style-pane");
+  const objPanel = document.getElementById("obj-panel");
+  if (pane && objPanel && pane.parentNode !== objPanel) {
+    objPanel.appendChild(pane);
+  }
+  if (pane) pane.style.display = (OBJ_PANEL_MODE === "subtitle") ? "block" : "none";
+  // 스타일 목록 쪽 상태도 초기화해 둔다 (다시 열었을 때 깨끗하게)
+  expandedStyleId = null;
+  activeStyleItem = styleItems[0];
+  syncSubStyleForm();
+
+  // 오른쪽 AI 패널을 열기 전 단계로 복원
+  const prev = openEditSetup._prevStage || "idle";
+  openEditSetup._prevStage = null;
+  setAiStage(prev);
+}
+
+/* ---------------------------------------------------------------------
+   현재 선택 길이 / 목표 분량 요약 바 갱신
 --------------------------------------------------------------------- */
 function updateSetupSummary() {
   const selectedSec = calcSelectedDuration(editSetup.tree, editSetup.checkedIds);
@@ -2204,6 +2785,7 @@ function updateSetupSummary() {
 
   const selectedEl = document.getElementById("setup-selected-duration");
   const targetEl   = document.getElementById("setup-target-display");
+  if (!selectedEl || !targetEl) return;
 
   selectedEl.textContent = selectedSec.toFixed(1) + "초";
   targetEl.textContent   = editSetup.targetMinutes + "분 (" + targetSec.toFixed(1) + "초)";
@@ -2221,272 +2803,209 @@ function updateSetupSummary() {
 }
 
 /* ---------------------------------------------------------------------
-   모드 버튼 UI 업데이트
+   장면 탭 (①장소 ②일 ③상황 ④대사)
    ---------------------------------------------------------------------
-   선택된 모드만 .active 클래스. 또한 모드에 따라 자물쇠 버튼 표시 여부도
-   바뀌므로 트리를 다시 그린다.
+   탭 하나 = 트리의 한 depth. depth 0 은 루트(장소), 3 은 가장 깊은 대사.
 --------------------------------------------------------------------- */
-function updateSetupModeButtons() {
-  const buttons = document.querySelectorAll(".setup-mode-btn");
-  for (const btn of buttons) {
-    const isActive = btn.dataset.mode === editSetup.mode;
-    btn.classList.toggle("active", isActive);
-  }
-}
-
-/* ---------------------------------------------------------------------
-   트리 전체 다시 그리기
-   ---------------------------------------------------------------------
-   체크/자물쇠/접힘 상태가 바뀌면 트리 DOM을 통째로 다시 만든다.
-   (부분 업데이트가 복잡하므로 공부용으로는 전체 재렌더가 편함)
---------------------------------------------------------------------- */
-function renderSetupTree() {
-  const container = document.getElementById("setup-tree");
-  container.innerHTML = "";
-  for (const rootNode of editSetup.tree) {
-    renderSetupTreeNode(rootNode, container, 0);
-  }
-}
-
-/* ---------------------------------------------------------------------
-   노드 하나를 DOM 행으로 그리기 (재귀)
-   ---------------------------------------------------------------------
-   입력:
-     node      - 그릴 노드
-     container - 추가할 부모 DOM 요소
-     depth     - 들여쓰기 깊이 (0=루트)
---------------------------------------------------------------------- */
-function renderSetupTreeNode(node, container, depth) {
-  const row = document.createElement("div");
-  row.className = "setup-tree-row";
-  row.style.paddingLeft = (4 + depth * 14) + "px";
-
-  // 1) 접기/펴기 버튼 (자식이 있을 때만 실제로 기능)
-  const collapseBtn = document.createElement("button");
-  collapseBtn.className = "setup-tree-collapse";
-  if (node.children.length === 0) {
-    // 자식이 없는 노드는 빈칸 자리만 차지 (가로 정렬 맞추기용)
-    collapseBtn.classList.add("empty");
-    collapseBtn.textContent = "";
-  } else {
-    const isCollapsed = editSetup.collapsedIds.has(node.id);
-    collapseBtn.textContent = isCollapsed ? "▶" : "▼";
-    collapseBtn.addEventListener("click", function() {
-      if (isCollapsed) {
-        editSetup.collapsedIds.delete(node.id);
-      } else {
-        editSetup.collapsedIds.add(node.id);
-      }
-      renderSetupTree();
+function renderSceneTabs() {
+  const tabsEl = document.getElementById("scene-tabs");
+  tabsEl.innerHTML = "";
+  for (let depth = 0; depth < SCENE_DEPTH_LABELS.length; depth++) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "scene-tab" + (depth === editSetup.activeDepth ? " active" : "");
+    btn.textContent = (depth + 1) + ". " + SCENE_DEPTH_LABELS[depth];
+    btn.addEventListener("click", function() {
+      editSetup.activeDepth = depth;
+      renderSceneTabs();
+      renderSceneList();
     });
+    tabsEl.appendChild(btn);
   }
-  row.appendChild(collapseBtn);
+}
 
-  // 2) 체크박스
+/* ---------------------------------------------------------------------
+   트리에서 특정 depth 의 노드들만 모아 돌려준다.
+     nodes        - 둘러볼 노드 리스트
+     targetDepth  - 원하는 깊이 (0=루트)
+     out          - 결과를 담을 리스트 (호출자가 넘기는 빈 배열)
+     currentDepth - 재귀용 (0부터 시작)
+--------------------------------------------------------------------- */
+function collectNodesAtDepth(nodes, targetDepth, out, currentDepth) {
+  if (currentDepth === undefined) currentDepth = 0;
+  for (const node of nodes) {
+    if (currentDepth === targetDepth) {
+      out.push(node);
+    } else if (currentDepth < targetDepth) {
+      collectNodesAtDepth(node.children, targetDepth, out, currentDepth + 1);
+    }
+  }
+}
+
+/* ---------------------------------------------------------------------
+   현재 탭의 장면 목록 다시 그리기
+   ---------------------------------------------------------------------
+   비어 있으면 "이 단계의 장면이 없습니다" 를 보여준다.
+--------------------------------------------------------------------- */
+function renderSceneList() {
+  const container = document.getElementById("scene-list");
+  container.innerHTML = "";
+
+  const nodes = [];
+  collectNodesAtDepth(editSetup.tree, editSetup.activeDepth, nodes);
+
+  if (nodes.length === 0) {
+    const empty = document.createElement("div");
+    empty.className   = "scene-list-empty";
+    empty.textContent = "이 단계의 장면이 없습니다";
+    container.appendChild(empty);
+    return;
+  }
+
+  for (const node of nodes) {
+    container.appendChild(makeSceneRow(node));
+  }
+}
+
+/* ---------------------------------------------------------------------
+   장면 한 줄 DOM 만들기
+   ---------------------------------------------------------------------
+   row 는 flex-wrap 이라 "이유" 가 있으면 아래 줄로 넘어간다.
+   입력:  node (장면 노드 하나)
+   출력:  DOM 요소 (scene-row div)
+--------------------------------------------------------------------- */
+function makeSceneRow(node) {
+  const row = document.createElement("div");
+  row.className = "scene-row";
+
+  // 체크박스 - 포함/제외 토글 (부모 노드를 체크하면 자손도 함께 체크)
   const check = document.createElement("input");
   check.type = "checkbox";
-  check.className = "setup-tree-check";
+  check.className = "scene-row-check";
   const state = computeCheckState(node, editSetup.checkedIds);
   check.checked       = (state === "checked");
   check.indeterminate = (state === "indeterminate");
+  // 체크박스 클릭이 row 전체 클릭(=영상 이동)으로 번지지 않게 막는다.
+  check.addEventListener("click", function(e) { e.stopPropagation(); });
   check.addEventListener("change", function() {
-    // 부모를 체크/해제하면 자손 전부 같은 상태로 맞춤.
     cascadeCheck(node, check.checked, editSetup.checkedIds);
-    renderSetupTree();      // indeterminate 표시가 다시 계산되도록
-    updateSetupSummary();   // 선택 길이도 갱신
+    renderSceneList();
+    updateSetupSummary();
+    // 체크 상태가 바뀌면 타임라인 자막 조각 cut 도 바로 다시 정한다.
+    applySelectedScenesToSegments();
   });
   row.appendChild(check);
 
-  // 3) 자물쇠 버튼 (partial 모드에서만 보임)
-  const lockBtn = document.createElement("button");
-  lockBtn.className = "setup-tree-lock";
-  const isLocked = editSetup.lockedIds.has(node.id);
-  lockBtn.textContent = isLocked ? "🔒" : "🔓";
-  if (isLocked) lockBtn.classList.add("locked");
-  if (editSetup.mode !== "partial") lockBtn.classList.add("hidden");
-  lockBtn.title = "반드시 포함 (locked_nodes)";
-  lockBtn.addEventListener("click", function() {
-    if (isLocked) {
-      editSetup.lockedIds.delete(node.id);
-    } else {
-      editSetup.lockedIds.add(node.id);
-    }
-    renderSetupTree();
-  });
-  row.appendChild(lockBtn);
-
-  // 4) 제목
+  // 제목
   const title = document.createElement("span");
-  title.className   = "setup-tree-title";
-  title.textContent = "[" + node.id + "] " + node.title;
+  title.className   = "scene-row-title";
+  title.textContent = node.title || "(제목 없음)";
   row.appendChild(title);
 
-  // 5) 길이 표시
+  // 길이
   const dur = document.createElement("span");
-  dur.className   = "setup-tree-dur";
-  dur.textContent = nodeDuration(node).toFixed(1) + "s";
+  dur.className   = "scene-row-dur";
+  dur.textContent = nodeDuration(node).toFixed(1) + "초";
   row.appendChild(dur);
 
-  container.appendChild(row);
-
-  // 6) AI가 돌려준 선택 이유 (있을 때만 노드 아래에 작게 표시)
+  // AI 가 돌려준 "이유" (있을 때만)
   const reasonText = editSetup.reasons[node.id];
   if (reasonText) {
     const reasonEl = document.createElement("div");
-    reasonEl.className        = "setup-tree-reason";
-    reasonEl.style.paddingLeft = (4 + depth * 14 + 48) + "px";
-    reasonEl.textContent      = "💡 " + reasonText;
-    container.appendChild(reasonEl);
+    reasonEl.className   = "scene-row-reason";
+    reasonEl.textContent = "💡 " + reasonText;
+    row.appendChild(reasonEl);
   }
 
-  // 7) 자식 렌더 (접힌 상태가 아니면)
-  const isCollapsed = editSetup.collapsedIds.has(node.id);
-  if (!isCollapsed) {
-    for (const child of node.children) {
-      renderSetupTreeNode(child, container, depth + 1);
-    }
-  }
+  // 줄을 클릭하면 영상이 그 장면 시작 시간으로 이동
+  row.addEventListener("click", function() { seekPreviewTo(node.start); });
+
+  return row;
 }
 
 /* ---------------------------------------------------------------------
-   화면 입력 필드 → editSetup 반영
+   영상 미리보기를 특정 초로 이동
    ---------------------------------------------------------------------
-   사용자가 입력할 때마다 editSetup에 값을 옮긴다. 반대 방향은 따로
-   필요 없다 (화면이 바로 그 값을 가지고 있으니까).
+   입력: sec - 이동할 시간 (초, number)
 --------------------------------------------------------------------- */
-
-// 쉼표 구분 문자열 → 깔끔한 리스트.
-// 예시: " 꿀팁, 결론 ,  " → ["꿀팁", "결론"]
-function parseCommaList(text) {
-  const result = [];
-  const parts = text.split(",");
-  for (const part of parts) {
-    const trimmed = part.trim();
-    if (trimmed.length > 0) result.push(trimmed);
-  }
-  return result;
-}
-
-function readIntentFromForm() {
-  editSetup.purpose       = document.getElementById("setup-purpose").value.trim();
-  editSetup.targetMinutes = Number(document.getElementById("setup-target-minutes").value) || 0;
-  editSetup.tone          = document.getElementById("setup-tone").value;
-  editSetup.mustInclude   = parseCommaList(document.getElementById("setup-must-include").value);
-  editSetup.mustExclude   = parseCommaList(document.getElementById("setup-must-exclude").value);
+function seekPreviewTo(sec) {
+  if (!videoEl) return;
+  if (!isFinite(videoEl.duration) || videoEl.duration <= 0) return;
+  const target = Math.max(0, Math.min(Number(sec) || 0, videoEl.duration));
+  videoEl.currentTime = target;
 }
 
 /* ---------------------------------------------------------------------
-   요청 JSON 조립 ("편집 시작" 버튼이 눌렸을 때)
+   오른쪽 위 상태 메시지 영역
    ---------------------------------------------------------------------
-   편집 시작:
-     1) 화면 값들을 editSetup에 반영
-     2) locked_nodes = lockedIds 집합을 리스트로 (partial 모드일 때만)
-     3) excluded_nodes = "전체 id - 체크된 id"
-     4) request 객체를 만들어 콘솔 로그 + 화면 pre 태그에 보여준다
+   kind 값: "empty" | "info" | "ok" | "error"
 --------------------------------------------------------------------- */
-function buildEditRequest() {
-  readIntentFromForm();
+function setSetupStatus(text, kind) {
+  const el = document.getElementById("setup-status");
+  if (!el) return;
+  el.textContent = text || "";
+  el.className   = "setup-status is-" + (kind || "empty");
+}
 
-  // 전체 노드 id를 한 번만 모아둔다.
-  // 예: 트리에 ["intro","intro-hook","body","tip-1"] 가 있다고 하자.
-  const allIds = [];
-  collectAllNodeIds(editSetup.tree, allIds);
+/* ---------------------------------------------------------------------
+   AI 가편집 요청 JSON 조립
+   ---------------------------------------------------------------------
+   요청 포맷(새 형식):
+     { mode, target_minutes, user_prompt, selected_nodes }
 
-  // 1) selected_nodes = 사용자가 트리에서 체크한 노드 id 목록.
-  //    manual 모드에서는 이 리스트가 "최종 결과"로 그대로 쓰인다.
-  //    예: 사용자가 ["intro","body"]를 체크 → selected = ["intro","body"]
-  const selectedIds = [];
-  for (const nid of allIds) {
-    if (editSetup.checkedIds.has(nid)) selectedIds.push(nid);
-  }
+   "AI 가편집하기" 버튼을 누르면 mode = "auto" 로 서버에 보낸다.
+   사용자가 버튼을 누르지 않고 체크만 바꾸면 manual 모드로 간주되지만,
+   그 경우에는 서버 호출 없이 체크 상태 그대로 다음 단계에서 쓰면 된다.
 
-  // 2) excluded_nodes = 체크 해제된 id 목록 (전체 - 체크된).
-  //    partial/auto 모드에서 AI에게 "이건 빼라"고 알리는 용도.
-  //    예: 전체 [a,b,c], 체크 [a,c] → excluded = [b]
-  const excludedIds = [];
-  for (const nid of allIds) {
-    if (!editSetup.checkedIds.has(nid)) excludedIds.push(nid);
-  }
-
-  // 3) locked는 partial 모드에서만 의미 있음.
-  //    (manual/auto는 비어 있어도 되지만, 포맷을 통일하려고 항상 보낸다)
-  let lockedList = [];
-  if (editSetup.mode === "partial") {
-    lockedList = Array.from(editSetup.lockedIds);
-  }
-
+   입력:  mode  - "auto" | "manual"
+   출력:  요청 dict
+--------------------------------------------------------------------- */
+function buildEditRequest(mode) {
+  const selectedIds = collectCheckedIdsInTreeOrder();
   return {
-    mode:            editSetup.mode,
-    selected_nodes:  selectedIds,
-    locked_nodes:    lockedList,
-    excluded_nodes:  excludedIds,
-    purpose:         editSetup.purpose,
-    target_minutes:  editSetup.targetMinutes,
-    tone:            editSetup.tone,
-    must_include:    editSetup.mustInclude,
-    must_exclude:    editSetup.mustExclude,
+    mode:           mode,
+    target_minutes: editSetup.targetMinutes,
+    user_prompt:    editSetup.userPrompt,
+    selected_nodes: selectedIds,
   };
 }
 
-function showEditRequest(request) {
-  const section = document.getElementById("setup-request-section");
-  const view    = document.getElementById("setup-request-view");
-  view.textContent = JSON.stringify(request, null, 2);
-  view.className   = "setup-request-view";
-  section.classList.remove("hidden");
-  // 스크롤을 요청 영역으로 내려서 사용자가 바로 볼 수 있게
-  view.scrollIntoView({ behavior: "smooth", block: "nearest" });
-}
-
-/* ---------------------------------------------------------------------
-   setup 하단 상태/결과 메시지 표시
-   ---------------------------------------------------------------------
-   setup-request-section을 재활용해서 세 가지 메시지를 보여준다.
-     - kind="info"  : "AI가 장면을 고르는 중..." 같은 안내 메시지
-     - kind="ok"    : 성공 요약
-     - kind="error" : 실패 사유 (validation.errors)
---------------------------------------------------------------------- */
-function showSetupStatus(text, kind) {
-  const section = document.getElementById("setup-request-section");
-  const label   = section.querySelector(".setup-section-label");
-  const view    = document.getElementById("setup-request-view");
-
-  if (kind === "error") {
-    label.textContent = "AI 선택 오류";
-    view.className    = "setup-request-view is-error";
-  } else if (kind === "info") {
-    label.textContent = "AI 진행 상태";
-    view.className    = "setup-request-view is-info";
-  } else {
-    label.textContent = "AI 결과";
-    view.className    = "setup-request-view";
+/* 트리 순서대로 "체크된 id" 들을 모은다. 매번 Set 을 순회하는 것보다
+   트리 순서를 유지하면 로그로 보기 좋다. */
+function collectCheckedIdsInTreeOrder() {
+  const allIds = [];
+  collectAllNodeIds(editSetup.tree, allIds);
+  const out = [];
+  for (const nid of allIds) {
+    if (editSetup.checkedIds.has(nid)) out.push(nid);
   }
-
-  view.textContent = text;
-  section.classList.remove("hidden");
-  view.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  return out;
 }
 
 /* ---------------------------------------------------------------------
-   "편집 시작" 버튼 클릭 → 서버 /select_scenes 호출
+   "AI 가편집하기" 버튼 클릭 핸들러
    ---------------------------------------------------------------------
    흐름:
-     1) 현재 입력(request) + 프로필(profile) + 트리(tree)를 조립
-     2) 버튼을 비활성화하고 "AI가 장면을 고르는 중..." 표시
-     3) fetch로 /select_scenes POST
-     4) 성공: 트리 체크 상태를 selected_ids로 맞추고 reasons를 표시
-        실패: validation.errors를 화면에 보여줌
-     5) finally: 버튼 다시 활성화
+     1) 입력(목표 분량, 사용자 프롬프트)을 editSetup 에 반영
+     2) 요청 조립 → /select_scenes POST
+     3) 성공: 체크 상태를 selected_ids 로 맞추고 이유(reasons) 표시
+        실패: validation.errors 를 상태 메시지에 보여줌
+     4) finally 로 버튼 상태 복원
 --------------------------------------------------------------------- */
-async function startEditWithAi() {
-  const request = buildEditRequest();
+async function runAiAutoEdit() {
+  // 1) 폼 입력 → 상태
+  editSetup.targetMinutes = Number(document.getElementById("setup-target-minutes").value) || 0;
+  editSetup.userPrompt    = document.getElementById("setup-user-prompt").value.trim();
+  updateSetupSummary();
+
+  const request = buildEditRequest("auto");
   const profile = loadProfile();
   const tree    = editSetup.tree;
 
   const btn = document.getElementById("btn-start-edit");
   btn.disabled    = true;
   btn.textContent = "AI가 장면을 고르는 중...";
-  showSetupStatus("AI가 장면을 고르는 중...", "info");
+  setSetupStatus("AI가 장면을 고르는 중...", "info");
 
   try {
     const res = await fetch("/select_scenes", {
@@ -2500,37 +3019,37 @@ async function startEditWithAi() {
     const data = await res.json();
     handleSelectScenesResult(data);
   } catch (err) {
-    showSetupStatus("요청 실패: " + err.message, "error");
+    setSetupStatus("요청 실패: " + err.message, "error");
   } finally {
     btn.disabled    = false;
-    btn.textContent = "편집 시작";
+    btn.textContent = "AI 가편집하기";
   }
 }
 
 /* ---------------------------------------------------------------------
-   /select_scenes 응답을 받아 UI에 반영
+   /select_scenes 응답을 받아 UI 반영
    ---------------------------------------------------------------------
    입력: data = { ok, selected_ids, reasons, validation }
 --------------------------------------------------------------------- */
 function handleSelectScenesResult(data) {
-  // 1) AI가 돌려준 선택 상태를 트리에 반영.
+  // 1) AI 가 돌려준 선택 상태를 체크 집합에 반영
   const selectedIds = Array.isArray(data.selected_ids) ? data.selected_ids : [];
   editSetup.checkedIds = new Set(selectedIds);
   editSetup.reasons    = (data.reasons && typeof data.reasons === "object") ? data.reasons : {};
 
-  // 2) 트리와 요약 다시 그리기.
-  renderSetupTree();
+  // 2) 가운데 장면 목록 + 요약 다시 그리기
+  renderSceneList();
   updateSetupSummary();
 
-  // 3) 성공/실패에 따라 메시지.
+  // 3) 결과 메시지
   if (data.ok) {
-    const totalSec = (data.validation && data.validation.total_duration_sec) || 0;
+    const totalSec  = (data.validation && data.validation.total_duration_sec) || 0;
     const targetSec = (data.validation && data.validation.target_sec) || 0;
     const msg = [
       "AI가 " + selectedIds.length + "개 장면을 골랐습니다.",
       "총 길이: " + totalSec.toFixed(1) + "초 / 목표: " + targetSec.toFixed(1) + "초",
     ].join("\n");
-    showSetupStatus(msg, "ok");
+    setSetupStatus(msg, "ok");
   } else {
     const errors = (data.validation && Array.isArray(data.validation.errors))
       ? data.validation.errors
@@ -2538,34 +3057,330 @@ function handleSelectScenesResult(data) {
     const msg = ["AI 선택이 검증을 통과하지 못했습니다:"]
       .concat(errors.map(function(e) { return "- " + e; }))
       .join("\n");
-    showSetupStatus(msg, "error");
+    setSetupStatus(msg, "error");
+  }
+
+  // 4) AI 가 고른 장면을 타임라인 자막 조각에 반영
+  //    (분석된 클립이 없으면 함수 안에서 상태 메시지만 바꾼다)
+  applySelectedScenesToSegments();
+}
+
+/* =====================================================================
+   체크된 장면 → 타임라인/내보내기 반영 (시간 기준 연결)
+   ---------------------------------------------------------------------
+   편집 설정 화면에서 체크된 장면(editSetup.checkedIds) 들을 시간 범위로
+   바꾼 뒤, 분석된 클립의 segments 하나하나에 대해 "조각 가운데 시간" 이
+   어느 범위 안에 들어가는지로 cut 값을 다시 정한다.
+
+   왜 "시간 기준" 인가?
+     장면 트리의 노드 id 와 segment 는 서로를 모른다. 공통어는 "초" 뿐.
+     그래서 체크된 노드들을 (start, end) 범위로 바꾸고, segment 의 가운데
+     시간이 그 범위에 포함되는지만 보면 매핑이 깔끔하게 된다.
+
+   왜 "가운데 시간" 인가?
+     seg.start 나 seg.end 하나만 보면 경계에서 애매하게 걸치는 조각이
+     들쭉날쭉 분류될 수 있다. 가운데 시간은 그 조각의 "대표 시각" 이라
+     가장 직관적이다.
+
+   예시) 체크된 장면 범위 = [120, 220] (초)
+     - 조각 150~153   → 가운데 151.5초 → 범위 안 → cut = false (남김)
+     - 조각 218~225   → 가운데 221.5초 → 범위 밖 → cut = true  (버림)
+     - 조각 400~402   → 가운데 401초   → 범위 밖 → cut = true  (버림)
+
+   [부모/자식 중복 방지]
+     body(30-330) 와 그 자식 tip-2(120-220) 가 둘 다 체크됐다면,
+     body 범위가 이미 tip-2 를 덮으므로 범위 목록에는 body 만 넣는다.
+     (중복 비교를 피해 코드가 간단해진다)
+   ===================================================================== */
+
+/* 트리 한 노드를 재귀로 돌면서, 체크된 노드의 범위를 outRanges 에 담는다.
+   입력:
+     node          - 현재 노드 (내부 포맷)
+     checkedIds    - 체크된 id Set
+     parentChecked - 조상 중에 체크된 게 있는가? (true 면 이 노드는 추가하지 않음)
+     outRanges     - 결과를 담을 리스트 (호출자가 넘기는 빈 배열)
+   출력: 없음 (outRanges 를 직접 수정)
+
+   예시) 트리  body(30-330) [체크됨]
+                └ tip-2(120-220) [체크됨]
+         호출: collectCheckedRangesWalk(body, {body,tip-2}, false, out)
+         결과: out == [{start:30, end:330}]  (tip-2 는 추가 안 됨)
+*/
+function collectCheckedRangesWalk(node, checkedIds, parentChecked, outRanges) {
+  const isCheckedHere = checkedIds.has(node.id);
+  if (isCheckedHere && !parentChecked) {
+    outRanges.push({ start: node.start, end: node.end });
+  }
+  // 자식한테 넘길 "조상 체크 여부" = 지금까지의 조상 중 하나라도 체크되었는가.
+  const subParentChecked = parentChecked || isCheckedHere;
+  for (const child of node.children) {
+    collectCheckedRangesWalk(child, checkedIds, subParentChecked, outRanges);
   }
 }
 
-/* ---------------------------------------------------------------------
-   이벤트 바인딩
---------------------------------------------------------------------- */
+/* 트리 전체에서 "체크된 장면의 시간 범위 목록" 을 만든다.
+   입력:  tree(루트 노드 리스트), checkedIds(Set)
+   출력:  [{start, end}, ...] (부모/자식 중복 없음)
 
-// "가짜 트리로 테스트" 버튼
-document.getElementById("btn-setup-test").addEventListener("click", openEditSetupWithFakeTree);
-
-// 모드 버튼들
-for (const btn of document.querySelectorAll(".setup-mode-btn")) {
-  btn.addEventListener("click", function() {
-    editSetup.mode = btn.dataset.mode;
-    updateSetupModeButtons();
-    renderSetupTree();   // 자물쇠 보임/숨김이 바뀌므로 다시 그림
-  });
+   예시) 트리 전체 = [intro, body, outro], 체크 = {body, outro}
+         결과 = [{30,330}, {330,390}]
+*/
+function collectCheckedRanges(tree, checkedIds) {
+  const result = [];
+  for (const root of tree) {
+    collectCheckedRangesWalk(root, checkedIds, false, result);
+  }
+  return result;
 }
 
-// 목표 분량이 바뀌면 요약 바도 바로 갱신
+/* 특정 시간 t(초) 가 범위 목록 중 하나에라도 들어가는지 검사.
+   입력:  t(초, number), ranges([{start,end}, ...])
+   출력:  true / false
+
+   예시) t = 151.5, ranges = [{120, 220}] → true
+         t = 400,   ranges = [{120, 220}] → false
+         t = 220,   ranges = [{120, 220}] → false (end 는 포함 안 함)
+*/
+function isTimeInsideAnyRange(t, ranges) {
+  for (const r of ranges) {
+    if (t >= r.start && t < r.end) return true;
+  }
+  return false;
+}
+
+/* 조각 목록 전체의 cut 값을 다시 정한다.
+   입력:  segments([{start, end, cut, ...}, ...]), ranges([{start,end}, ...])
+   출력:  없음 (각 seg.cut 을 직접 수정)
+
+   예시) seg = {start:150, end:153}, ranges = [{120, 220}]
+          → mid = 151.5 → 범위 안 → cut = false
+         seg = {start:400, end:402}, ranges = [{120, 220}]
+          → mid = 401   → 범위 밖 → cut = true
+*/
+function applyRangesToSegments(segments, ranges) {
+  for (const seg of segments) {
+    const midTime = (seg.start + seg.end) / 2;
+    const isInside = isTimeInsideAnyRange(midTime, ranges);
+    seg.cut = !isInside;
+  }
+}
+
+/* 분석된 클립들만 모아 돌려준다.
+   입력:  없음
+   출력:  분석이 끝났고 segments 를 가진 미디어 리스트
+
+   예시) project.media_list 에 3개가 있고 그 중 1개만 analysis_status=="analyzed"
+         이고 segments.length>0 이면, 그 1개만 돌려준다.
+*/
+function findAnalyzedClipsForScenes() {
+  const result = [];
+  for (const media of project.media_list) {
+    const hasSegments = Array.isArray(media.segments) && media.segments.length > 0;
+    if (media.analysis_status === "analyzed" && hasSegments) {
+      result.push(media);
+    }
+  }
+  return result;
+}
+
+/* [공개 함수]
+   체크된 장면을 "지금 타임라인에 올라와 있는 분석된 클립들" 의
+   segments 에 반영한다. 반영 후 기존 타임라인 그리기 함수와 내보내기
+   버튼 상태 갱신 함수를 호출한다.
+
+   호출 시점:
+     - "AI 가편집하기" 결과를 받은 직후
+     - 사용자가 장면 체크박스를 바꿀 때
+
+   안전 장치:
+     - 분석된 클립이 하나도 없으면 상태 메시지로 안내만 하고 끝낸다.
+     - 체크된 장면이 하나도 없으면 아무것도 바꾸지 않는다.
+       (실수로 전체 조각이 cut 되는 사고를 막기 위함)
+
+   예시 흐름)
+     분석된 클립 1개 (segments 10개), 체크된 범위 [{120, 220}]
+       → 각 segment 가운데 시간이 120~220 사이인 조각만 cut=false,
+         나머지는 cut=true
+       → renderTimeline() 으로 타임라인 다시 그림
+       → updateExportBtn() 으로 내보내기 버튼 활성 상태 갱신
+*/
+function applySelectedScenesToSegments() {
+  // 1) 분석된 클립이 없으면 안내만 하고 끝
+  const analyzedClips = findAnalyzedClipsForScenes();
+  if (analyzedClips.length === 0) {
+    setSetupStatus("먼저 영상을 업로드하고 분석해주세요", "info");
+    return;
+  }
+
+  // 2) 체크된 장면의 시간 범위 목록
+  const ranges = collectCheckedRanges(editSetup.tree, editSetup.checkedIds);
+  if (ranges.length === 0) {
+    // 체크된 장면 하나도 없음 → 전체가 잘리는 사고를 막기 위해 그대로 둔다.
+    return;
+  }
+
+  // 3) 각 클립의 segments 를 범위 기준으로 다시 정하기
+  for (const clip of analyzedClips) {
+    applyRangesToSegments(clip.segments, ranges);
+  }
+
+  // 4) 기존 타임라인 그리기 함수와 내보내기 버튼 상태 갱신 함수 호출
+  //    (렌더/타임라인 그리기 코드 자체는 전혀 수정하지 않는다)
+  renderTimeline();
+  updateExportBtn();
+}
+
+
+/* ---------------------------------------------------------------------
+   이벤트 바인딩 - 오른쪽 위 (목표 분량, 사용자 프롬프트, AI 버튼)
+--------------------------------------------------------------------- */
 document.getElementById("setup-target-minutes").addEventListener("input", function() {
   editSetup.targetMinutes = Number(this.value) || 0;
   updateSetupSummary();
 });
 
-// "편집 시작" 버튼: 서버 /select_scenes로 요청을 보내서 AI가 장면을 고르게 한다.
-document.getElementById("btn-start-edit").addEventListener("click", startEditWithAi);
+document.getElementById("setup-user-prompt").addEventListener("input", function() {
+  editSetup.userPrompt = this.value;
+});
+
+document.getElementById("btn-start-edit").addEventListener("click", runAiAutoEdit);
+
+/* ---------------------------------------------------------------------
+   스타일 목록 렌더/열고닫기/추가/삭제
+   ---------------------------------------------------------------------
+   항목이 접힌 상태에서는 이름과 삭제 버튼만 보인다.
+   항목을 누르면 그 안에 #sub-style-pane 이 appendChild 로 "이동" 해 들어와
+   스타일 편집 폼이 나타난다. 한 번에 한 항목만 펼친다.
+--------------------------------------------------------------------- */
+
+// 스타일 목록 다시 그리기
+function renderStyleList() {
+  const container = document.getElementById("style-list");
+  container.innerHTML = "";
+  for (let i = 0; i < styleItems.length; i++) {
+    container.appendChild(makeStyleItemEl(styleItems[i], i));
+  }
+}
+
+// 스타일 항목 한 줄 DOM 만들기
+function makeStyleItemEl(item, index) {
+  const el = document.createElement("div");
+  el.className = "style-item" + (expandedStyleId === item.id ? " open" : "");
+
+  // 헤더(이름 + 삭제): 클릭하면 펼침/접힘 토글
+  const head = document.createElement("div");
+  head.className = "style-item-head";
+
+  const caret = document.createElement("span");
+  caret.className   = "style-item-caret";
+  caret.textContent = (expandedStyleId === item.id) ? "▼" : "▶";
+  head.appendChild(caret);
+
+  const num = document.createElement("span");
+  num.className   = "style-item-num";
+  num.textContent = (index + 1) + ".";
+  head.appendChild(num);
+
+  const name = document.createElement("span");
+  name.className   = "style-item-name";
+  name.textContent = item.name;
+  head.appendChild(name);
+
+  if (item.deletable) {
+    const del = document.createElement("button");
+    del.type        = "button";
+    del.className   = "style-item-del";
+    del.textContent = "삭제";
+    del.title       = "스타일 항목 삭제";
+    del.addEventListener("click", function(e) {
+      e.stopPropagation();
+      removeStyleItem(item.id);
+    });
+    head.appendChild(del);
+  }
+
+  head.addEventListener("click", function() { toggleStyleItem(item.id); });
+  el.appendChild(head);
+
+  // 펼쳐진 상태면 body 를 만들고, #sub-style-pane 을 그 안으로 옮겨 넣는다
+  if (expandedStyleId === item.id) {
+    const body = document.createElement("div");
+    body.className = "style-item-body";
+    el.appendChild(body);
+    attachSubStylePaneTo(body, item);
+  }
+
+  return el;
+}
+
+// #sub-style-pane 을 지정한 부모 요소 안으로 옮기고 활성 항목을 바꾼다.
+// 그 뒤 폼을 데이터에 맞춰 다시 채우고 미리보기를 그린다.
+function attachSubStylePaneTo(parentEl, item) {
+  const pane = document.getElementById("sub-style-pane");
+  if (!pane) return;
+  if (pane.parentNode !== parentEl) parentEl.appendChild(pane);
+  pane.style.display = "block";
+
+  activeStyleItem = item;
+  syncSubStyleForm();
+}
+
+// 항목 펼침/접힘 토글
+function toggleStyleItem(id) {
+  if (expandedStyleId === id) {
+    expandedStyleId = null;
+    // 접을 때는 pane 을 다시 obj-panel 로 돌려 둔다 (보이지는 않음).
+    const pane     = document.getElementById("sub-style-pane");
+    const objPanel = document.getElementById("obj-panel");
+    if (pane && objPanel && pane.parentNode !== objPanel) {
+      objPanel.appendChild(pane);
+    }
+    if (pane) pane.style.display = "none";
+    activeStyleItem = styleItems[0];
+  } else {
+    expandedStyleId = id;
+  }
+  renderStyleList();
+}
+
+// 스타일 항목 하나 추가 (사용자에게 이름을 묻는다)
+function addStyleItem() {
+  const name = (window.prompt("스타일 항목 이름을 입력하세요", "새 스타일") || "").trim();
+  if (!name) return;
+  const newId = "custom_" + Date.now();
+  styleItems.push({
+    id:          newId,
+    name:        name,
+    data:        makeDefaultStyleData(),
+    previewText: name + " 예시",
+    deletable:   true,
+  });
+  expandedStyleId = newId;    // 추가하자마자 바로 펼쳐 보이게
+  renderStyleList();
+}
+
+// 스타일 항목 하나 삭제. 기본 3 개(deletable=false)는 삭제할 수 없다.
+function removeStyleItem(id) {
+  const idx = styleItems.findIndex(function(it) { return it.id === id; });
+  if (idx < 0) return;
+  if (!styleItems[idx].deletable) return;
+
+  if (expandedStyleId === id) {
+    // 삭제 전에 pane 을 obj-panel 로 돌려 둔다.
+    const pane     = document.getElementById("sub-style-pane");
+    const objPanel = document.getElementById("obj-panel");
+    if (pane && objPanel && pane.parentNode !== objPanel) {
+      objPanel.appendChild(pane);
+    }
+    if (pane) pane.style.display = "none";
+    expandedStyleId = null;
+    activeStyleItem = styleItems[0];
+  }
+  styleItems.splice(idx, 1);
+  renderStyleList();
+}
+
+document.getElementById("btn-style-add").addEventListener("click", addStyleItem);
 
 
 /* =====================================================================
@@ -2582,6 +3397,8 @@ const DEFAULT_PROFILE = {
   cut_tempo:       "",
   filler_removal:  "",
   frequent_words:  [],
+  subtitle_style:  null,   // null = SUBTITLE_STYLE_DEFAULTS 사용. 저장되면 스타일 객체.
+  style_items:     null,   // null = 기본 3 개 유지. 저장되면 추가/변경된 항목까지 담긴다.
 };
 
 // 저장소에서 프로필을 읽어온다. 없거나 깨져 있으면 DEFAULT_PROFILE.
@@ -2594,6 +3411,12 @@ function loadProfile() {
       cut_tempo:      parsed.cut_tempo      ?? "",
       filler_removal: parsed.filler_removal ?? "",
       frequent_words: Array.isArray(parsed.frequent_words) ? parsed.frequent_words : [],
+      // 자막 스타일: 저장된 객체면 그대로 사용, 아니면 null
+      subtitle_style: (parsed.subtitle_style && typeof parsed.subtitle_style === "object")
+        ? parsed.subtitle_style
+        : null,
+      // 스타일 목록: 저장된 배열이면 그대로 사용, 아니면 null
+      style_items: Array.isArray(parsed.style_items) ? parsed.style_items : null,
     };
   } catch (e) {
     return { ...DEFAULT_PROFILE };
@@ -2612,13 +3435,82 @@ function applyProfileToForm(profile) {
   document.getElementById("profile-frequent-words").value = profile.frequent_words.join(", ");
 }
 
-// 모달 폼에서 현재 입력값을 꺼내서 profile 객체로.
+// styleItems 를 저장용 포맷(배열)으로 바꾼다. 자막 항목은 SUBTITLE_STYLE 과
+// 같은 객체를 공유하지만, 직렬화할 때는 그냥 값만 꺼내 담으면 된다.
+function serializeStyleItems() {
+  const out = [];
+  for (const it of styleItems) {
+    out.push({
+      id:          it.id,
+      name:        it.name,
+      data:        { ...it.data },
+      previewText: it.previewText,
+      deletable:   it.deletable,
+    });
+  }
+  return out;
+}
+
+// 모달 폼 + 전역 스타일 상태를 꺼내 profile 객체로.
 function readProfileFromForm() {
   return {
     cut_tempo:      document.getElementById("profile-cut-tempo").value,
     filler_removal: document.getElementById("profile-filler-removal").value,
     frequent_words: parseCommaList(document.getElementById("profile-frequent-words").value),
+    subtitle_style: { ...SUBTITLE_STYLE },
+    style_items:    serializeStyleItems(),
   };
+}
+
+// 페이지 시작 시, 저장된 프로필의 자막 스타일을 SUBTITLE_STYLE 에 덮어씌운다.
+// (저장된 객체에 없는 필드는 SUBTITLE_STYLE_DEFAULTS 가 유지되므로 안전)
+function applySubtitleStyleFromProfile() {
+  const prof = loadProfile();
+  if (prof.subtitle_style && typeof prof.subtitle_style === "object") {
+    Object.assign(SUBTITLE_STYLE, prof.subtitle_style);
+  }
+}
+
+// 저장된 스타일 목록이 있으면 styleItems 를 그 내용으로 재구성한다.
+// "자막" 항목(id="subtitle") 은 기존 SUBTITLE_STYLE 객체 참조를 유지해야
+// buildRenderPayload 가 올바른 값을 읽을 수 있다. (이미 applySubtitleStyle
+// FromProfile 로 자막 데이터는 복원해 두었다.)
+function applyStyleItemsFromProfile() {
+  const prof = loadProfile();
+  if (!Array.isArray(prof.style_items) || prof.style_items.length === 0) return;
+
+  const next = [];
+  for (const saved of prof.style_items) {
+    if (!saved || typeof saved !== "object") continue;
+    if (saved.id === "subtitle") {
+      // 자막 항목은 SUBTITLE_STYLE 참조를 유지
+      next.push({
+        id:          "subtitle",
+        name:        saved.name || "자막",
+        data:        SUBTITLE_STYLE,
+        previewText: saved.previewText || "예시 자막입니다. 이렇게 보여요.",
+        deletable:   false,
+      });
+    } else {
+      next.push({
+        id:          String(saved.id),
+        name:        String(saved.name || saved.id),
+        data:        { ...SUBTITLE_STYLE_DEFAULTS, ...(saved.data || {}) },
+        previewText: saved.previewText || (saved.name || "미리보기"),
+        deletable:   saved.deletable !== false, // 저장된 값에 없으면 삭제 가능으로
+      });
+    }
+  }
+  // 그래도 자막 항목이 없으면 안전하게 맨 앞에 추가
+  if (!next.some(function(it) { return it.id === "subtitle"; })) {
+    next.unshift({
+      id: "subtitle", name: "자막", data: SUBTITLE_STYLE,
+      previewText: "예시 자막입니다. 이렇게 보여요.", deletable: false,
+    });
+  }
+  styleItems.length = 0;
+  for (const it of next) styleItems.push(it);
+  activeStyleItem = styleItems[0];
 }
 
 function openProfileModal() {
@@ -2644,12 +3536,21 @@ document.getElementById("btn-profile-save").addEventListener("click", function()
   status.className   = "modal-status ok";
 });
 
-// 페이지가 열릴 때 저장된 프로필이 있는지 미리 확인 (지금은 로그만, 나중에 쓸 자리).
-// 공부용: 저장 → 리로드 → 자동으로 불러와지는지 확인용.
+// 페이지가 열릴 때 저장된 프로필이 있는지 미리 확인 (공부용 로그).
 console.log("[profile] 저장된 프로필:", loadProfile());
 
 
-// Init
+/* =====================================================================
+   Init
+   ---------------------------------------------------------------------
+   1) 저장된 자막 스타일이 있으면 SUBTITLE_STYLE 에 반영 (프로필 로드)
+   2) 저장된 스타일 목록이 있으면 styleItems 를 그 내용으로 재구성
+   3) 폼 입력들을 현재 활성 스타일에 맞추고 미리보기도 한 번 그려 둠
+   4) 타임라인 레이아웃 그리기
+===================================================================== */
+applySubtitleStyleFromProfile();
+applyStyleItemsFromProfile();
+syncSubStyleForm();
 renderTimeline();
 </script>
 </body>
