@@ -10,7 +10,7 @@ import sys
 import uuid
 import traceback
 from pathlib import Path
-from typing import Any, Dict, List, Literal
+from typing import Any, Dict, List, Literal, Optional
 
 # Windows cp949 터미널에서 이모지 print 시 UnicodeEncodeError 방지
 if hasattr(sys.stdout, "reconfigure"):
@@ -55,6 +55,9 @@ class RenderRequest(BaseModel):
     source_file: str
     segments: List[SubtitleSegment] = Field(min_length=1, max_length=1000)
     aspect_ratio: Literal["16:9", "9:16"] = "16:9"
+    # 프론트엔드 자막 스타일 패널 값 (index.html buildRenderPayload). 없으면 기본 스타일
+    style_preset: Optional[str] = None
+    style_overrides: Optional[Dict[str, Any]] = None
 
 
 class ReviseRequest(BaseModel):
@@ -276,6 +279,8 @@ def _render_video(
     job_id: str,
     input_path: Path,
     segments: List[Dict[str, Any]],
+    style_preset: Optional[str] = None,
+    style_overrides: Optional[Dict[str, Any]] = None,
 ) -> None:
     output_name = f"vibecut_{job_id}.mp4"
     output_path = OUTPUT_DIR / output_name
@@ -285,6 +290,8 @@ def _render_video(
 
         render_jobs[job_id].update(progress=10, message="렌더링을 준비하는 중...")
         edit_data = segments_to_edit_data(segments)
+        edit_data["style_preset"] = style_preset
+        edit_data["style_overrides"] = style_overrides
         final_path = me_render_video(str(input_path), edit_data, _progress)
         shutil.copy2(final_path, str(output_path))
 
@@ -319,7 +326,8 @@ async def render_video(request: RenderRequest) -> JSONResponse:
     render_jobs[job_id] = {"status": "processing", "progress": 5, "message": "렌더링을 준비하는 중..."}
     asyncio.create_task(
         asyncio.to_thread(
-            _render_video, job_id, input_path, normalized_segments
+            _render_video, job_id, input_path, normalized_segments,
+            request.style_preset, request.style_overrides,
         )
     )
     return JSONResponse({"job_id": job_id, **render_jobs[job_id]})

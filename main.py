@@ -8,6 +8,7 @@ Main Pipeline Script
 import os
 import json
 import tempfile
+import time
 import subprocess
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
 from typing import List, Dict, Any, Optional
@@ -80,6 +81,14 @@ except Exception:
     genai = None
 
 from config import config
+
+
+def _is_transient_gemini_error(error: Exception) -> bool:
+    """잠시 뒤 다시 시도하면 될 수 있는 Gemini 오류인지 (혼잡·서버 오류·시간 초과)."""
+    if isinstance(error, TimeoutError):
+        return True
+    text = str(error)
+    return any(code in text for code in ("503", "UNAVAILABLE", "500", "INTERNAL", "504", "DEADLINE_EXCEEDED"))
 
 # 한국어 폰트 설정 (macOS 기본 경로)
 # Windows: "C:/Windows/Fonts/malgun.ttf"
@@ -485,11 +494,31 @@ class VideoEditingPipeline:
         return commands
 
     def _call_gemini(self, prompt: str) -> str:
-        """Gemini에 요청을 보내고 텍스트 응답을 반환합니다."""
+        """Gemini에 요청을 보내고 텍스트 응답을 반환합니다.
+
+        503(혼잡)·500·504·시간 초과 같은 일시 오류는 잠시 기다렸다 다시 시도하고,
+        그래도 안 되면 가벼운 모델(GEMINI_FALLBACK_MODEL, 기본 gemini-3.5-flash-lite)로 한 번 더 시도합니다.
+        """
+        fallback = os.getenv("GEMINI_FALLBACK_MODEL", "gemini-3.5-flash-lite")
+        models = [self.gemini_model_name] + ([fallback] if fallback and fallback != self.gemini_model_name else [])
+        last_error: Optional[Exception] = None
+        for model_name in models:
+            for attempt in range(2):
+                try:
+                    return self._call_gemini_once(prompt, model_name)
+                except Exception as error:
+                    last_error = error
+                    if not _is_transient_gemini_error(error):
+                        raise
+                    print(f"⚠️ Gemini 일시 오류({model_name}, {attempt + 1}회차): {str(error)[:120]}")
+                    time.sleep(2 * (attempt + 1))
+        raise last_error  # type: ignore[misc]
+
+    def _call_gemini_once(self, prompt: str, model_name: str) -> str:
         def _run_call() -> str:
             if self.gemini_client is not None:
                 response = self.gemini_client.models.generate_content(
-                    model=self.gemini_model_name,
+                    model=model_name,
                     contents=prompt,
                     config=google_types.GenerateContentConfig(
                         temperature=0.1,
@@ -500,7 +529,8 @@ class VideoEditingPipeline:
                 return getattr(response, "text", "")
 
             if self.gemini_model is not None:
-                response = self.gemini_model.generate_content(
+                model = self.gemini_model if model_name == self.gemini_model_name else genai.GenerativeModel(model_name)
+                response = model.generate_content(
                     prompt,
                     generation_config=genai.types.GenerationConfig(
                         temperature=0.1,
@@ -600,35 +630,31 @@ class VideoEditingPipeline:
             if response_text.endswith("```"):
                 response_text = response_text[:-3]
             response_text = response_text.strip()
-            
-            # 강력한 JSON 복구 로직
-            lines = response_text.split('\n')
-            cleaned_lines = []
-            
-            for line in lines:
-                line = line.strip()
-                if line and (line.startswith('[') or line.startswith('{') or line.startswith('"') or 
-                           line.startswith('  ') or line == ']' or line == '}' or line == ','):
-                    cleaned_lines.append(line)
-            
-            # 불완전한 마지막 줄 제거
-            if cleaned_lines and not cleaned_lines[-1].endswith('}') and not cleaned_lines[-1].endswith(']'):
-                cleaned_lines = cleaned_lines[:-1]
-            
-            # JSON 완성
-            response_text = '\n'.join(cleaned_lines)
-            if not response_text.endswith(']'):
-                if response_text.endswith(','):
-                    response_text = response_text[:-1]
-                response_text += ']'
-            
-            result = json.loads(response_text)
+
+            # 응답이 올바른 JSON이면 그대로 쓰고, 깨졌을 때만 복구한다.
+            # (예전에는 항상 복구 로직을 거쳤는데, 복구 로직이 "}," 줄을 지워서
+            #  문장이 2개 이상이면 멀쩡한 JSON도 깨지고 매번 로컬 명령으로 대체됐다)
+            try:
+                result = json.loads(response_text)
+            except json.JSONDecodeError:
+                # 응답이 중간에 잘린 경우: 마지막으로 완성된 객체("}")까지만 살리고 배열을 닫는다
+                start, last_close = response_text.find('['), response_text.rfind('}')
+                if start == -1 or last_close < start:
+                    raise
+                response_text = response_text[start:last_close + 1] + ']'
+                result = json.loads(response_text)
             if not isinstance(result, list):
                 raise ValueError("Gemini 응답이 JSON 배열이 아닙니다.")
             result = [self._normalize_edit_command(command, index) for index, command in enumerate(result)]
             print(f"✅ 문맥 분석 완료: {len(result)}개 편집 명령어")
             if not result:
                 return self._build_local_commands(segments)
+            # 응답이 잘려 뒤쪽 문장이 빠졌으면, 빠진 구간은 로컬 명령으로 채운다 (영상 뒷부분이 조용히 사라지는 것 방지)
+            covered_until = max(command["end"] for command in result)
+            missing = [segment for segment in segments if segment["start"] >= covered_until - 0.05]
+            if missing:
+                print(f"⚠️ Gemini 응답이 {covered_until:.1f}초에서 끊겨 나머지 {len(missing)}개 문장은 로컬 명령으로 채웁니다.")
+                result += self._build_local_commands(missing)
             return result
             
         except json.JSONDecodeError as e:
