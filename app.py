@@ -10,7 +10,7 @@ import sys
 import uuid
 import traceback
 from pathlib import Path
-from typing import Any, Dict, List, Literal
+from typing import Any, Dict, List, Literal, Optional
 
 # Windows cp949 터미널에서 이모지 print 시 UnicodeEncodeError 방지
 if hasattr(sys.stdout, "reconfigure"):
@@ -26,7 +26,13 @@ import uvicorn
 
 from config import config
 from main import VideoEditingPipeline
-from media_engine import render_video as me_render_video, segments_to_edit_data
+from scene_selector import select_scenes as _run_select_scenes
+
+# Windows cp949 터미널에서 이모지 print 시 UnicodeEncodeError 방지
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+if hasattr(sys.stderr, "reconfigure"):
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
 BASE_DIR = Path(__file__).resolve().parent
 STATIC_DIR = BASE_DIR / "static"
@@ -35,7 +41,7 @@ OUTPUT_DIR = BASE_DIR / "outputs"
 for directory in (STATIC_DIR, UPLOAD_DIR, OUTPUT_DIR):
     directory.mkdir(exist_ok=True)
 
-app = FastAPI(title="VIBE-CUT", version="2.0.0")
+app = FastAPI(title="VibeCut", version="2.0.0")
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 uploaded_files: Dict[str, Path] = {}
@@ -50,9 +56,22 @@ class SubtitleSegment(BaseModel):
     cut: bool = False
 
 
+class StyleOverrides(BaseModel):
+    font: Optional[str] = None
+    color: Optional[str] = None
+    size: Optional[int] = None
+    outline: Optional[bool] = None
+    outline_width: Optional[float] = None
+    background_box: Optional[bool] = None
+    karaoke: Optional[bool] = None
+    fade: Optional[bool] = None
+
+
 class RenderRequest(BaseModel):
     source_file: str
     segments: List[SubtitleSegment] = Field(min_length=1, max_length=1000)
+    style_preset: Literal["매운맛", "순한맛", "정석맛"] = "정석맛"
+    style_overrides: Optional[StyleOverrides] = None
     aspect_ratio: Literal["16:9", "9:16"] = "16:9"
 
 
@@ -100,42 +119,66 @@ def _safe_upload_name(filename: str) -> str:
 def _load_pipeline() -> VideoEditingPipeline:
     api_key = config.load_api_key()
     if not api_key:
-        raise RuntimeError("Gemini API 키가 설정되지 않았습니다. GEMINI_API_KEY 또는 gemini_key.txt를 확인하세요.")
+        raise RuntimeError("Gemini API 키가 설정되지 않았습니다.")
     pipeline = VideoEditingPipeline(api_key)
     try:
         pipeline.verify_gemini_connection()
-    except Exception as error:
-        print(f"Gemini 연결 확인 실패, 로컬 fallback으로 계속 진행합니다: {error}")
+    except Exception as e:
+        print(f"Gemini 연결 확인 실패, 계속 진행합니다: {e}")
     return pipeline
 
 
-def _analyze_video_with_progress(job_id: str, input_path: Path, stored_name: str) -> None:
+# ── Upload ──────────────────────────────────────────────────────────────────
+
+@app.post("/upload")
+async def upload_video(file: UploadFile = File(...)) -> JSONResponse:
+    """영상 파일만 저장하고 source_file 토큰 반환 (분석 없음)."""
+    if not (file.content_type or "").startswith("video/"):
+        raise HTTPException(status_code=400, detail="영상 파일만 업로드할 수 있습니다.")
+    stored_name = _safe_upload_name(file.filename or "video.mp4")
+    stored_path = UPLOAD_DIR / stored_name
+    try:
+        content = await file.read()
+        if len(content) > 500 * 1024 * 1024:
+            raise HTTPException(status_code=413, detail="파일 크기는 500MB를 초과할 수 없습니다.")
+        stored_path.write_bytes(content)
+        uploaded_files[stored_name] = stored_path
+        return JSONResponse({"source_file": stored_name, "source_url": f"/media/{stored_name}"})
+    except HTTPException:
+        stored_path.unlink(missing_ok=True)
+        uploaded_files.pop(stored_name, None)
+        raise
+    except Exception as error:
+        stored_path.unlink(missing_ok=True)
+        uploaded_files.pop(stored_name, None)
+        raise HTTPException(status_code=500, detail=f"업로드 실패: {error}") from error
+
+
+# ── Analyze ─────────────────────────────────────────────────────────────────
+
+def _analyze_video_with_progress(
+    job_id: str, input_path: Path, stored_name: str, style: str
+) -> None:
     def stage(msg: str, pct: int) -> None:
         analyze_jobs[job_id].update(stage=msg, progress=pct)
 
     pipeline = _load_pipeline()
     try:
-        stage("영상 정보 수집 중...", 5)
-        video_context = pipeline.step0_collect_video_context(str(input_path))
-
         stage("음성 추출 중...", 10)
         audio_path = pipeline.step1_extract_audio(str(input_path))
 
-        stage("음성 인식(Whisper) 처리 중... (가장 오래 걸립니다)", 15)
+        stage("음성 인식(Whisper) 처리 중... (시간이 걸립니다)", 15)
         segments = pipeline.step2_transcribe_audio(audio_path)
 
         stage("자막 교정 중...", 65)
         segments = pipeline.step2_refine_transcript(segments)
 
         stage("AI 문맥 분석(Gemini) 중...", 75)
-        segments = pipeline.step3_analyze_context(segments, video_context)
+        segments = pipeline.step3_analyze_context(segments, style)
 
         analyze_jobs[job_id].update(
-            status="completed",
-            stage="분석 완료",
-            progress=100,
-            segments=segments,
-            source_file=stored_name,
+            status="completed", stage="분석 완료", progress=100,
+            segments=segments, source_file=stored_name,
             source_url=f"/media/{stored_name}",
         )
     except Exception as error:
@@ -146,8 +189,10 @@ def _analyze_video_with_progress(job_id: str, input_path: Path, stored_name: str
 
 
 @app.post("/analyze")
-async def analyze_video(file: UploadFile = File(...)) -> JSONResponse:
-    """Upload a video, start AI analysis in background, return job_id for polling."""
+async def analyze_video(file: UploadFile = File(...), style: str = Form("정석맛")) -> JSONResponse:
+    """영상 업로드 후 AI 분석을 백그라운드로 시작, job_id 즉시 반환."""
+    if style not in {"매운맛", "순한맛", "정석맛"}:
+        raise HTTPException(status_code=400, detail="지원하지 않는 스타일입니다.")
     if not (file.content_type or "").startswith("video/"):
         raise HTTPException(status_code=400, detail="영상 파일만 업로드할 수 있습니다.")
 
@@ -166,12 +211,12 @@ async def analyze_video(file: UploadFile = File(...)) -> JSONResponse:
     except Exception as error:
         stored_path.unlink(missing_ok=True)
         uploaded_files.pop(stored_name, None)
-        raise HTTPException(status_code=500, detail=f"업로드에 실패했습니다: {error}") from error
+        raise HTTPException(status_code=500, detail=f"업로드 실패: {error}") from error
 
     job_id = uuid.uuid4().hex
     analyze_jobs[job_id] = {"status": "processing", "stage": "업로드 완료, 분석 시작...", "progress": 2}
     asyncio.create_task(
-        asyncio.to_thread(_analyze_video_with_progress, job_id, stored_path, stored_name)
+        asyncio.to_thread(_analyze_video_with_progress, job_id, stored_path, stored_name, style)
     )
     return JSONResponse({"job_id": job_id, "status": "processing"})
 
@@ -183,6 +228,8 @@ async def get_analyze_job(job_id: str) -> JSONResponse:
         raise HTTPException(status_code=404, detail="분석 작업을 찾을 수 없습니다.")
     return JSONResponse(job)
 
+
+# ── Revise ───────────────────────────────────────────────────────────────────
 
 def _revise_segments(instruction: str, segments: List[Dict[str, Any]]) -> Dict[str, Any]:
     pipeline = _load_pipeline()
@@ -213,7 +260,7 @@ def _revise_segments(instruction: str, segments: List[Dict[str, Any]]) -> Dict[s
 
 @app.post("/revise")
 async def revise_segments(request: ReviseRequest) -> JSONResponse:
-    """Use Gemini to apply a natural-language edit instruction to the segment list."""
+    """자연어 지시로 세그먼트를 Gemini가 수정."""
     segments_data = [
         s.model_dump() if hasattr(s, "model_dump") else s.dict()
         for s in request.segments
@@ -226,25 +273,77 @@ async def revise_segments(request: ReviseRequest) -> JSONResponse:
         return JSONResponse({"ok": False, "message": f"AI 수정 실패: {error}"})
 
 
+# ── Select Scenes ───────────────────────────────────────────────────────────
+
+class SelectScenesRequest(BaseModel):
+    """/select_scenes가 받는 요청 본문의 형태.
+
+    [필드]
+      profile : 사용자 편집 스타일 dict (예: {"cut_tempo": "빠름"})
+      request : 이번 요청 dict (mode, target_minutes, locked_nodes, 등)
+      tree    : 장면 트리 (정규화 전/후 모두 OK)
+    """
+    profile: Dict[str, Any] = Field(default_factory=dict)
+    request: Dict[str, Any] = Field(default_factory=dict)
+    tree: Any = None
+
+
+@app.post("/select_scenes")
+async def select_scenes_endpoint(payload: SelectScenesRequest) -> JSONResponse:
+    """편집 시작 버튼이 눌렸을 때 호출되는 엔드포인트.
+
+    [무엇을 하는지]
+      scene_selector.select_scenes를 백그라운드 스레드로 실행한 뒤,
+      그 결과(dict)를 그대로 JSON으로 돌려준다.
+
+    [입력]  {"profile": {...}, "request": {...}, "tree": [...]}
+    [출력]  {"ok":..., "selected_ids":..., "reasons":..., "validation":...}
+    """
+    try:
+        result = await asyncio.to_thread(
+            _run_select_scenes, payload.profile, payload.request, payload.tree,
+        )
+        return JSONResponse(result)
+    except Exception as error:
+        traceback.print_exc()
+        return JSONResponse({
+            "ok": False,
+            "selected_ids": [],
+            "reasons": {},
+            "validation": {
+                "ok": False,
+                "errors": [f"서버 오류: {error}"],
+                "warnings": [],
+            },
+        })
+
+
+# ── Render ───────────────────────────────────────────────────────────────────
+
 def _render_video(
-    job_id: str,
-    input_path: Path,
-    segments: List[Dict[str, Any]],
+    job_id: str, input_path: Path, segments: List[Dict[str, Any]],
+    aspect_ratio: str, style_preset: str = "정석맛",
+    style_overrides: Optional[Dict[str, Any]] = None,
 ) -> None:
     output_name = f"vibecut_{job_id}.mp4"
     output_path = OUTPUT_DIR / output_name
     try:
-        def _progress(stage: str, pct: int) -> None:
-            render_jobs[job_id].update(progress=pct, message=f"{stage}...")
-
-        render_jobs[job_id].update(progress=10, message="렌더링을 준비하는 중...")
-        edit_data = segments_to_edit_data(segments)
-        final_path = me_render_video(str(input_path), edit_data, _progress)
-        shutil.copy2(final_path, str(output_path))
-
+        render_jobs[job_id].update(progress=20, message="타임라인을 정리하는 중...")
+        pipeline = VideoEditingPipeline.__new__(VideoEditingPipeline)
+        pipeline.temp_dir = ""
+        # style_overrides 가 있으면 세그먼트의 색상·크기를 일괄 덮어씀
+        if style_overrides:
+            for seg in segments:
+                if style_overrides.get("color"):
+                    seg["subtitle_color"] = style_overrides["color"]
+                if style_overrides.get("size") is not None:
+                    seg["fontsize"] = int(style_overrides["size"])
+        render_jobs[job_id].update(progress=55, message="렌더링 중...")
+        pipeline.step5_create_final_video(
+            str(input_path), segments, str(output_path), aspect_ratio=aspect_ratio
+        )
         render_jobs[job_id].update(
-            status="completed",
-            progress=100,
+            status="completed", progress=100,
             message="렌더링이 완료되었습니다.",
             output_file=output_name,
             output_url=f"/download/{output_name}",
@@ -256,24 +355,27 @@ def _render_video(
 
 @app.post("/render")
 async def render_video(request: RenderRequest) -> JSONResponse:
-    """Render the exact subtitle/cut data currently edited in the browser."""
     input_path = uploaded_files.get(request.source_file)
     if input_path is None or not input_path.exists():
-        raise HTTPException(status_code=404, detail="업로드한 원본 영상을 찾을 수 없습니다. 다시 분석해주세요.")
+        raise HTTPException(status_code=404, detail="원본 영상을 찾을 수 없습니다. 다시 분석해주세요.")
 
-    normalized_segments = []
-    for segment in request.segments:
-        if segment.end <= segment.start:
+    normalized = []
+    for seg in request.segments:
+        if seg.end <= seg.start:
             raise HTTPException(status_code=422, detail="종료 시간은 시작 시간보다 뒤여야 합니다.")
-        normalized_segments.append(
-            segment.model_dump() if hasattr(segment, "model_dump") else segment.dict()
-        )
+        normalized.append(seg.model_dump() if hasattr(seg, "model_dump") else seg.dict())
+
+    overrides = (
+        request.style_overrides.model_dump(exclude_none=True)
+        if request.style_overrides else None
+    )
 
     job_id = uuid.uuid4().hex
     render_jobs[job_id] = {"status": "processing", "progress": 5, "message": "렌더링을 준비하는 중..."}
     asyncio.create_task(
         asyncio.to_thread(
-            _render_video, job_id, input_path, normalized_segments
+            _render_video, job_id, input_path, normalized,
+            request.aspect_ratio, request.style_preset, overrides,
         )
     )
     return JSONResponse({"job_id": job_id, **render_jobs[job_id]})
@@ -304,5 +406,5 @@ async def download_file(filename: str) -> FileResponse:
 
 
 if __name__ == "__main__":
-    print("VIBE-CUT 서버 시작: http://localhost:8000")
+    print("VibeCut 서버 시작: http://localhost:8000")
     uvicorn.run(app, host="0.0.0.0", port=8000)
