@@ -7,6 +7,7 @@ Main Pipeline Script
 
 import os
 import json
+import re
 import tempfile
 import subprocess
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
@@ -96,7 +97,7 @@ class VideoEditingPipeline:
         """
         self.gemini_client = None
         self.gemini_model = None
-        self.gemini_model_name = "gemini-3.5-flash"
+        self.gemini_model_name = "gemini-3.8-flash"
         # 정확도를 우선하는 기본값입니다. 처리 속도가 더 중요하면 환경 변수로
         # WHISPER_MODEL=base 또는 small을 지정할 수 있습니다.
         self.whisper_model_name = os.getenv("WHISPER_MODEL", "medium")
@@ -445,7 +446,11 @@ class VideoEditingPipeline:
         print("✅ 자막 표기 교정 완료 (타임스탬프 유지)")
         return refined_segments
     
-    def _build_local_commands(self, segments: List[Dict[str, Any]], style_preset: str) -> List[Dict[str, Any]]:
+    def _build_local_commands(
+        self,
+        segments: List[Dict[str, Any]],
+        style_preset: str = "정석맛",
+    ) -> List[Dict[str, Any]]:
         """Gemini 없이도 바로 사용할 수 있는 로컬 편집 명령어 생성"""
         if not segments:
             return [{
@@ -621,6 +626,9 @@ class VideoEditingPipeline:
                 if response_text.endswith(','):
                     response_text = response_text[:-1]
                 response_text += ']'
+
+            # 일부 모델 응답은 배열 원소 사이의 쉼표를 생략하므로 복구한다.
+            response_text = re.sub(r"}\s*{", "},{", response_text)
             
             result = json.loads(response_text)
             if not isinstance(result, list):
@@ -631,8 +639,8 @@ class VideoEditingPipeline:
                 return self._build_local_commands(segments)
             return result
             
-        except json.JSONDecodeError as e:
-            print(f"❌ JSON 파싱 오류: {e}")
+        except (json.JSONDecodeError, TypeError, ValueError, KeyError) as e:
+            print(f"❌ Gemini 응답 처리 오류: {e}")
             print(f"원본 응답: {response_text}")
             print("🔄 로컬 편집 명령어로 대체합니다...")
             

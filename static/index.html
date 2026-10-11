@@ -1361,7 +1361,7 @@ function createMedia(file, blobUrl) {
     id: genId(), filename: file.name, file, blob_url: blobUrl,
     source_file: null, duration: 0,
     timeline_start: null, timeline_range: { start: 0, end: 0 },
-    analysis_status: "uploading", analyze_job_id: null, segments: [],
+    analysis_status: "uploading", job_id: null, analyze_job_id: null, segments: [],
     thumbnails: null, thumb_interval: 1, thumb_w: 85,
   };
 }
@@ -1415,7 +1415,9 @@ async function handleFiles(files) {
       const res = await fetch("/upload", { method:"POST", body:fd });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
-      media.source_file = data.source_file; media.analysis_status = "ready";
+      media.job_id = data.job_id;
+      media.source_file = data.filename;
+      media.analysis_status = "ready";
     } catch(err) { media.analysis_status = "failed"; console.error("[upload]", err); }
     updateClipEl(media);
   }
@@ -2093,28 +2095,20 @@ async function analyzeSelectedClip() {
   document.getElementById("progress-bar-fill").style.width = "2%";
 
   try {
-    const fd = new FormData(); fd.append("file", media.file); fd.append("style", getStyle());
-    const res = await fetch("/analyze", { method:"POST", body:fd });
+    if (!media.job_id) throw new Error("업로드된 영상 작업 ID가 없습니다. 영상을 다시 업로드해 주세요.");
+    const res = await fetch("/edit", {
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({job_id: media.job_id, style_preset: getStyle()})
+    });
     if (!res.ok) { const d = await res.json().catch(()=>({})); throw new Error(d.detail||`HTTP ${res.status}`); }
-    const { job_id } = await res.json();
-    media.analyze_job_id = job_id;
-
-    for (;;) {
-      await sleep(1500);
-      const jr = await fetch(`/analyze_jobs/${job_id}`); const job = await jr.json();
-      document.getElementById("progress-stage").textContent = `${job.progress||0}%  ${job.stage||"분석 중..."}`;
-      document.getElementById("progress-bar-fill").style.width = `${job.progress||0}%`;
-
-      if (job.status === "completed") {
-        media.analysis_status = "review";
-        if (job.source_file) media.source_file = job.source_file;
-        updateClipEl(media); renderVideoTrack();
-        const summary = job.scene_summary || buildSummary(job.segments);
-        showReview(job.segments, summary);
-        break;
-      }
-      if (job.status === "failed") throw new Error(job.message || "알 수 없는 오류");
-    }
+    const job = await res.json();
+    document.getElementById("progress-stage").textContent = "분석 완료";
+    document.getElementById("progress-bar-fill").style.width = "100%";
+    media.analysis_status = "review";
+    media.segments = job.segments || [];
+    updateClipEl(media); renderVideoTrack();
+    showReview(media.segments, buildSummary(media.segments));
   } catch(err) {
     media.analysis_status = "failed";
     updateClipEl(media); renderVideoTrack();

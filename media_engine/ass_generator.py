@@ -70,6 +70,7 @@ def _build_karaoke_text(words: list[dict], sub_start: float) -> str:
 def generate(
     subtitles: list[dict],
     output_path: str,
+    style_preset: str = "정석맛",
     style_overrides: dict | None = None,
 ) -> None:
     """

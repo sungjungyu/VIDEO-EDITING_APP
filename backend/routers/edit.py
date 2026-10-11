@@ -1,5 +1,6 @@
 """POST /edit — job_id로 AI 파이프라인(Whisper+Gemini) 분석 실행"""
 import shutil
+import traceback
 from pathlib import Path
 from typing import Literal
 
@@ -34,7 +35,7 @@ def _run_pipeline(source_path: str, style: str) -> list[dict]:
         audio_path = pipeline.step1_extract_audio(source_path)
         segments = pipeline.step2_transcribe_audio(audio_path)
         segments = pipeline.step2_refine_transcript(segments)
-        return pipeline.step3_analyze_context(segments, style, video_context)
+        return pipeline.step3_analyze_context(segments, video_context)
     finally:
         shutil.rmtree(pipeline.temp_dir, ignore_errors=True)
 
@@ -51,6 +52,7 @@ async def edit_video(req: EditRequest) -> JSONResponse:
     try:
         segments = await run_in_threadpool(_run_pipeline, job["source_path"], req.style_preset)
     except Exception as e:
+        traceback.print_exc()
         job_store.update_job(req.job_id, status="error")
         raise HTTPException(status_code=500, detail=f"AI 분석에 실패했습니다: {e}") from e
 

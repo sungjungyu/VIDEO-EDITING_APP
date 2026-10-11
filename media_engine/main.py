@@ -58,7 +58,11 @@ def render_video(
         # Step 3: .ass 자막 파일 생성
         progress_callback("generating_subtitles", 15)
         ass_path = make_temp_path(".ass")
-        ass_generator.generate(remapped_subs, ass_path)
+        ass_generator.generate(
+            remapped_subs,
+            ass_path,
+            edit_data.get("style_preset", "정석맛"),
+        )
 
         # Step 4: 자막 합성 → 최종 인코딩
         progress_callback("encoding", 20)
