@@ -78,7 +78,7 @@ jobs = {
 1. POST /upload         → job_id 발급, 원본 영상 uploads/ 저장
 2. POST /edit             → job_id로 Whisper+Gemini 분석 실행 (팀원3 파이프라인 호출)
 3. WebSocket 연결          → ws://.../ws/{job_id}  (렌더링 시작 전 미리 연결)
-4. POST /render            → job_id + edit_data(cuts, subtitles, style_preset) 전송
+4. POST /render            → job_id + edit_data(cuts, subtitles) 전송
                               → run_in_threadpool로 팀원4 render_video() 백그라운드 실행
 5. 웹소켓으로 진행률 실시간 수신 → 완료 시 최종 파일 경로(result_url) 수신
 ```

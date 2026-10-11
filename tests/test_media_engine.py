@@ -76,28 +76,26 @@ def main():
         {
             "cuts": [{"start": 0.0, "end": 5.0}, {"start": 10.0, "end": 15.0}],
             "subtitles": [],
-            "style_preset": "정석맛",
         },
         video_path,
     ))
 
-    # 테스트 2: 자막 포함 (정석맛)
+    # 테스트 2: 자막 포함
     results.append(run_test(
-        "자막 포함 -정석맛",
+        "자막 포함",
         {
             "cuts": [{"start": 0.0, "end": 8.0}],
             "subtitles": [
                 {"start": 0.5, "end": 3.0, "text": "안녕하세요"},
                 {"start": 3.5, "end": 7.0, "text": "미디어 엔진 테스트입니다"},
             ],
-            "style_preset": "정석맛",
         },
         video_path,
     ))
 
-    # 테스트 3: 카라오케 하이라이트 (매운맛)
+    # 테스트 3: 단어별 자막 타이밍
     results.append(run_test(
-        "카라오케 하이라이트 -매운맛",
+        "단어별 자막 타이밍",
         {
             "cuts": [{"start": 2.0, "end": 12.0}],
             "subtitles": [
@@ -112,20 +110,18 @@ def main():
                     ],
                 }
             ],
-            "style_preset": "매운맛",
         },
         video_path,
     ))
 
-    # 테스트 4: 순한맛
+    # 테스트 4: 두 번째 자막
     results.append(run_test(
-        "자막 포함 -순한맛",
+        "자막 포함 - 두 번째",
         {
             "cuts": [{"start": 0.0, "end": 6.0}, {"start": 14.0, "end": 18.0}],
             "subtitles": [
-                {"start": 1.0, "end": 4.0, "text": "순한맛 스타일 테스트"},
+                {"start": 1.0, "end": 4.0, "text": "두 번째 자막 테스트"},
             ],
-            "style_preset": "순한맛",
         },
         video_path,
     ))
@@ -136,7 +132,6 @@ def main():
         {
             "cuts": [{"start": 0.0, "end": 10.0}, {"start": 5.0, "end": 15.0}],
             "subtitles": [],
-            "style_preset": "정석맛",
         },
         video_path,
     ))
