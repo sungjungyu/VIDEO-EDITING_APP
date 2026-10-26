@@ -28,9 +28,19 @@ share/python-wheels/
 MANIFEST
 
 # Virtual environments
+.venv/
 venv/
 env/
 ENV/
+
+# 도구 캐시
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# 실행 로그
+*.log
 
 # IDE
 .vscode/
@@ -61,6 +71,11 @@ output.mp4
 *.wav
 *.m4a
 audio.mp3
+
+# VIBE CUT 앱 데이터 (프로젝트·작업·AI 응답 캐시, 이전 버전의 업로드/결과 폴더)
+/data/
+/uploads/
+/outputs/
 
 # VIBE CUT 실험 산출물 (scene_analyzer 캐시, 촬영 원본, 장면/트리 결과)
 /.vibecut_cache/
