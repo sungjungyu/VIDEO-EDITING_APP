@@ -2,26 +2,22 @@
 
 from __future__ import annotations
 
+import json
+from pathlib import Path
+
 import pytest
 
 from vibecut.edit.text import align_words_to_lines, wrap_text
 from vibecut.models import StyleSpec, SubtitleEvent, Word
 from vibecut.render import ass, fonts
 
-# 화면(JS)과 같은 결과가 나와야 하는 사례 — tests/js 쪽에서도 같은 표를 쓴다
-WRAP_CASES = [
-    ("안녕하세요 반갑습니다", 20, ["안녕하세요 반갑습니다"]),
-    ("안녕하세요 반갑습니다", 6, ["안녕하세요", "반갑습니다"]),
-    ("가나다라마바사아자차카타파하", 5, ["가나다라마", "바사아자차", "카타파하"]),
-    ("짧은 말 아주아주아주긴단어입니다 끝", 6, ["짧은 말", "아주아주아주", "긴단어입니다", "끝"]),
-    ("  여러   공백  ", 10, ["여러 공백"]),
-    ("", 10, []),
-]
+# 화면(JS)과 같은 결과가 나와야 하는 사례 — tests/js/wrap.test.mjs도 같은 파일을 읽는다
+WRAP_CASES = json.loads((Path(__file__).with_name("wrap_cases.json")).read_text(encoding="utf-8"))
 
 
-@pytest.mark.parametrize("text,width,expected", WRAP_CASES)
-def test_wrap_text(text, width, expected):
-    assert wrap_text(text, width) == expected
+@pytest.mark.parametrize("case", WRAP_CASES, ids=[c["text"][:12] or "빈 문자열" for c in WRAP_CASES])
+def test_wrap_text(case):
+    assert wrap_text(case["text"], case["width"]) == case["lines"]
 
 
 def test_align_words_to_lines():

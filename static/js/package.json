@@ -1,0 +1,5 @@
+{
+  "private": true,
+  "type": "module",
+  "description": "브라우저 화면 모듈. Node 테스트(tests/js)가 ES 모듈로 읽을 수 있게 type만 지정한다."
+}
