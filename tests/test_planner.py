@@ -4,8 +4,18 @@ from __future__ import annotations
 
 from vibecut.edit.planner import compile_plan, merge, plan_clip, subtract
 from vibecut.edit.validate import validate_plan
-from vibecut.models import (Analysis, ClipInfo, ClipSpan, EditPlan, Line, LineDecision, PlanOptions, Selection,
-                            TreeNode, Word)
+from vibecut.models import (
+    Analysis,
+    ClipInfo,
+    ClipSpan,
+    EditPlan,
+    Line,
+    LineDecision,
+    PlanOptions,
+    Selection,
+    TreeNode,
+    Word,
+)
 
 FPS = 30
 
@@ -74,7 +84,7 @@ def test_boundaries_never_split_a_word_and_snap_to_silence():
     kept = plan_clip(clip(), [(0.0, 2.2)], lines, {}, {}, [(5.0, 6.0)], opts)
     for s, e in kept:
         for w in lines[0].words + lines[1].words:
-            assert not (w.start < e < w.end), (e, w)
+            assert not (w.start < s < w.end) and not (w.start < e < w.end), (s, e, w)
     # 무음 직전에 끝나는 경계는 무음 안으로 옮긴다
     kept = plan_clip(clip(), [(0.0, 4.9)], [line("t1", 1.0, 4.85, "하나 둘")], {}, {}, [(4.95, 6.0)],
                      PlanOptions(max_pause=None, pad_end=0.0))

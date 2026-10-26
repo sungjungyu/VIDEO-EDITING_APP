@@ -189,6 +189,23 @@ def test_select_scenes_offline_reaches_target(target):
     assert selection.reasons
 
 
+def test_whisper_chunks_are_split_into_sentences():
+    from vibecut.ai.stt import split_into_sentences
+
+    def w(word, s, e):
+        return {"word": word, "start": s, "end": e}
+
+    chunk = {"start": 0.0, "end": 6.0, "text": "음. 라떼가 유명하다고. 아 다시 할게.",
+             "words": [w("음.", 0.0, 0.4), w("라떼가", 0.8, 1.3), w("유명하다고.", 1.3, 2.2), w("아", 2.6, 2.8),
+                       w("다시", 2.8, 3.2), w("할게.", 3.2, 3.7)]}
+    out = split_into_sentences([chunk, {"start": 7, "end": 8, "text": "네", "words": [w("네", 7, 8)]}])
+    assert [s["text"] for s in out] == ["음.", "라떼가 유명하다고.", "아 다시 할게.", "네"]
+    assert (out[1]["start"], out[1]["end"]) == (0.8, 2.2)
+    rules = judge_mod.rule_decisions([L(f"t{i}", s["text"], s["start"], s["end"]) for i, s in enumerate(out)]
+                                     + [L("t9", "라떼가 정말 유명하다고 해서 와봤어요", 9, 12)])
+    assert [rules[f"t{i}"].reason for i in range(3)] == ["군더더기", "NG", "지시어"]
+
+
 def test_revise_offline_commands():
     decisions = effective_decisions(EditPlan(), Analysis(lines=LINES, judgments=judge_mod.rule_decisions(LINES)))
     changes, message, engine = revise("전체 살려줘", LINES, decisions, {}, None)

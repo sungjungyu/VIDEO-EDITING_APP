@@ -87,8 +87,12 @@ def transcribe_whisper_local(wav: Path, args) -> dict:
     if args.model not in _whisper_models:
         print(f"\n  Whisper {args.model} 모델 로딩…", end=" ", flush=True)
         _whisper_models[args.model] = whisper.load_model(args.model)
+    # 파일 경로를 넘기면 whisper가 시스템 ffmpeg를 다시 불러 PATH에 ffmpeg가 없는 PC에서 실패한다
+    # (imageio-ffmpeg만 있는 경우). 이미 16kHz 모노 WAV이므로 배열로 읽어 바로 넘긴다.
+    with wave.open(str(wav)) as w:
+        audio = np.frombuffer(w.readframes(w.getnframes()), dtype=np.int16).astype(np.float32) / 32768
     result = _whisper_models[args.model].transcribe(
-        str(wav),
+        audio,
         language=args.language,
         task="transcribe",
         initial_prompt=args.initial_prompt or None,

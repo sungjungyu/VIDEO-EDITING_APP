@@ -61,12 +61,32 @@ def speech_regions(wav: Path) -> tuple[list[dict], list[tuple[float, float]]]:
             regions.append((cursor, a))
         cursor = b
     segments = []
-    for s, e in regions:            # 긴 구간은 6초 안팎으로 나눈다 (자막 줄 단위처럼 다룰 수 있게)
-        n = max(1, round((e - s) / 6))
+    for s, e in regions:            # 긴 구간은 4초 안팎으로 나눈다 (문장 단위처럼 고르고 자를 수 있게)
+        n = max(1, round((e - s) / 4))
         step = (e - s) / n
         for i in range(n):
             segments.append({"start": s + i * step, "end": s + (i + 1) * step, "text": "", "words": []})
     return segments, silences
+
+
+def split_into_sentences(segments: list[dict]) -> list[dict]:
+    """Whisper는 2~3문장을 한 덩어리로 묶는다 ("음. 라떼가 유명하다고. 아 다시 할게. …").
+    덩어리째 자르면 살려야 할 문장까지 잘리므로, 단어 시각과 문장부호·쉼으로 문장 단위로 다시 나눈다
+    (Gemini 받아쓰기와 같은 기준: transcriber.split_sentences)."""
+    import transcriber
+    out = []
+    for seg in segments:
+        words = seg.get("words") or []
+        if len(words) < 2:
+            out.append(seg)
+            continue
+        for group in transcriber.split_sentences(words):
+            item = {"start": group[0]["start"], "end": group[-1]["end"],
+                    "text": " ".join(w["word"] for w in group), "words": group}
+            if seg.get("speaker"):
+                item["speaker"] = seg["speaker"]
+            out.append(item)
+    return out
 
 
 def _run_engine(engine: str, wav: Path, settings: Settings, vocab: list[str]) -> list[dict]:
@@ -122,7 +142,7 @@ def transcribe_clip(wav: Path, sha1: str, settings: Settings, cache_dir: Path, v
         segments = transcriber.clean_segments(raw, duration)
         silences, _ = transcriber.detect_silences(wav, MIN_SILENCE)
         if any(s["words"] for s in segments):
-            segments = transcriber.refine_with_silence(segments, silences)
+            segments = split_into_sentences(transcriber.refine_with_silence(segments, silences))
         segments = [s for s in segments if s["end"] - s["start"] > 0.05]
         return {"segments": segments, "silences": silences, "engine": f"{engine}:{model}", "warnings": warnings}
     raw, silences = speech_regions(wav)

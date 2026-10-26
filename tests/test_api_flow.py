@@ -77,7 +77,8 @@ def test_full_flow(settings, media):
         put = client.put(f"/api/projects/{pid}/plan", json={"styles": {**after["styles"], "subtitle": style}}).json()
         assert put["plan"]["styles"]["subtitle"]["size"] == 60
 
-        render_job = wait_job(client, client.post(f"/api/projects/{pid}/render", json={"quality": "preview"}).json()["job_id"])
+        started = client.post(f"/api/projects/{pid}/render", json={"quality": "preview"}).json()
+        render_job = wait_job(client, started["job_id"])
         assert render_job["status"] == "done", render_job
         info = render_job["result"]["render"]
         assert abs(info["error_ms"]) <= 40

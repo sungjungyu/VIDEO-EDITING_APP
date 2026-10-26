@@ -124,10 +124,12 @@ def compile_render(plan: EditPlan, clips: dict[str, ClipInfo], files: dict[str, 
                     font_files.append(path)
         post += ",subtitles=filename=subs.ass" + (":fontsdir=fonts" if font_files else "")
     graph.append(f"{post},format=yuv420p[vout]")
+    # 소리 끝을 계획 길이에 맞춘다 (loudnorm은 마지막 패킷을 길게 기록해 결과 길이가 40ms쯤 늘어난다)
+    end = f"atrim=duration={_seconds(plan.duration)}"
     if opts.loudness:
-        graph.append("[ac]loudnorm=I=-16:TP=-1.5:LRA=11,aresample=48000[aout]")
+        graph.append(f"[ac]loudnorm=I=-16:TP=-1.5:LRA=11,aresample=48000,{end}[aout]")
     else:
-        graph.append("[ac]anull[aout]")
+        graph.append(f"[ac]{end}[aout]")
 
     if quality == "preview":
         encode = ["-c:v", "libx264", "-preset", "veryfast", "-crf", "27", "-c:a", "aac", "-b:a", "128k"]

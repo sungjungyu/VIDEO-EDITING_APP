@@ -172,6 +172,19 @@ def fit_duration(nodes: list[TreeNode], seconds: dict[str, float], scores: dict[
                     break
             if total >= lo:
                 break
+    # 그래도 범위 밖이면(남은 조각이 모두 커서) 목표에 더 가까워지는 조각을 하나씩 더한다
+    while total < lo:
+        options = [(seconds.get(n.id, 0.0), n.id) for n in rest if n.id not in chosen]
+        options += [(line_seconds[c.seg_id], c.id) for n in rest if n.id not in chosen
+                    for c in flatten([n]).values() if c.seg_id in line_seconds and c.id not in chosen]
+        options = [(sec, nid) for sec, nid in options if sec > 0]
+        if not options:
+            break
+        sec, nid = min(options, key=lambda o: abs(total + o[0] - target))
+        if abs(total + sec - target) >= abs(total - target):
+            break
+        chosen.append(nid)
+        total += sec
     return chosen
 
 
