@@ -1,8 +1,12 @@
-moviepy>=1.0.3
-openai-whisper>=20231117
-torch>=2.0.0
-google-generativeai>=0.8.0
-google-genai>=1.12.1
-fastapi>=0.104.0
-uvicorn>=0.24.0
-python-multipart>=0.0.6
+# VIBE CUT 실행에 필요한 패키지 (버전 고정 — 팀원 PC마다 같은 동작을 보장)
+# 설치: pip install -r requirements.txt
+# 로컬 Whisper 받아쓰기(오프라인 대체 엔진)까지 쓰려면: pip install -r requirements-whisper.txt
+# 개발(테스트·린트): pip install -r requirements-dev.txt
+fastapi==0.162.0
+uvicorn==0.54.0
+python-multipart==0.0.32
+pydantic==2.14.1
+google-genai==2.33.0
+httpx==0.28.1
+numpy==2.5.4
+imageio-ffmpeg==0.6.0

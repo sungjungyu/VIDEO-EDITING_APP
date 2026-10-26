@@ -66,6 +66,8 @@ def _line_nodes(segments: list[dict], lo: float, hi: float, prefix: str) -> list
             continue
         node = {"id": f"{prefix}-l{i:02d}", "title": _short(s.get("text", ""), 40), "start": round(st, 3),
                 "end": round(en, 3), "summary": s.get("text", ""), "children": []}
+        if s.get("seg_id"):         # 받아쓰기 문장 id (vibecut 편집 계획이 대사 노드 ↔ 문장을 잇는 데 쓴다)
+            node["seg_id"] = s["seg_id"]
         if s.get("cut"):
             node["tags"] = ["AI 컷 제안"]
         nodes.append(node)

@@ -1,0 +1,4 @@
+# 개발용: 테스트(pytest)와 린트(ruff)
+-r requirements.txt
+pytest==9.1.1
+ruff==0.17.2

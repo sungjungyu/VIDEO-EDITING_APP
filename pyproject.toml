@@ -1,0 +1,44 @@
+[project]
+name = "vibecut"
+version = "3.0.0"
+description = "VIBE CUT — 여러 클립을 받아 받아쓰기·장면 분석·AI 판단으로 편집 계획을 만들고 FFmpeg로 렌더하는 영상 편집 도구"
+requires-python = ">=3.10"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "slow: ffmpeg로 실제 영상을 만들고 렌더하는 테스트 (수 초~수십 초)",
+    "live: 실제 Gemini API를 호출하는 테스트 (VIBECUT_LIVE_TESTS=1일 때만)",
+]
+addopts = "-p no:cacheprovider"
+filterwarnings = [
+    "ignore::DeprecationWarning:google.*",
+    "ignore:Using `httpx` with `starlette.testclient` is deprecated",
+]
+
+[tool.ruff]
+line-length = 120
+target-version = "py310"
+extend-exclude = [".venv", "data", "uploads", "outputs"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP"]
+ignore = [
+    "B008",   # FastAPI의 File(...) 기본값
+    "B905",   # zip(strict=) — 길이가 다른 목록을 일부러 zip하는 곳이 있다
+    "E731",   # 짧은 콜백 lambda
+]
+
+[tool.ruff.lint.per-file-ignores]
+# 팀원이 만든 기존 모듈·실험 스크립트는 이번 작업 범위 밖이라 검사를 느슨하게 둔다
+"transcriber.py" = ["E", "W", "B", "UP", "I"]
+"scene_analyzer.py" = ["E", "W", "B", "UP", "I"]
+"scene_selector.py" = ["E", "W", "B", "UP", "I"]
+"scene_tree.py" = ["E", "W", "B", "UP", "I"]
+"prompt_builder.py" = ["E", "W", "B", "UP", "I"]
+"experiment.py" = ["E", "W", "B", "UP", "I", "F"]
+"stt_compare.py" = ["E", "W", "B", "UP", "I"]
+"test_prompt_builder.py" = ["E", "W", "B", "UP", "I", "F"]
+"config.py" = ["E", "W", "B", "UP", "I"]
+"tests/test_transcriber.py" = ["E", "W", "B", "UP", "I"]
+"tests/test_scene_tree.py" = ["E", "W", "B", "UP", "I"]

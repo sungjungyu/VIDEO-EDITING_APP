@@ -1,0 +1,5 @@
+# 선택: 로컬 Whisper 받아쓰기 (Gemini를 못 쓸 때의 대체 엔진, STT_ENGINE=whisper-local)
+# CPU에서는 느리다 (small 모델 기준 오디오 길이의 약 1.6배, docs/stt_비교.md 참고)
+-r requirements.txt
+openai-whisper==20250625
+torch==2.14.1

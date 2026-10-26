@@ -340,16 +340,20 @@ class TranscriptTests(unittest.TestCase):
         self.assertEqual(len(subs), 1)
         self.assertEqual((subs[0]["start"], subs[0]["words"][0]["start"]), (0.5, 0.5))
 
-    def test_media_engine_accepts_output(self):
-        from media_engine.ass_generator import _build_karaoke_text
-        from media_engine.timestamp_mapper import remap
+    def test_render_engine_accepts_output(self):
+        # 예전 media_engine(remap·카라오케)을 대신하는 vibecut 렌더 엔진이 받아쓰기 결과를 그대로 받는지
+        from vibecut.edit.timeline import build_subtitle_events
+        from vibecut.models import KeepRange, Line, StyleSpec
+        from vibecut.render.ass import karaoke_text
 
         subs = to_subtitles(self.t, clip_id="c01")
-        remapped = remap([{"start": 2.0, "end": 4.0}], subs)   # 두 번째 문장만 남기는 컷
-        self.assertEqual(len(remapped), 1)
-        self.assertEqual(remapped[0]["text"], "카페에 왔어요.")
-        self.assertEqual(remapped[0]["words"][0]["start"], 0.1)
-        karaoke = _build_karaoke_text(remapped[0]["words"], remapped[0]["start"])
+        lines = [Line(seg_id=f"t{i}", clip_id="c01", **s) for i, s in enumerate(subs)]
+        keep = [KeepRange(clip_id="c01", start=2.0, end=4.0)]    # 두 번째 문장만 남기는 컷
+        events = build_subtitle_events(keep, {"c01": lines}, {}, StyleSpec(), 2.0)
+        self.assertEqual(len(events), 1)
+        self.assertEqual(events[0].text, "카페에 왔어요.")
+        self.assertEqual(events[0].words[0].start, 0.1)
+        karaoke = karaoke_text(events[0])
         self.assertIn("카페에", karaoke)
         self.assertIn("\\k", karaoke)
 

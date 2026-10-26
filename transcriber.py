@@ -12,7 +12,7 @@ VIBE CUT 1-2 소리 갈래: 받아쓰기 (문장 + 단어 단위 타임스탬프
     python transcriber.py --input ./raw_clips --engine gemini --out transcript_gemini.json
     python transcriber.py --input ./raw_clips --dry-run      # 정렬·오디오 추출만
 
-필요: Python 3.10+, openai-whisper, imageio-ffmpeg(또는 PATH의 ffmpeg), moviepy
+필요: Python 3.10+, openai-whisper, imageio-ffmpeg(또는 PATH의 ffmpeg) (저장소 루트에서 실행)
 gemini 엔진: httpx(google-genai 설치 시 함께 설치됨), API 키(GEMINI_API_KEY 또는 gemini_key.txt)
 """
 

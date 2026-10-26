@@ -10,7 +10,7 @@ Gemini에 보내 "장소·활동이 바뀔 때마다 한 항목"인 장면 목�
     python scene_analyzer.py --input ./raw_clips --out scenes.json
     python scene_analyzer.py --input a.mp4 b.mp4 --model gemini-3.8-flash --mode agentic --resolution medium
 
-필요: Python 3.10+, imageio-ffmpeg, moviepy, pip install -U google-genai
+필요: Python 3.10+, imageio-ffmpeg, google-genai (저장소 루트에서 실행: 클립 정보는 vibecut.media.ffmpeg로 읽음)
 API 키: 환경변수 GEMINI_API_KEY 또는 gemini_key.txt
 """
 
@@ -96,28 +96,14 @@ def run(cmd):
 
 
 def probe(path: Path) -> dict:
-    """길이와 촬영 시각을 읽는다. ffprobe 대신 moviepy + ffmpeg stderr 파싱 사용."""
-    from moviepy import VideoFileClip
-    with VideoFileClip(str(path)) as clip:
-        duration = float(clip.duration)
-
-    # 촬영 시각: ffmpeg -i stderr에서 creation_time 태그 파싱 시도
-    result = subprocess.run(
-        [_FFMPEG, "-v", "quiet", "-i", str(path), "-f", "null", "-"],
-        capture_output=True, text=True, encoding="utf-8", errors="replace",
-    )
-    created = None
-    for key in ("com.apple.quicktime.creationdate", "creation_time"):
-        m = re.search(rf"{re.escape(key)}\s*:\s*(\S+)", result.stderr, re.IGNORECASE)
-        if m:
-            try:
-                created = datetime.fromisoformat(m.group(1).replace("Z", "+00:00")).timestamp()
-                break
-            except ValueError:
-                pass
-    if created is None:
-        created = path.stat().st_mtime
-    return {"duration": duration, "created": created}
+    """길이와 촬영 시각을 읽는다.
+    예전에는 `ffmpeg -v quiet … -f null -`로 실행해 메타데이터가 출력되지 않아 촬영 시각을 못 읽었고
+    (항상 파일 수정 시각으로 정렬됨), 영상 전체를 디코딩해 느렸다 (받아쓰기 작업계획서의 '발견한 문제').
+    → `ffmpeg -hide_banner -i 파일`의 stderr만 읽는 vibecut.media.ffmpeg.probe를 쓴다 (디코딩 없음, moviepy 불필요)."""
+    from vibecut.media.ffmpeg import probe as media_probe
+    info = media_probe(path)
+    created = info.created_at if info.created_at is not None else path.stat().st_mtime
+    return {"duration": info.duration, "created": created}
 
 
 def make_lowres(src: Path, dst: Path, height: int):
