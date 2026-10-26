@@ -7,8 +7,8 @@ Main Pipeline Script
 
 import os
 import json
-import re
 import tempfile
+import time
 import subprocess
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
 from typing import List, Dict, Any, Optional
@@ -82,6 +82,20 @@ except Exception:
 
 from config import config
 
+
+def _is_transient_gemini_error(error: Exception) -> bool:
+    """잠시 뒤 다시 시도하면 될 수 있는 Gemini 오류인지 (혼잡·서버 오류·시간 초과)."""
+    if isinstance(error, TimeoutError):
+        return True
+    text = str(error)
+    return any(code in text for code in ("503", "UNAVAILABLE", "500", "INTERNAL", "504", "DEADLINE_EXCEEDED"))
+
+
+def _is_quota_gemini_error(error: Exception) -> bool:
+    """사용 한도 초과(429). 같은 모델로는 다시 시도해도 소용없고, 다른 모델은 한도가 따로다."""
+    text = str(error)
+    return "429" in text or "RESOURCE_EXHAUSTED" in text
+
 # 한국어 폰트 설정 (macOS 기본 경로)
 # Windows: "C:/Windows/Fonts/malgun.ttf"
 # Linux: "/usr/share/fonts/truetype/nanum/NanumGothic.ttf"
@@ -97,7 +111,7 @@ class VideoEditingPipeline:
         """
         self.gemini_client = None
         self.gemini_model = None
-        self.gemini_model_name = "gemini-3.8-flash"
+        self.gemini_model_name = "gemini-3.5-flash"
         # 정확도를 우선하는 기본값입니다. 처리 속도가 더 중요하면 환경 변수로
         # WHISPER_MODEL=base 또는 small을 지정할 수 있습니다.
         self.whisper_model_name = os.getenv("WHISPER_MODEL", "medium")
@@ -359,14 +373,52 @@ class VideoEditingPipeline:
     
     def step2_transcribe_audio(self, audio_path: str) -> List[Dict[str, Any]]:
         """
-        Step 2: 로컬 Whisper로 음성 인식 및 타임스탬프 추출
-        
-        Args:
-            audio_path (str): 오디오 파일 경로
-            
+        Step 2: 음성 인식 및 타임스탬프 추출
+
+        기본은 Gemini 받아쓰기(transcriber.py, gemini-3.5-transcribe)다. 로컬 Whisper는 CPU에서 너무 느리고
+        문장을 빼먹는 경우가 있어 보류했다 (docs/stt_비교.md). 환경 변수 STT_ENGINE=whisper-local이면 로컬 Whisper.
+
         Returns:
-            List[Dict]: 텍스트와 타임스탬프 정보
+            List[Dict]: [{"start", "end", "text", "words": [{"word", "start", "end"}]}]  (Whisper는 words 없음)
         """
+        if os.getenv("STT_ENGINE", "gemini") == "whisper-local":
+            return self._transcribe_whisper_local(audio_path)
+        return self._transcribe_gemini(audio_path)
+
+    def _transcribe_gemini(self, audio_path: str) -> List[Dict[str, Any]]:
+        """transcriber.py의 Gemini 엔진 → 정리(clean_segments) → 무음 기준 단어 경계 보정."""
+        import wave
+        from pathlib import Path
+        from types import SimpleNamespace
+        import transcriber
+
+        args = SimpleNamespace(
+            model=os.getenv("GEMINI_STT_MODEL", transcriber.DEFAULT_MODELS["gemini"]),
+            language="ko", diarize=False, vocab=os.getenv("STT_VOCAB", ""), chunk_sec=600, retries=2,
+        )
+        print(f"🎤 Step 2: Gemini 받아쓰기({args.model}) 중...")
+        wav = Path(audio_path)
+        with wave.open(str(wav)) as w:
+            duration = w.getnframes() / w.getframerate()
+        try:
+            out = transcriber.transcribe_gemini(wav, args)   # 실패(키 없음·한도 초과 등)하면 예외 → 분석 실패로 표시
+        except RuntimeError as error:
+            if "429" in str(error) or "RESOURCE_EXHAUSTED" in str(error):
+                raise RuntimeError(f"Gemini 받아쓰기({args.model}) 사용 한도를 다 썼습니다. 무료 키는 하루 25회입니다. "
+                                   "한도가 다시 차면(보통 다음 날) 다시 시도하거나 유료 키를 쓰세요.") from error
+            raise
+        segments = transcriber.clean_segments(out["segments"], duration)
+        silences, _ = transcriber.detect_silences(wav, 0.25)
+        segments = transcriber.refine_with_silence(segments, silences)
+        result = [{
+            "start": round(s["start"], 3), "end": round(s["end"], 3), "text": s["text"],
+            "words": [{"word": w["word"], "start": round(w["start"], 3), "end": round(w["end"], 3)} for w in s["words"]],
+        } for s in segments if s["end"] > s["start"]]
+        print(f"✅ 음성 인식 완료: {len(result)}개 문장")
+        return result
+
+    def _transcribe_whisper_local(self, audio_path: str) -> List[Dict[str, Any]]:
+        """로컬 Whisper (보류, STT_ENGINE=whisper-local일 때만 사용)"""
         print("🎤 Step 2: 로컬 Whisper로 음성 인식 중...")
         
         print(f"📥 Whisper {self.whisper_model_name} 모델 로딩 중...")
@@ -446,11 +498,7 @@ class VideoEditingPipeline:
         print("✅ 자막 표기 교정 완료 (타임스탬프 유지)")
         return refined_segments
     
-    def _build_local_commands(
-        self,
-        segments: List[Dict[str, Any]],
-        style_preset: str = "정석맛",
-    ) -> List[Dict[str, Any]]:
+    def _build_local_commands(self, segments: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """Gemini 없이도 바로 사용할 수 있는 로컬 편집 명령어 생성"""
         if not segments:
             return [{
@@ -490,11 +538,35 @@ class VideoEditingPipeline:
         return commands
 
     def _call_gemini(self, prompt: str) -> str:
-        """Gemini에 요청을 보내고 텍스트 응답을 반환합니다."""
+        """Gemini에 요청을 보내고 텍스트 응답을 반환합니다.
+
+        503(혼잡)·500·504·시간 초과 같은 일시 오류는 잠시 기다렸다 다시 시도하고,
+        그래도 안 되면 가벼운 모델(GEMINI_FALLBACK_MODEL, 기본 gemini-3.5-flash-lite)로 한 번 더 시도합니다.
+        사용 한도 초과(429)도 가벼운 모델로 넘깁니다 (무료 한도는 모델마다 따로라서).
+        """
+        fallback = os.getenv("GEMINI_FALLBACK_MODEL", "gemini-3.5-flash-lite")
+        models = [self.gemini_model_name] + ([fallback] if fallback and fallback != self.gemini_model_name else [])
+        last_error: Optional[Exception] = None
+        for model_name in models:
+            for attempt in range(2):
+                try:
+                    return self._call_gemini_once(prompt, model_name)
+                except Exception as error:
+                    last_error = error
+                    if _is_quota_gemini_error(error):
+                        print(f"⚠️ Gemini 사용 한도 초과({model_name}) → 다음 모델로 넘어갑니다")
+                        break
+                    if not _is_transient_gemini_error(error):
+                        raise
+                    print(f"⚠️ Gemini 일시 오류({model_name}, {attempt + 1}회차): {str(error)[:120]}")
+                    time.sleep(2 * (attempt + 1))
+        raise last_error  # type: ignore[misc]
+
+    def _call_gemini_once(self, prompt: str, model_name: str) -> str:
         def _run_call() -> str:
             if self.gemini_client is not None:
                 response = self.gemini_client.models.generate_content(
-                    model=self.gemini_model_name,
+                    model=model_name,
                     contents=prompt,
                     config=google_types.GenerateContentConfig(
                         temperature=0.1,
@@ -505,7 +577,8 @@ class VideoEditingPipeline:
                 return getattr(response, "text", "")
 
             if self.gemini_model is not None:
-                response = self.gemini_model.generate_content(
+                model = self.gemini_model if model_name == self.gemini_model_name else genai.GenerativeModel(model_name)
+                response = model.generate_content(
                     prompt,
                     generation_config=genai.types.GenerationConfig(
                         temperature=0.1,
@@ -575,7 +648,7 @@ class VideoEditingPipeline:
 
         다음 음성 인식 데이터를 분석하여 편집 명령어를 생성해주세요:
 
-        {json.dumps(segments, ensure_ascii=False, indent=2)}
+        {json.dumps([{k: s[k] for k in ("start", "end", "text") if k in s} for s in segments], ensure_ascii=False, indent=2)}
 
         영상 문맥 메모:
         {json.dumps(video_context or {}, ensure_ascii=False, indent=2)}
@@ -605,42 +678,35 @@ class VideoEditingPipeline:
             if response_text.endswith("```"):
                 response_text = response_text[:-3]
             response_text = response_text.strip()
-            
-            # 강력한 JSON 복구 로직
-            lines = response_text.split('\n')
-            cleaned_lines = []
-            
-            for line in lines:
-                line = line.strip()
-                if line and (line.startswith('[') or line.startswith('{') or line.startswith('"') or 
-                           line.startswith('  ') or line == ']' or line == '}' or line == ','):
-                    cleaned_lines.append(line)
-            
-            # 불완전한 마지막 줄 제거
-            if cleaned_lines and not cleaned_lines[-1].endswith('}') and not cleaned_lines[-1].endswith(']'):
-                cleaned_lines = cleaned_lines[:-1]
-            
-            # JSON 완성
-            response_text = '\n'.join(cleaned_lines)
-            if not response_text.endswith(']'):
-                if response_text.endswith(','):
-                    response_text = response_text[:-1]
-                response_text += ']'
 
-            # 일부 모델 응답은 배열 원소 사이의 쉼표를 생략하므로 복구한다.
-            response_text = re.sub(r"}\s*{", "},{", response_text)
-            
-            result = json.loads(response_text)
+            # 응답이 올바른 JSON이면 그대로 쓰고, 깨졌을 때만 복구한다.
+            # (예전에는 항상 복구 로직을 거쳤는데, 복구 로직이 "}," 줄을 지워서
+            #  문장이 2개 이상이면 멀쩡한 JSON도 깨지고 매번 로컬 명령으로 대체됐다)
+            try:
+                result = json.loads(response_text)
+            except json.JSONDecodeError:
+                # 응답이 중간에 잘린 경우: 마지막으로 완성된 객체("}")까지만 살리고 배열을 닫는다
+                start, last_close = response_text.find('['), response_text.rfind('}')
+                if start == -1 or last_close < start:
+                    raise
+                response_text = response_text[start:last_close + 1] + ']'
+                result = json.loads(response_text)
             if not isinstance(result, list):
                 raise ValueError("Gemini 응답이 JSON 배열이 아닙니다.")
             result = [self._normalize_edit_command(command, index) for index, command in enumerate(result)]
             print(f"✅ 문맥 분석 완료: {len(result)}개 편집 명령어")
             if not result:
                 return self._build_local_commands(segments)
+            # 응답이 잘려 뒤쪽 문장이 빠졌으면, 빠진 구간은 로컬 명령으로 채운다 (영상 뒷부분이 조용히 사라지는 것 방지)
+            covered_until = max(command["end"] for command in result)
+            missing = [segment for segment in segments if segment["start"] >= covered_until - 0.05]
+            if missing:
+                print(f"⚠️ Gemini 응답이 {covered_until:.1f}초에서 끊겨 나머지 {len(missing)}개 문장은 로컬 명령으로 채웁니다.")
+                result += self._build_local_commands(missing)
             return result
             
-        except (json.JSONDecodeError, TypeError, ValueError, KeyError) as e:
-            print(f"❌ Gemini 응답 처리 오류: {e}")
+        except json.JSONDecodeError as e:
+            print(f"❌ JSON 파싱 오류: {e}")
             print(f"원본 응답: {response_text}")
             print("🔄 로컬 편집 명령어로 대체합니다...")
             

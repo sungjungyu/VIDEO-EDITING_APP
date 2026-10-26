@@ -61,6 +61,8 @@ from __future__ import annotations
 
 # json : Gemini 응답 문자열을 파이썬 dict로 바꿀 때 쓴다.
 import json
+# time : Gemini 일시 오류 때 잠깐 기다렸다 다시 시도하려고 쓴다.
+import time
 # typing : 함수 시그니처의 타입 힌트. 동작엔 영향 없음.
 from typing import Any, Dict, List
 
@@ -76,6 +78,8 @@ from prompt_builder import build_prompt, normalize_tree, validate_response
 # 설정 상수
 # ---------------------------------------------------------------------------
 MODEL_NAME = "gemini-3.5-flash"
+# MODEL_NAME이 혼잡(503)할 때 대신 쓸 가벼운 모델.
+FALLBACK_MODEL_NAME = "gemini-3.5-flash-lite"
 API_KEY_PATH = "gemini_key.txt"
 
 
@@ -116,15 +120,30 @@ def _call_gemini(client: genai.Client, prompt: str) -> str:
       raw = _call_gemini(client, "...지시문...")
       → '{"selected_ids": ["intro-hook"], "reasons": {...}}'
     """
-    response = client.models.generate_content(
-        model=MODEL_NAME,
-        contents=prompt,
-        config=types.GenerateContentConfig(response_mime_type="application/json"),
-    )
-    text = getattr(response, "text", "")
-    if text is None:
-        return ""
-    return text
+    # Gemini가 혼잡(503)하거나 서버 오류(500/504)가 나면 잠깐 기다렸다 다시 시도한다.
+    # 그래도 안 되면 가벼운 모델(FALLBACK_MODEL_NAME)로 한 번 더 시도한다.
+    last_error: Exception | None = None
+    for model_name in (MODEL_NAME, FALLBACK_MODEL_NAME):
+        for attempt in range(2):
+            try:
+                response = client.models.generate_content(
+                    model=model_name,
+                    contents=prompt,
+                    config=types.GenerateContentConfig(response_mime_type="application/json"),
+                )
+                text = getattr(response, "text", "")
+                if text is None:
+                    return ""
+                return text
+            except Exception as error:
+                last_error = error
+                # 사용 한도 초과(429)는 같은 모델로 다시 해도 소용없으니 바로 다음 모델로 (한도는 모델마다 따로)
+                if "429" in str(error) or "RESOURCE_EXHAUSTED" in str(error):
+                    break
+                if not any(code in str(error) for code in ("503", "UNAVAILABLE", "500", "INTERNAL", "504")):
+                    raise
+                time.sleep(2 * (attempt + 1))
+    raise last_error
 
 
 # ---------------------------------------------------------------------------
