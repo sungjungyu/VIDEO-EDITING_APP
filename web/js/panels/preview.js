@@ -4,20 +4,19 @@
                강조 줌인(effects)도 그대로 → 렌더 결과와 같은 화면 (계획서 2차 '선택 결과 바로 미리보기')
    미리보기 상자는 출력 비율(16:9/9:16) 그대로, 영상은 가운데를 잘라 채운다 (렌더의 scale+crop과 같음). */
 
-import { clipById, decisionOf, emit, linesOfClip, on, state } from "./store.js";
-import { drawEvent, lineToEvent } from "./style.js";
-import { effectiveStyle } from "./stylepanel.js";
+import { $ } from "../core/dom.js";
+import { clamp, fmt } from "../core/format.js";
+import { clipById, decisionOf, emit, linesOfClip, on, state } from "../core/store.js";
+import { drawEvent, lineToEvent } from "../subtitle/draw.js";
 import { mediaUrl } from "./media.js";
-import { clamp, fmt } from "./util.js";
+import { effectiveStyle } from "./style-panel.js";
 
-const video = () => document.getElementById("video");
+const video = () => $("video");
 let mode = "source";
 let clipId = null;
 let planIndex = -1;
 let switching = false;
 let lastDraw = 0;
-
-export const currentMode = () => mode;
 
 export function currentPosition() {
   const v = video();
@@ -48,9 +47,9 @@ async function load(url) {
 
 function setMode(next) {
   mode = next;
-  document.getElementById("btn-mode-source").classList.toggle("active", mode === "source");
-  document.getElementById("btn-mode-plan").classList.toggle("active", mode === "plan");
-  const badge = document.getElementById("preview-badge");
+  $("btn-mode-source").classList.toggle("active", mode === "source");
+  $("btn-mode-plan").classList.toggle("active", mode === "plan");
+  const badge = $("preview-badge");
   badge.style.display = "";
   badge.className = "preview-badge" + (mode === "plan" ? " plan" : "");
   if (mode === "source") video().style.transform = "none";
@@ -58,7 +57,7 @@ function setMode(next) {
 }
 
 function updateBadge() {
-  const badge = document.getElementById("preview-badge");
+  const badge = $("preview-badge");
   if (mode === "plan") badge.textContent = `편집본 미리보기 · ${keep().length}구간`;
   else badge.textContent = `원본 · ${clipById(clipId)?.filename || ""}`;
 }
@@ -68,13 +67,12 @@ export async function showSource(id, time = null, play = false) {
   if (!clip) return;
   clipId = id;
   setMode("source");
-  document.getElementById("preview-empty").classList.add("hidden");
-  document.getElementById("btn-play").disabled = false;
+  $("preview-empty").classList.add("hidden");
+  $("btn-play").disabled = false;
   await load(mediaUrl(clip));
   if (time !== null) video().currentTime = clamp(time, 0, Math.max(0, clip.duration - 0.05));
   if (play) video().play().catch(() => {});
   updateBadge();
-  emit("preview-clip-changed", id);
 }
 
 async function seekRange(index, offset = 0) {
@@ -91,12 +89,12 @@ async function seekRange(index, offset = 0) {
   }
 }
 
-export async function startPlan(at = 0, play = true) {
+async function startPlan(at = 0, play = true) {
   const ranges = keep();
   if (!ranges.length) return;
   setMode("plan");
-  document.getElementById("preview-empty").classList.add("hidden");
-  document.getElementById("btn-play").disabled = false;
+  $("preview-empty").classList.add("hidden");
+  $("btn-play").disabled = false;
   let index = ranges.findIndex(k => at >= k.out_start && at < k.out_start + (k.end - k.start));
   if (index < 0) index = at <= 0 ? 0 : ranges.length - 1;
   await seekRange(index, at - ranges[index].out_start);
@@ -120,33 +118,57 @@ function advance() {
 /* ---------------------------------------------------------------- 자막·줌 */
 
 function boxSize() {
-  const box = document.getElementById("preview-box");
+  const box = $("preview-box");
   return [box.clientWidth || 1, box.clientHeight || 1];
 }
 
+/* 지금 보여야 할 자막 장면들 (event, 스타일, cut 표시) */
+function visibleSubtitles(t) {
+  if (mode === "plan") {
+    return (state.plan?.events || []).filter(e => t >= e.start && t < e.end)
+      .map(event => ({ event, style: effectiveStyle(event.style), cut: false }));
+  }
+  if (!clipId || !state.plan?.options?.subtitles) return [];
+  const line = linesOfClip(clipId).find(l => t >= l.start && t < l.end);
+  if (!line || !line.text) return [];
+  const decision = decisionOf(line.seg_id);
+  const style = effectiveStyle("subtitle");
+  return [{ event: lineToEvent(line, decision, style), style, cut: !decision.keep, id: `${line.seg_id}|${decision.text || ""}` }];
+}
+
+/* 다시 그릴지 판단하는 열쇠: 보이는 자막·카라오케로 말한 단어 수·페이드 단계·상자 크기·스타일이 같으면 그대로 둔다
+   (예전에는 33ms마다 자막 DOM을 전부 지우고 다시 만들었다 — 일시정지 중에도) */
+function overlayKey(items, t, w, h) {
+  const parts = [mode, w, h, styleVersion];
+  for (const { event, style, cut, id } of items) {
+    const spoken = style.karaoke ? (event.words || []).filter(word => t >= word.start).length : 0;
+    const fade = style.fade ? Math.round(Math.min(1, (t - event.start) / 0.15, (event.end - t) / 0.15) * 10) : 10;
+    parts.push(id || `${event.start}|${event.text}`, spoken, fade, cut);
+  }
+  return parts.join("/");
+}
+
+let lastOverlayKey = "";
+let styleVersion = 0;
+
 function drawOverlay() {
-  const overlay = document.getElementById("sub-overlay");
-  overlay.innerHTML = "";
+  const overlay = $("sub-overlay");
   const [w, h] = boxSize();
   const v = video();
+  const t = mode === "plan" ? outTime() : v.currentTime;
+  const items = visibleSubtitles(t);
+  const key = overlayKey(items, t, w, h);
+  if (key !== lastOverlayKey) {
+    lastOverlayKey = key;
+    overlay.innerHTML = "";
+    for (const { event, style, cut } of items) drawEvent(overlay, event, style, w, h, t, { cut });
+  }
   if (mode === "plan") {
-    const t = outTime();
-    for (const event of state.plan?.events || []) {
-      if (t >= event.start && t < event.end) drawEvent(overlay, event, effectiveStyle(event.style), w, h, t);
-    }
     const k = keep()[planIndex];
     const fx = (state.plan?.effects || []).find(e => k && e.clip_id === k.clip_id && v.currentTime >= e.start
                                                      && v.currentTime < e.end);
     v.style.transform = fx ? `scale(${fx.scale})` : "none";
-    return;
   }
-  if (!clipId || !state.plan?.options?.subtitles) return;
-  const t = v.currentTime;
-  const line = linesOfClip(clipId).find(l => t >= l.start && t < l.end);
-  if (!line || !line.text) return;
-  const decision = decisionOf(line.seg_id);
-  const S = effectiveStyle("subtitle");
-  drawEvent(overlay, lineToEvent(line, decision, S), S, w, h, t, { cut: !decision.keep });
 }
 
 /* ---------------------------------------------------------------- 시간 표시 */
@@ -155,9 +177,11 @@ function updateTimeUI() {
   const v = video();
   let t = v.currentTime || 0, total = Number.isFinite(v.duration) ? v.duration : 0;
   if (mode === "plan") { t = outTime(); total = state.plan?.duration || 0; }
-  document.getElementById("preview-time").textContent = `${fmt(t)} / ${fmt(total)}`;
-  document.getElementById("preview-progress-fill").style.width = total ? `${(t / total) * 100}%` : "0%";
+  $("preview-time").textContent = `${fmt(t)} / ${fmt(total)}`;
+  $("preview-progress-fill").style.width = total ? `${(t / total) * 100}%` : "0%";
 }
+
+let lastPositionKey = "";
 
 function tick(now) {
   requestAnimationFrame(tick);
@@ -166,15 +190,20 @@ function tick(now) {
     lastDraw = now;
     drawOverlay();
     updateTimeUI();
-    emit("time", currentPosition());
+    const pos = currentPosition();
+    const key = `${pos.mode}|${pos.clipId}|${pos.time.toFixed(3)}`;
+    if (key !== lastPositionKey) {           // 멈춰 있으면 재생 위치 알림(타임라인 재생 헤드)도 보내지 않는다
+      lastPositionKey = key;
+      emit("time", pos);
+    }
   }
 }
 
 /* ---------------------------------------------------------------- 크기 */
 
-export function fitBox() {
-  const area = document.getElementById("preview-area");
-  const box = document.getElementById("preview-box");
+function fitBox() {
+  const area = $("preview-area");
+  const box = $("preview-box");
   const ratio = state.plan?.output?.aspect === "9:16" ? 9 / 16 : 16 / 9;
   const W = area.clientWidth, H = area.clientHeight;
   if (!W || !H) return;
@@ -197,32 +226,35 @@ export function togglePlay() {
 export function initPreview() {
   const v = video();
   v.addEventListener("play", () => {
-    document.getElementById("icon-play").style.display = "none";
-    document.getElementById("icon-pause").style.display = "";
+    $("icon-play").style.display = "none";
+    $("icon-pause").style.display = "";
   });
   v.addEventListener("pause", () => {
-    document.getElementById("icon-play").style.display = "";
-    document.getElementById("icon-pause").style.display = "none";
+    $("icon-play").style.display = "";
+    $("icon-pause").style.display = "none";
   });
-  document.getElementById("btn-play").addEventListener("click", togglePlay);
-  document.getElementById("preview-progress").addEventListener("click", e => {
+  $("btn-play").addEventListener("click", togglePlay);
+  $("preview-progress").addEventListener("click", e => {
     const r = e.currentTarget.getBoundingClientRect();
     const f = clamp((e.clientX - r.left) / r.width, 0, 1);
     if (mode === "plan") startPlan(f * (state.plan?.duration || 0), !v.paused);
     else if (Number.isFinite(v.duration)) v.currentTime = f * v.duration;
   });
-  document.getElementById("btn-mode-source").addEventListener("click", () => {
+  $("btn-mode-source").addEventListener("click", () => {
     const id = clipId || state.project?.timeline[0];
     if (id) showSource(id, mode === "plan" ? v.currentTime : null);
   });
-  document.getElementById("btn-mode-plan").addEventListener("click", () => startPlan(0, true));
-  new ResizeObserver(fitBox).observe(document.getElementById("preview-area"));
+  $("btn-mode-plan").addEventListener("click", () => startPlan(0, true));
+  new ResizeObserver(fitBox).observe($("preview-area"));
   on("plan", () => {
     fitBox();
-    document.getElementById("btn-mode-plan").disabled = !keep().length;
+    $("btn-mode-plan").disabled = !keep().length;
     if (mode === "plan" && planIndex >= keep().length) planIndex = keep().length - 1;
     updateBadge();
   });
   on("preview-clip", ({ clipId: id, time }) => showSource(id, time, false));
+  const restyle = () => { styleVersion += 1; };        // 스타일이 바뀌면 자막을 다시 그린다
+  on("style-draft", restyle);
+  on("plan", restyle);
   requestAnimationFrame(tick);
 }

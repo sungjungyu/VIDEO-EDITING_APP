@@ -49,7 +49,7 @@ def style_name(style_id: str) -> str:
 
 
 def style_values(spec: StyleSpec, out_w: int, out_h: int) -> dict:
-    """ASS 스타일 한 줄에 들어갈 값 (실제 픽셀). 미리보기 CSS도 같은 규칙을 따른다 (web/js/style.js)."""
+    """ASS 스타일 한 줄에 들어갈 값 (실제 픽셀). 미리보기 CSS도 같은 규칙을 따른다 (web/js/subtitle/draw.js)."""
     scale = min(out_w, out_h) / REFERENCE_SHORT_SIDE
     bold = spec.weight in ("bold", "extra-bold")
     outline = spec.outline_width * scale if spec.outline else 0.0

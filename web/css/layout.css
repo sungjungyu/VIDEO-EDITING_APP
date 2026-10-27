@@ -1,0 +1,74 @@
+/* 화면 뼈대: 상단 바·아이콘 바·가운데 열·패널 배치 */
+
+/* Shell */
+.app{display:flex;flex-direction:column;height:100vh}
+
+/* Topbar */
+.topbar{flex:0 0 48px;display:flex;align-items:center;justify-content:space-between;
+  padding:0 14px;background:var(--panel3);border-bottom:1px solid var(--border);z-index:30}
+.topbar-left{display:flex;align-items:center;gap:14px}
+.topbar-right{display:flex;align-items:center;gap:8px}
+.topbar-center{flex:1;text-align:center;font-size:11px;color:var(--muted)}
+.brand{display:flex;align-items:center;gap:7px;font-weight:700;font-size:14px}
+.brand-mark{width:22px;height:22px;border-radius:5px;display:grid;place-items:center;
+  background:linear-gradient(135deg,var(--keep),var(--accent));font-size:11px;font-weight:900;color:#fff}
+.brand-mark-lg{width:26px;height:26px;font-size:13px}
+.btn-row{display:flex;gap:3px}
+.brand-ai{color:var(--accent)}
+.btn-tb{width:28px;height:28px;background:none;border:1px solid var(--border);border-radius:5px;
+  color:var(--muted);font-size:14px;cursor:pointer;display:grid;place-items:center;transition:background .15s}
+.btn-tb:hover:not(:disabled){background:var(--panel2);color:var(--text)}
+.btn-tb:disabled{opacity:.3;cursor:not-allowed}
+.btn-export{background:var(--accent);color:#fff;font-weight:700;font-size:12px;
+  padding:6px 16px;border:none;border-radius:6px;cursor:pointer;transition:filter .15s}
+.btn-export:hover:not(:disabled){filter:brightness(1.08)}
+.btn-export:disabled{opacity:.4;cursor:not-allowed}
+
+/* Main area */
+.main-area{flex:1 1 auto;display:flex;min-height:0}
+
+/* ① Icon bar */
+.icon-bar{flex:0 0 66px;background:var(--panel3);border-right:1px solid var(--border);
+  display:flex;flex-direction:column;align-items:center;padding:10px 5px;gap:2px;z-index:10}
+.icon-bar-logo{margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid var(--border);
+  width:100%;display:flex;justify-content:center}
+.icon-btn{width:54px;padding:7px 3px 5px;border-radius:7px;background:none;border:none;
+  color:var(--muted);cursor:pointer;display:flex;flex-direction:column;align-items:center;
+  gap:3px;font-size:9px;font-weight:600;transition:background .15s,color .15s;letter-spacing:.02em}
+.icon-btn svg{width:20px;height:20px}
+.icon-btn:hover:not(.icon-disabled){background:var(--panel2);color:var(--text)}
+.icon-btn.icon-active{background:var(--panel2);color:var(--accent)}
+.icon-btn.icon-disabled{opacity:.3;cursor:not-allowed}
+.icon-divider{width:36px;height:1px;background:var(--border);margin:4px 0}
+
+/* Middle column */
+.middle-col{flex:1 1 auto;display:flex;flex-direction:column;min-width:0;min-height:0}
+.middle-top{flex:1 1 auto;display:flex;min-height:0}
+
+/* ② Context panel */
+.ctx-panel{flex:0 0 258px;display:flex;flex-direction:column;background:var(--panel);
+  border-right:1px solid var(--border);min-height:0;overflow:hidden}
+.ctx-inner{display:none;flex-direction:column;flex:1;min-height:0;overflow:hidden}
+.ctx-inner.active{display:flex}
+
+
+/* 상단 바: 프로젝트 이름·메뉴·AI 모드 */
+.project-name{font-size:12px;font-weight:600;color:var(--text);background:none;border:1px solid transparent;
+  border-radius:5px;padding:3px 8px;max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:text}
+.project-name:hover{border-color:var(--border)}
+.project-name-input{font-size:12px;font-weight:600;background:var(--panel2);color:var(--text);border:1px solid var(--accent);
+  border-radius:5px;padding:3px 8px;width:220px;outline:none;font-family:inherit}
+.btn-menu{font-size:11px;color:var(--muted);background:none;border:1px solid var(--border);border-radius:5px;
+  padding:4px 10px;cursor:pointer}
+.btn-menu:hover{color:var(--text);background:var(--panel2)}
+.ai-badge{font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;letter-spacing:.03em}
+.ai-badge.live{background:rgba(92,168,255,.15);color:var(--keep)}
+.ai-badge.offline{background:rgba(196,181,253,.15);color:var(--analyzing)}
+.project-menu{position:absolute;top:44px;left:120px;z-index:60;background:var(--panel);border:1px solid var(--border);
+  border-radius:8px;min-width:280px;max-height:60vh;overflow:auto;box-shadow:0 8px 24px rgba(0,0,0,.4);padding:6px}
+.project-menu.hidden{display:none}
+.project-menu-item{display:flex;justify-content:space-between;gap:10px;padding:7px 9px;border-radius:5px;cursor:pointer;font-size:11px}
+.project-menu-item:hover{background:var(--panel2)}
+.project-menu-item.current{color:var(--accent)}
+.project-menu-meta{color:var(--muted);font-size:10px;white-space:nowrap}
+.project-menu-new{width:100%;margin-bottom:4px}

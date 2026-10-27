@@ -3,12 +3,13 @@
    진행률은 서버 작업(job)을 물어서 보여 주고, 새로고침해도 진행 중인 분석을 이어서 따라간다.
    검토 목록의 남김/자름·자막 수정은 바로 편집 계획에 반영된다 (실행취소 가능). */
 
-import { api, pollJob } from "./api.js";
+import { api, pollJob } from "../core/api.js";
+import { $, el, toast } from "../core/dom.js";
+import { fmt } from "../core/format.js";
 import { analysisReady, clipById, decisionOf, mutatePlan, on, pid, setAnalysis, setPlanView, setProject, state,
-         timelineClips } from "./store.js";
-import { loadProfile } from "./profile.js";
+         timelineClips } from "../core/store.js";
 import { showSource } from "./preview.js";
-import { el, fmt, toast } from "./util.js";
+import { loadProfile } from "./profile.js";
 
 const STAGES = ["idle", "analyzing", "setup", "review", "chat"];
 let trackedJob = null;
@@ -16,15 +17,15 @@ let reviewFilter = "all";
 
 export function setAiStage(stage) {
   state.ui.aiStage = stage;
-  STAGES.forEach(s => document.getElementById(`ai-${s}`).classList.toggle("hidden", s !== stage));
-  document.getElementById("btn-ai-reset").classList.toggle("hidden", stage === "idle" || stage === "setup");
+  STAGES.forEach(s => $(`ai-${s}`).classList.toggle("hidden", s !== stage));
+  $("btn-ai-reset").classList.toggle("hidden", stage === "idle" || stage === "setup");
   if (stage === "review") renderReview();
   updateAnalyzeButton();
 }
 
 export function updateAnalyzeButton() {
-  const btn = document.getElementById("btn-analyze");
-  const hint = document.getElementById("analyze-hint");
+  const btn = $("btn-analyze");
+  const hint = $("analyze-hint");
   const clips = timelineClips();
   const status = state.project?.analysis?.status;
   hint.textContent = "";
@@ -71,9 +72,9 @@ export async function trackAnalysis(job) {
   if (trackedJob === job.job_id) return;
   trackedJob = job.job_id;
   setAiStage("analyzing");
-  const stageEl = document.getElementById("progress-stage");
-  const bar = document.getElementById("progress-bar-fill");
-  const msg = document.getElementById("progress-message");
+  const stageEl = $("progress-stage");
+  const bar = $("progress-bar-fill");
+  const msg = $("progress-message");
   let final;
   try {
     final = await pollJob(job.job_id, j => {
@@ -102,7 +103,7 @@ export async function trackAnalysis(job) {
 const SOURCE_LABEL = { ai: "AI", rule: "규칙", user: "내가 바꿈" };
 
 function reviewCard() {
-  const card = document.getElementById("review-card");
+  const card = $("review-card");
   card.innerHTML = "";
   const a = state.analysis, plan = state.plan;
   if (!a || !plan) return;
@@ -150,12 +151,25 @@ function lineItem(line) {
   return el("div", { class: `seg-item${d.keep ? "" : " is-cut"}`, dataset: { seg: line.seg_id } }, toggle, time, text, side);
 }
 
-export function renderReview() {
+/* 검토 목록. 같은 문장들이 그대로 보이는 중이면(필터·분석이 그대로) 판단이 바뀐 줄만 바꿔 끼운다
+   (예전에는 문장 하나를 토글해도 600줄을 다시 만들고 줄마다 높이를 다시 쟀다) */
+const MAX_REVIEW_ROWS = 600;
+const shown = { key: "", rows: new Map(), signatures: new Map() };
+
+function decisionSignature(line) {
+  const d = decisionOf(line.seg_id);
+  return [d.keep, d.reason, d.emphasis, d.source, d.text || "", d.note || ""].join("|");
+}
+
+function fitHeight(textarea) {
+  textarea.style.height = `${textarea.scrollHeight}px`;
+}
+
+function renderReview() {
   reviewCard();
-  const list = document.getElementById("review-segs-list");
-  list.innerHTML = "";
+  const list = $("review-segs-list");
   const lines = state.analysis?.lines || [];
-  document.getElementById("review-seg-count").textContent = String(lines.length);
+  $("review-seg-count").textContent = String(lines.length);
   const filtered = lines.filter(l => {
     const d = decisionOf(l.seg_id);
     if (reviewFilter === "cut") return !d.keep;
@@ -163,9 +177,34 @@ export function renderReview() {
     if (reviewFilter === "user") return d.source === "user";
     return true;
   });
-  for (const line of filtered.slice(0, 600)) list.appendChild(lineItem(line));
-  if (filtered.length > 600) list.appendChild(el("div", { class: "analysis-hint" }, `… ${filtered.length - 600}개 더 있음 (필터로 좁히세요)`));
-  requestAnimationFrame(() => list.querySelectorAll(".seg-text").forEach(t => { t.style.height = `${t.scrollHeight}px`; }));
+  const visible = filtered.slice(0, MAX_REVIEW_ROWS);
+  const key = `${state.analysis?.created_at}|${reviewFilter}|${visible.map(l => l.seg_id).join(",")}|${filtered.length}`;
+  if (key === shown.key) {
+    for (const line of visible) {
+      const signature = decisionSignature(line);
+      if (shown.signatures.get(line.seg_id) === signature) continue;
+      const row = lineItem(line);
+      shown.rows.get(line.seg_id).replaceWith(row);
+      shown.rows.set(line.seg_id, row);
+      shown.signatures.set(line.seg_id, signature);
+      requestAnimationFrame(() => fitHeight(row.querySelector(".seg-text")));
+    }
+    return;
+  }
+  shown.key = key;
+  shown.rows.clear();
+  shown.signatures.clear();
+  list.innerHTML = "";
+  for (const line of visible) {
+    const row = lineItem(line);
+    shown.rows.set(line.seg_id, row);
+    shown.signatures.set(line.seg_id, decisionSignature(line));
+    list.appendChild(row);
+  }
+  if (filtered.length > MAX_REVIEW_ROWS) {
+    list.appendChild(el("div", { class: "analysis-hint" }, `… ${filtered.length - MAX_REVIEW_ROWS}개 더 있음 (필터로 좁히세요)`));
+  }
+  requestAnimationFrame(() => list.querySelectorAll(".seg-text").forEach(fitHeight));
 }
 
 async function setLine(segId, change) {
@@ -179,7 +218,7 @@ async function setLine(segId, change) {
 /* ---------------------------------------------------------------- 수정 요청 (채팅) */
 
 function addChatMsg(role, text) {
-  const box = document.getElementById("chat-messages");
+  const box = $("chat-messages");
   const node = el("div", { class: `msg msg-${role}` }, text);
   box.appendChild(node);
   box.scrollTop = box.scrollHeight;
@@ -202,19 +241,19 @@ async function sendRevise(instruction) {
 /* ---------------------------------------------------------------- 초기화 */
 
 export function initAnalysis() {
-  document.getElementById("btn-analyze").addEventListener("click", startAnalysis);
-  document.getElementById("btn-analyze-cancel").addEventListener("click", async () => {
+  $("btn-analyze").addEventListener("click", startAnalysis);
+  $("btn-analyze-cancel").addEventListener("click", async () => {
     if (trackedJob) await api.cancelJob(trackedJob).catch(err => toast(err.message, "error"));
   });
-  document.getElementById("btn-ai-reset").addEventListener("click", () => setAiStage("idle"));
-  document.getElementById("btn-apply").addEventListener("click", () => setAiStage("chat"));
+  $("btn-ai-reset").addEventListener("click", () => setAiStage("idle"));
+  $("btn-apply").addEventListener("click", () => setAiStage("chat"));
   document.querySelectorAll("#review-filters button").forEach(btn => btn.addEventListener("click", () => {
     reviewFilter = btn.dataset.filter;
     document.querySelectorAll("#review-filters button").forEach(b => b.classList.toggle("active", b === btn));
     renderReview();
   }));
-  const form = document.getElementById("chat-form");
-  const input = document.getElementById("chat-input");
+  const form = $("chat-form");
+  const input = $("chat-input");
   form.addEventListener("submit", e => {
     e.preventDefault();
     const text = input.value.trim();

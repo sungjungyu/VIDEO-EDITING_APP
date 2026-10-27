@@ -4,8 +4,9 @@
      자주 쓰는 단어 → 받아쓰기 고유명사 힌트 + 강조(줌인) 후보
    저장할 때 지금 자막 스타일도 함께 넣어 두고, 새 프로젝트를 만들면 그 스타일로 시작한다. */
 
-import { migrateStyle } from "./style.js";
-import { state } from "./store.js";
+import { $ } from "../core/dom.js";
+import { state } from "../core/store.js";
+import { migrateStyle } from "../subtitle/presets.js";
 
 const KEY = "video_editor_profile_v1";
 const DEFAULT = { cut_tempo: "", filler_removal: "", frequent_words: [], subtitle_style: null };
@@ -34,30 +35,30 @@ function parseCommaList(text) {
 
 function open() {
   const p = loadProfile();
-  document.getElementById("profile-cut-tempo").value = p.cut_tempo;
-  document.getElementById("profile-filler-removal").value = p.filler_removal;
-  document.getElementById("profile-frequent-words").value = p.frequent_words.join(", ");
-  document.getElementById("profile-save-status").textContent = "";
-  document.getElementById("profile-modal").classList.remove("hidden");
+  $("profile-cut-tempo").value = p.cut_tempo;
+  $("profile-filler-removal").value = p.filler_removal;
+  $("profile-frequent-words").value = p.frequent_words.join(", ");
+  $("profile-save-status").textContent = "";
+  $("profile-modal").classList.remove("hidden");
 }
 
 function close() {
-  document.getElementById("profile-modal").classList.add("hidden");
+  $("profile-modal").classList.add("hidden");
 }
 
 export function initProfile() {
-  document.getElementById("btn-profile").addEventListener("click", open);
-  document.getElementById("profile-modal-close").addEventListener("click", close);
-  document.getElementById("profile-modal-backdrop").addEventListener("click", close);
-  document.getElementById("btn-profile-cancel").addEventListener("click", close);
-  document.getElementById("btn-profile-save").addEventListener("click", () => {
+  $("btn-profile").addEventListener("click", open);
+  $("profile-modal-close").addEventListener("click", close);
+  $("profile-modal-backdrop").addEventListener("click", close);
+  $("btn-profile-cancel").addEventListener("click", close);
+  $("btn-profile-save").addEventListener("click", () => {
     saveProfile({
-      cut_tempo: document.getElementById("profile-cut-tempo").value,
-      filler_removal: document.getElementById("profile-filler-removal").value,
-      frequent_words: parseCommaList(document.getElementById("profile-frequent-words").value),
+      cut_tempo: $("profile-cut-tempo").value,
+      filler_removal: $("profile-filler-removal").value,
+      frequent_words: parseCommaList($("profile-frequent-words").value),
       subtitle_style: state.plan?.styles?.subtitle || null,
     });
-    const status = document.getElementById("profile-save-status");
+    const status = $("profile-save-status");
     status.textContent = "저장했습니다. 다음 분석·AI 가편집부터 반영됩니다.";
     status.className = "modal-status ok";
   });

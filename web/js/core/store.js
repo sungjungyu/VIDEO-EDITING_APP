@@ -34,8 +34,6 @@ export const state = {
     selectedClipId: null,
     aiStage: "idle",
     pxPerSec: 40,
-    previewMode: "source",
-    previewClipId: null,
   },
 };
 
@@ -52,15 +50,12 @@ export function setPlanView(view) {
   emit("plan", state.plan);
 }
 
-let lineIndex = new Map();
 let linesByClip = new Map();
 
 export function setAnalysis(analysis) {
   state.analysis = analysis;
-  lineIndex = new Map();
   linesByClip = new Map();
   for (const line of analysis?.lines || []) {
-    lineIndex.set(line.seg_id, line);
     if (!linesByClip.has(line.clip_id)) linesByClip.set(line.clip_id, []);
     linesByClip.get(line.clip_id).push(line);
   }
@@ -68,7 +63,6 @@ export function setAnalysis(analysis) {
   emit("analysis", analysis);
 }
 
-export const lineById = id => lineIndex.get(id);
 export const linesOfClip = cid => linesByClip.get(cid) || [];
 
 /* 문장 하나의 최종 판단: 사용자 결정 > AI·규칙 판단 > 남김 */
@@ -107,14 +101,6 @@ export function analysisReady() {
 export function globalToClip(t) {
   for (const span of state.analysis?.clips || []) {
     if (t >= span.offset && t < span.offset + span.duration) return { clipId: span.clip_id, time: t - span.offset };
-  }
-  return null;
-}
-
-/* 클립 초 → 결과 초 (잘린 곳이면 null) */
-export function clipToOutput(clipId, t) {
-  for (const k of state.plan?.keep || []) {
-    if (k.clip_id === clipId && t >= k.start && t < k.end) return k.out_start + (t - k.start);
   }
   return null;
 }

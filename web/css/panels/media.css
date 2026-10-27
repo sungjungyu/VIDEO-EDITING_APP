@@ -1,0 +1,56 @@
+/* 왼쪽 미디어 패널: 업로드·클립 목록 */
+
+/* Media tab */
+.media-header{flex:0 0 auto;padding:10px 10px 8px;border-bottom:1px solid var(--border)}
+.media-upload-btn{width:100%;padding:8px;background:var(--panel2);
+  border:1px dashed var(--border);border-radius:7px;color:var(--muted);font-size:12px;
+  cursor:pointer;transition:border-color .15s,color .15s;
+  display:flex;align-items:center;justify-content:center;gap:6px}
+.media-upload-btn:hover{border-color:var(--accent);color:var(--accent)}
+.aspect-row{display:flex;align-items:center;gap:6px;padding:7px 0 0;font-size:10px;color:var(--muted)}
+.aspect-btn{padding:2px 9px;border-radius:4px;border:1px solid var(--border);background:none;
+  color:var(--muted);font-size:10px;cursor:pointer;transition:border-color .15s,color .15s}
+.aspect-btn.active{border-color:var(--accent);color:var(--accent)}
+.clip-list-label{padding:7px 10px 3px;font-size:9px;color:var(--muted);font-weight:700;
+  text-transform:uppercase;letter-spacing:.06em;flex:0 0 auto}
+.clip-list{flex:1 1 auto;overflow-y:auto;padding:0 6px 6px}
+.clip-item{display:flex;align-items:center;gap:7px;padding:6px 8px;border-radius:7px;
+  cursor:grab;user-select:none;margin-bottom:3px;border:2px solid transparent;
+  transition:background .15s,border-color .15s}
+.clip-item:hover{background:var(--panel2)}
+.clip-item.on-timeline{border-color:rgba(92,168,255,.45)}
+.clip-thumb-wrap{flex:0 0 50px;height:32px;border-radius:3px;overflow:hidden;background:#0a0d12}
+.clip-thumb{width:100%;height:100%;object-fit:cover;display:block}
+.clip-info{flex:1 1 auto;min-width:0}
+.clip-name{font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:2px}
+.clip-meta{display:flex;align-items:center;gap:5px}
+.clip-dur{font-size:10px;color:var(--muted)}
+.clip-status-badge{font-size:9px;padding:1px 5px;border-radius:8px;font-weight:600}
+.badge-uploading{background:#2a3340;color:var(--muted)}
+.badge-ready{background:#1a2a1a;color:#5ca85c}
+.badge-analyzed{background:#1a2035;color:var(--keep)}
+.badge-analyzing,.badge-review{background:#221a35;color:var(--analyzing)}
+.badge-failed{background:#351a1a;color:var(--cut)}
+.clip-add-btn{flex:0 0 auto;background:none;border:1px solid var(--border);border-radius:4px;
+  color:var(--muted);font-size:11px;padding:2px 6px;cursor:pointer;transition:border-color .15s,color .15s}
+.clip-add-btn:hover{border-color:var(--keep);color:var(--keep)}
+.clip-delete-btn{flex:0 0 auto;background:none;border:1px solid var(--border);border-radius:4px;
+  color:var(--muted);font-size:12px;padding:2px 6px;cursor:pointer;line-height:1;
+  transition:border-color .15s,color .15s;margin-left:4px}
+.clip-delete-btn:hover{border-color:var(--cut);color:var(--cut)}
+
+/* Placeholder panels */
+.placeholder-panel{flex:1;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;gap:10px;color:var(--muted);text-align:center;padding:20px}
+.placeholder-panel svg{width:36px;height:36px;opacity:.3}
+.placeholder-panel p{font-size:11px;line-height:1.7}
+
+
+/* 클립 목록 */
+.clip-list-head{display:flex;align-items:center;justify-content:space-between;padding:7px 10px 3px}
+.clip-list-head .clip-list-label{padding:0}
+.btn-mini{font-size:10px;color:var(--muted);background:none;border:1px solid var(--border);border-radius:4px;
+  padding:2px 7px;cursor:pointer}
+.btn-mini:hover{color:var(--text);border-color:var(--text)}
+.clip-upload-bar{height:3px;background:var(--border);border-radius:2px;margin-top:3px;overflow:hidden}
+.clip-upload-bar > div{height:100%;background:var(--accent);width:0}

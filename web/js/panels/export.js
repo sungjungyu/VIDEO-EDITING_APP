@@ -1,13 +1,12 @@
 /* 내보내기: 렌더 전 검사 → 설정 → 렌더(진행률·취소) → 결과 다운로드 → 평가 지표.
    렌더는 서버 작업이라 창을 닫거나 새로고침해도 계속되고, 다시 열면 이어서 진행률을 보여 준다. */
 
-import { api, pollJob } from "./api.js";
-import { mutatePlan, on, pid, setProject, state } from "./store.js";
-import { el, fmt, setToggle, toast } from "./util.js";
+import { api, pollJob } from "../core/api.js";
+import { $, el, setToggle, toast } from "../core/dom.js";
+import { fmt } from "../core/format.js";
+import { mutatePlan, on, pid, setProject, state } from "../core/store.js";
 
 let renderJob = null;
-
-const $ = id => document.getElementById(id);
 
 function setHidden(hidden) {
   $("export-modal").classList.toggle("hidden", hidden);
@@ -83,7 +82,7 @@ async function renderMetrics() {
   for (const [k, v] of rows) table.appendChild(el("tr", {}, el("td", {}, k), el("td", {}, v)));
 }
 
-export async function openExportModal() {
+async function openExportModal() {
   setHidden(false);
   try {
     const view = await api.getPlan(pid());

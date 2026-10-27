@@ -1,17 +1,18 @@
 /* 시작점: 설정을 읽고, 마지막에 열었던 프로젝트를 다시 열고(서버에 저장돼 있음), 각 화면 모듈을 연결한다. */
 
-import { api } from "./api.js";
-import { initAnalysis, loadAnalysisAndPlan, setAiStage, trackAnalysis, updateAnalyzeButton } from "./analysis.js";
-import { initExport, trackRender } from "./exporter.js";
-import { initMedia } from "./media.js";
-import { initPreview, togglePlay } from "./preview.js";
-import { initProfile, loadProfile } from "./profile.js";
-import { closeEditSetup, initSetup } from "./setup.js";
+import { api } from "./core/api.js";
+import { $, el, toast } from "./core/dom.js";
+import { fmt } from "./core/format.js";
 import { analysisReady, canRedo, canUndo, clearHistory, clipById, mutatePlan, on, pid, redo, setProject, state,
-         timelineClips, undo } from "./store.js";
-import { attachPane, detachPane, initStylePanel } from "./stylepanel.js";
-import { initTimeline, zoomToFit } from "./timeline.js";
-import { el, fmt, toast } from "./util.js";
+         timelineClips, undo } from "./core/store.js";
+import { initAnalysis, loadAnalysisAndPlan, setAiStage, trackAnalysis, updateAnalyzeButton } from "./panels/analysis.js";
+import { initExport, trackRender } from "./panels/export.js";
+import { initMedia } from "./panels/media.js";
+import { initPreview, togglePlay } from "./panels/preview.js";
+import { initProfile, loadProfile } from "./panels/profile.js";
+import { closeEditSetup, initSetup } from "./panels/setup.js";
+import { attachPane, detachPane, initStylePanel } from "./panels/style-panel.js";
+import { initTimeline, zoomToFit } from "./panels/timeline.js";
 
 const PROJECT_KEY = "vibecut_project_id";
 
@@ -26,7 +27,7 @@ async function openProject(project) {
   setAiStage(analysisReady() ? "review" : "idle");
   zoomToFit();
   const first = timelineClips()[0];
-  if (first) document.getElementById("preview-empty").classList.add("hidden");
+  if (first) $("preview-empty").classList.add("hidden");
   for (const job of project.active_jobs || []) {
     if (job.kind === "analyze") trackAnalysis(job);
     if (job.kind === "render") trackRender(job);
@@ -46,7 +47,7 @@ async function newProject() {
 }
 
 async function toggleProjectMenu() {
-  const menu = document.getElementById("project-menu");
+  const menu = $("project-menu");
   if (!menu.classList.contains("hidden")) { menu.classList.add("hidden"); return; }
   menu.innerHTML = "";
   menu.appendChild(el("button", { class: "btn-primary project-menu-new",
@@ -64,7 +65,7 @@ async function toggleProjectMenu() {
 }
 
 function renameProject() {
-  const button = document.getElementById("project-name");
+  const button = $("project-name");
   const input = el("input", { class: "project-name-input", value: state.project.name, maxlength: "80" });
   button.replaceWith(input);
   input.focus();
@@ -102,13 +103,13 @@ async function watchProject() {
 function renderTopbar() {
   const p = state.project;
   if (!p) return;
-  document.getElementById("project-name").textContent = p.name;
+  $("project-name").textContent = p.name;
   const clips = timelineClips();
-  const status = document.getElementById("topbar-status");
+  const status = $("topbar-status");
   if (!clips.length) status.textContent = "타임라인에 영상을 추가하세요";
   else if (state.plan) status.textContent = `클립 ${clips.length}개 · 결과 ${fmt(state.plan.duration)}`
     + (p.analysis.status === "done" ? (p.analysis_stale ? " · 타임라인이 바뀌어 다시 분석이 필요합니다" : " · 분석 완료") : " · 분석 전");
-  const badge = document.getElementById("ai-badge");
+  const badge = $("ai-badge");
   const live = state.config?.ai_mode === "live";
   badge.className = `ai-badge ${live ? "live" : "offline"}`;
   badge.textContent = live ? "AI: Gemini" : "AI: 오프라인";
@@ -117,29 +118,29 @@ function renderTopbar() {
 }
 
 function renderHistoryButtons() {
-  document.getElementById("btn-undo").disabled = !canUndo();
-  document.getElementById("btn-redo").disabled = !canRedo();
+  $("btn-undo").disabled = !canUndo();
+  $("btn-redo").disabled = !canRedo();
 }
 
 function showClipPanel() {
-  const panel = document.getElementById("obj-panel");
+  const panel = $("obj-panel");
   const clip = clipById(state.ui.selectedClipId);
   if (!clip || document.body.classList.contains("setup-active")) {
-    if (!document.getElementById("sub-style-pane").closest(".style-item-body")) detachPane();
+    if (!$("sub-style-pane").closest(".style-item-body")) detachPane();
     if (panel.dataset.mode !== "style") panel.classList.add("hidden");
     return;
   }
   detachPane();
   panel.dataset.mode = "clip";
   panel.classList.remove("hidden");
-  document.getElementById("obj-tab-body").style.display = "";
-  document.getElementById("obj-panel-name").textContent = clip.filename;
+  $("obj-tab-body").style.display = "";
+  $("obj-panel-name").textContent = clip.filename;
   const kept = (state.plan?.keep || []).filter(k => k.clip_id === clip.clip_id).reduce((a, k) => a + k.end - k.start, 0);
   const created = clip.created_at ? new Date(clip.created_at * 1000).toLocaleString("ko-KR") : "메타데이터 없음";
   const rows = [["길이", fmt(clip.duration)], ["사용 범위", `${fmt(clip.in_point)} ~ ${fmt(clip.out_point ?? clip.duration)}`],
                 ["결과에 남는 길이", fmt(kept)], ["해상도", `${clip.width}x${clip.height} · ${clip.fps}fps`],
                 ["소리", clip.has_audio ? "있음" : "없음"], ["촬영 시각", created], ["파일", clip.filename]];
-  const box = document.getElementById("obj-tab-basic");
+  const box = $("obj-tab-basic");
   box.innerHTML = "";
   for (const [k, v] of rows) box.appendChild(el("div", { class: "obj-prop" }, el("span", { class: "obj-prop-label" }, k),
                                                el("span", { class: "obj-prop-value" }, v)));
@@ -147,11 +148,11 @@ function showClipPanel() {
 
 function showStylePanel() {
   if (document.body.classList.contains("setup-active")) return;
-  const panel = document.getElementById("obj-panel");
+  const panel = $("obj-panel");
   panel.dataset.mode = "style";
   panel.classList.remove("hidden");
-  document.getElementById("obj-panel-name").textContent = "자막 스타일";
-  document.getElementById("obj-tab-body").style.display = "none";
+  $("obj-panel-name").textContent = "자막 스타일";
+  $("obj-tab-body").style.display = "none";
   attachPane(panel, "subtitle");
 }
 
@@ -182,13 +183,13 @@ async function boot() {
   on("history", renderHistoryButtons);
   on("project", () => { if (state.project?.active_jobs?.some(j => j.kind === "proxy")) watchProject(); });
 
-  document.getElementById("btn-project-menu").addEventListener("click", () => toggleProjectMenu().catch(e => toast(e.message, "error")));
-  document.getElementById("project-name").addEventListener("click", renameProject);
-  document.getElementById("btn-undo").addEventListener("click", () => undo().catch(e => toast(e.message, "error")));
-  document.getElementById("btn-redo").addEventListener("click", () => redo().catch(e => toast(e.message, "error")));
-  document.getElementById("sub-track-label").addEventListener("click", showStylePanel);
+  $("btn-project-menu").addEventListener("click", () => toggleProjectMenu().catch(e => toast(e.message, "error")));
+  $("project-name").addEventListener("click", renameProject);
+  $("btn-undo").addEventListener("click", () => undo().catch(e => toast(e.message, "error")));
+  $("btn-redo").addEventListener("click", () => redo().catch(e => toast(e.message, "error")));
+  $("sub-track-label").addEventListener("click", showStylePanel);
   document.addEventListener("click", e => {
-    const menu = document.getElementById("project-menu");
+    const menu = $("project-menu");
     if (!menu.classList.contains("hidden") && !e.target.closest("#project-menu") && !e.target.closest("#btn-project-menu")) {
       menu.classList.add("hidden");
     }
@@ -197,7 +198,7 @@ async function boot() {
     const typing = ["INPUT", "TEXTAREA", "SELECT"].includes(document.activeElement?.tagName);
     if (e.key === "Escape") {
       document.querySelectorAll(".modal").forEach(m => m.classList.add("hidden"));
-      document.getElementById("project-menu").classList.add("hidden");
+      $("project-menu").classList.add("hidden");
       return;
     }
     if (typing) return;

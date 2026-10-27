@@ -1,0 +1,77 @@
+/* 오른쪽 객체 패널·자막 스타일 폼·스타일 미리보기 */
+
+/* ④ Object panel */
+.obj-panel{flex:0 0 228px;display:flex;flex-direction:column;background:var(--panel);
+  border-left:1px solid var(--border);min-height:0}
+.obj-panel.hidden{display:none}
+.obj-panel-top{flex:0 0 auto;padding:10px 12px 0}
+.obj-panel-name{font-size:12px;font-weight:700;white-space:nowrap;overflow:hidden;
+  text-overflow:ellipsis;margin-bottom:8px}
+.obj-tabs{display:flex;overflow-x:auto;border-bottom:1px solid var(--border)}
+.obj-tabs::-webkit-scrollbar{display:none}
+.obj-tab-btn{flex:0 0 auto;padding:6px 10px;background:none;border:none;
+  color:var(--muted);font-size:10px;font-weight:600;cursor:pointer;
+  border-bottom:2px solid transparent;white-space:nowrap;transition:color .15s,border-color .15s}
+.obj-tab-btn.active{color:var(--accent);border-bottom-color:var(--accent)}
+.obj-tab-body{flex:1 1 auto;overflow-y:auto;padding:10px 12px}
+.obj-tab-pane{display:none}
+.obj-tab-pane.active{display:block}
+.obj-prop{display:flex;align-items:flex-start;justify-content:space-between;
+  padding:7px 0;border-bottom:1px solid rgba(255,255,255,.04);gap:8px}
+.obj-prop-label{font-size:10px;color:var(--muted);flex:0 0 auto}
+.obj-prop-value{font-size:10px;color:var(--text);text-align:right;word-break:break-all}
+.obj-placeholder{font-size:11px;color:var(--muted);text-align:center;padding:20px 0;line-height:1.7}
+
+/* ④ Subtitle style pane */
+#sub-track-label{cursor:pointer;user-select:none;transition:color .15s}
+#sub-track-label:hover{color:var(--text)}
+#sub-style-pane{flex:1 1 auto;overflow-y:auto;padding:10px 12px}
+.ss-label{font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;
+  letter-spacing:.06em;margin-bottom:7px}
+.ss-label-spaced{margin-top:12px}
+.ss-preset-row{display:flex;gap:4px;margin-bottom:12px}
+.ss-preset-btn{flex:1;padding:5px 0;border:1px solid var(--border);border-radius:5px;
+  background:none;color:var(--muted);font-size:10px;font-weight:600;cursor:pointer;
+  transition:border-color .15s,color .15s,background .15s}
+.ss-preset-btn.active{background:rgba(255,216,77,.13);border-color:var(--accent);color:var(--accent)}
+.ss-preset-btn:hover:not(.active){border-color:var(--text);color:var(--text)}
+.ss-row{display:flex;align-items:center;justify-content:space-between;
+  padding:7px 0;border-bottom:1px solid rgba(255,255,255,.04);gap:6px}
+.ss-row-label{font-size:10px;color:var(--muted);white-space:nowrap}
+.ss-row-label-sub{padding-left:8px}
+.ss-row-ctrl{display:flex;align-items:center;gap:6px;flex-shrink:0}
+.ss-select{background:var(--panel2);border:1px solid var(--border);border-radius:4px;
+  color:var(--text);font-size:10px;padding:2px 5px;outline:none;max-width:106px}
+.ss-color{width:28px;height:22px;border:1px solid var(--border);border-radius:3px;
+  padding:1px;cursor:pointer;background:none}
+.ss-slider{width:72px;accent-color:var(--accent);cursor:pointer}
+.ss-slider-val{font-size:10px;color:var(--text);min-width:26px;text-align:right}
+.ss-toggle{width:34px;height:19px;border-radius:10px;border:none;cursor:pointer;
+  position:relative;transition:background .18s;flex-shrink:0}
+.ss-toggle.on{background:var(--accent)}
+.ss-toggle.off{background:var(--border)}
+.ss-toggle::after{content:"";position:absolute;width:13px;height:13px;border-radius:50%;
+  background:#fff;top:3px;transition:left .18s}
+.ss-toggle.on::after{left:18px}
+.ss-toggle.off::after{left:3px}
+
+
+/* 자막 미리보기 상자 (스타일 목록 아이템 안에서 재사용된다) */
+.ss-preview-box { padding: 0; }
+.ss-preview-stage { position: relative; width: 100%; min-height: 120px;
+  background: #0a0d12; border-radius: var(--radius); overflow: hidden;
+  display: flex; justify-content: center; padding: 12px 10%;
+  align-items: flex-end; transition: padding .15s; }
+.ss-preview-text { display: inline-block; color: #fff; font-size: 24px;
+  line-height: 1.5; text-align: center; max-width: 100%;
+  white-space: pre-line; word-break: break-word; transition: none; }
+
+/* 기본값으로 버튼 */
+.btn-ss-reset { width: 100%; padding: 7px; background: var(--panel2);
+  color: var(--text); border: 1px solid var(--border); border-radius: 5px;
+  cursor: pointer; font-size: 11px; transition: border-color .15s, color .15s; }
+.btn-ss-reset:hover { border-color: var(--accent); color: var(--accent); }
+
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}

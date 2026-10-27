@@ -2,9 +2,10 @@
    업로드한 파일은 서버 프로젝트에 남는다 (새로고침해도 유지). 같은 세션에서는 로컬 파일(blob)로 바로 재생하고,
    서버가 540p 미리보기 사본(프록시)을 만들면 그것을 쓴다 (어디로 이동해도 빨리 보임). */
 
-import { api } from "./api.js";
-import { clipById, emit, mutatePlan, on, pid, setProject, state } from "./store.js";
-import { el, fmt, toast } from "./util.js";
+import { api } from "../core/api.js";
+import { $, el, toast } from "../core/dom.js";
+import { fmt } from "../core/format.js";
+import { clipById, emit, mutatePlan, on, pid, setProject, state } from "../core/store.js";
 
 export function mediaUrl(clip) {
   if (!clip) return "";
@@ -15,7 +16,7 @@ export function mediaUrl(clip) {
 
 const thumbJobs = new Map();
 
-export function ensureThumbnails(clip) {
+function ensureThumbnails(clip) {
   if (!clip || thumbJobs.has(clip.clip_id)) return thumbJobs.get(clip?.clip_id);
   const job = makeThumbnails(clip).catch(() => null);
   thumbJobs.set(clip.clip_id, job);
@@ -54,8 +55,10 @@ async function makeThumbnails(clip) {
 
 /* ---------------------------------------------------------------- 업로드 */
 
-export async function uploadFiles(files) {
-  const videos = files.filter(f => f.type.startsWith("video/") || /\.(mp4|mov|m4v|avi|mkv|webm|3gp)$/i.test(f.name));
+async function uploadFiles(files) {
+  const extensions = state.config?.video_extensions || [];
+  const videos = files.filter(f => f.type.startsWith("video/")
+                                   || extensions.some(ext => f.name.toLowerCase().endsWith(ext)));
   if (!videos.length) { toast("영상 파일만 올릴 수 있습니다.", "error"); return; }
   for (const file of videos) {
     const pending = { name: file.name, progress: 0 };
@@ -129,8 +132,8 @@ function statusOf(clip) {
   return ["review", "타임라인"];
 }
 
-export function renderClipList() {
-  const list = document.getElementById("clip-list");
+function renderClipList() {
+  const list = $("clip-list");
   list.innerHTML = "";
   const clips = state.project?.clips || [];
   if (!clips.length && !state.pendingUploads.length) {
@@ -172,8 +175,8 @@ export function renderClipList() {
 /* ---------------------------------------------------------------- 초기화 */
 
 export function initMedia() {
-  const input = document.getElementById("file-input");
-  const button = document.getElementById("upload-btn");
+  const input = $("file-input");
+  const button = $("upload-btn");
   button.addEventListener("click", () => input.click());
   input.addEventListener("change", e => { if (e.target.files.length) uploadFiles(Array.from(e.target.files)); input.value = ""; });
   button.addEventListener("dragover", e => { e.preventDefault(); button.style.borderColor = "var(--accent)"; });
@@ -182,7 +185,7 @@ export function initMedia() {
     e.preventDefault(); button.style.borderColor = "";
     uploadFiles(Array.from(e.dataTransfer.files));
   });
-  document.getElementById("btn-sort-clips").addEventListener("click", () => {
+  $("btn-sort-clips").addEventListener("click", () => {
     const sorted = [...state.project.timeline].map(clipById).filter(Boolean)
       .sort((a, b) => (a.created_at ?? Infinity) - (b.created_at ?? Infinity) || a.filename.localeCompare(b.filename));
     setTimeline(sorted.map(c => c.clip_id));

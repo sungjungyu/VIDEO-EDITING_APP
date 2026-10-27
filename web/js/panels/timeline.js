@@ -4,12 +4,12 @@
    - 클립 아래 파란 줄: 편집 계획에서 실제로 남는 구간 (빨간 바탕은 잘린 곳)
    - 자막 칸 클릭: 그 문장 남김/자름 전환 (흐린 칸은 고르지 않은 장면이라 결과에 없음) */
 
-import { api } from "./api.js";
-import { decisionOf, emit, linesOfClip, mutatePlan, on, pid, setProject, state, timelineLayout,
-         usableEnd } from "./store.js";
+import { api } from "../core/api.js";
+import { $, el, perFrame, toast } from "../core/dom.js";
+import { clamp, fmt } from "../core/format.js";
+import { decisionOf, emit, linesOfClip, mutatePlan, on, pid, setProject, state, timelineLayout, usableEnd } from "../core/store.js";
 import { addToTimeline, draggingClipId, removeFromTimeline, setTimeline } from "./media.js";
 import { currentPosition, showSource } from "./preview.js";
-import { clamp, el, fmt, toast } from "./util.js";
 
 const OFFSET = 52;
 let trim = null;
@@ -23,9 +23,11 @@ function totalDuration() {
   return layout.length ? layout[layout.length - 1].start + layout[layout.length - 1].dur : 0;
 }
 
-export function renderTimeline() {
+const renderDuringDrag = perFrame(() => renderTimeline());
+
+function renderTimeline() {
   const total = Math.max(totalDuration(), 10);
-  document.getElementById("tl-content").style.minWidth = `${OFFSET + total * px() + 160}px`;
+  $("tl-content").style.minWidth = `${OFFSET + total * px() + 160}px`;
   renderRuler(total);
   renderVideoTrack();
   renderSubtitleTrack();
@@ -34,7 +36,7 @@ export function renderTimeline() {
 }
 
 function renderRuler(total) {
-  const body = document.getElementById("ruler-body");
+  const body = $("ruler-body");
   body.innerHTML = "";
   const nice = [1, 2, 5, 10, 15, 30, 60, 120, 300, 600];
   const label = nice.find(n => n >= 80 / px()) || 600;
@@ -51,8 +53,8 @@ function keepRangesOf(clipId) {
 }
 
 function renderVideoTrack() {
-  const body = document.getElementById("video-track-body");
-  const hint = document.getElementById("tl-empty-hint");
+  const body = $("video-track-body");
+  const hint = $("tl-empty-hint");
   body.innerHTML = "";
   body.appendChild(hint);
   const layout = timelineLayout();
@@ -110,7 +112,7 @@ function renderVideoTrack() {
 }
 
 function renderSubtitleTrack() {
-  const body = document.getElementById("subtitle-track-body");
+  const body = $("subtitle-track-body");
   body.innerHTML = "";
   if (!state.analysis) return;
   for (const { clip, start } of timelineLayout()) {
@@ -135,7 +137,7 @@ function renderSubtitleTrack() {
   }
 }
 
-export async function toggleLine(segId) {
+async function toggleLine(segId) {
   const d = decisionOf(segId);
   try {
     await mutatePlan(() => api.patchLines(pid(), [{ seg_id: segId, keep: !d.keep }]));
@@ -146,7 +148,7 @@ export async function toggleLine(segId) {
 
 function renderStats() {
   const layout = timelineLayout();
-  const node = document.getElementById("tl-stats");
+  const node = $("tl-stats");
   if (!layout.length) { node.textContent = ""; return; }
   const source = layout.reduce((a, l) => a + l.dur, 0);
   const parts = [`클립 ${layout.length}개`, `원본 ${fmt(source)}`];
@@ -165,7 +167,7 @@ function timelineXOf(pos) {
 function movePlayhead(pos = currentPosition()) {
   if (playheadDrag) return;
   const x = timelineXOf(pos);
-  if (x !== null) document.getElementById("playhead").style.left = `${OFFSET + x}px`;
+  if (x !== null) $("playhead").style.left = `${OFFSET + x}px`;
 }
 
 function seekToTimelineX(x) {
@@ -178,7 +180,7 @@ function seekToTimelineX(x) {
 /* ---------------------------------------------------------------- 끌어다 놓기 */
 
 function dropIndexAt(clientX, excludeId = null) {
-  const body = document.getElementById("video-track-body");
+  const body = $("video-track-body");
   const x = (clientX - body.getBoundingClientRect().left) / px();
   const layout = timelineLayout().filter(l => l.clip.clip_id !== excludeId);
   for (let i = 0; i < layout.length; i++) {
@@ -209,7 +211,7 @@ async function finishTrim() {
 }
 
 export function initTimeline() {
-  const body = document.getElementById("video-track-body");
+  const body = $("video-track-body");
   body.addEventListener("dragover", e => { e.preventDefault(); if (draggingClipId) markDrop(dropIndexAt(e.clientX)); });
   body.addEventListener("dragleave", () => markDrop(-1));
   body.addEventListener("drop", e => {
@@ -231,7 +233,7 @@ export function initTimeline() {
       const delta = (e.clientX - trim.x) / px();
       if (trim.edge === "left") clip.in_point = clamp(trim.in0 + delta, 0, trim.out0 - 0.5);
       else clip.out_point = clamp(trim.out0 + delta, clip.in_point + 0.5, clip.duration);
-      renderTimeline();
+      renderDuringDrag();          // 마우스 이벤트가 몰려도 화면 갱신 주기마다 한 번만 다시 그린다
       return;
     }
     if (move) {
@@ -242,9 +244,9 @@ export function initTimeline() {
       return;
     }
     if (playheadDrag) {
-      const ruler = document.getElementById("ruler-body").getBoundingClientRect();
+      const ruler = $("ruler-body").getBoundingClientRect();
       const x = Math.max(0, e.clientX - ruler.left);
-      document.getElementById("playhead").style.left = `${OFFSET + x}px`;
+      $("playhead").style.left = `${OFFSET + x}px`;
       seekToTimelineX(x);
     }
   });
@@ -270,15 +272,15 @@ export function initTimeline() {
     playheadDrag = false;
   });
 
-  document.getElementById("playhead-handle").addEventListener("mousedown", e => {
+  $("playhead-handle").addEventListener("mousedown", e => {
     playheadDrag = true; e.preventDefault(); e.stopPropagation();
   });
-  document.getElementById("ruler-body").addEventListener("click", e => {
+  $("ruler-body").addEventListener("click", e => {
     seekToTimelineX(e.clientX - e.currentTarget.getBoundingClientRect().left);
   });
 
   let zoomTimer = null;
-  document.getElementById("tl-scroll").addEventListener("wheel", e => {
+  $("tl-scroll").addEventListener("wheel", e => {
     const scroll = e.currentTarget;
     e.preventDefault();
     if (!e.ctrlKey) { scroll.scrollLeft += e.deltaY || e.deltaX; return; }
@@ -287,7 +289,7 @@ export function initTimeline() {
     state.ui.pxPerSec = clamp(px() * (e.deltaY < 0 ? 1.12 : 1 / 1.12), 2, 400);
     renderTimeline();
     scroll.scrollLeft = sec * px() + OFFSET - (e.clientX - rect.left);
-    const hint = document.getElementById("zoom-hint");
+    const hint = $("zoom-hint");
     hint.textContent = `확대 ${Math.round(px())}px/초`;
     hint.classList.add("show");
     clearTimeout(zoomTimer);
@@ -315,7 +317,7 @@ export function initTimeline() {
 /* 긴 영상도 처음엔 타임라인 폭에 맞게 */
 export function zoomToFit() {
   const total = totalDuration();
-  const width = document.getElementById("tl-scroll").clientWidth - OFFSET - 40;
+  const width = $("tl-scroll").clientWidth - OFFSET - 40;
   if (total > 0 && width > 0) state.ui.pxPerSec = clamp(width / total, 2, 120);
   renderTimeline();
 }

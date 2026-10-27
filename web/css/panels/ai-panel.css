@@ -1,0 +1,116 @@
+/* AI 패널: 분석 진행·검토 목록·수정 요청(채팅) */
+
+/* ⑤ AI panel */
+.ai-panel{flex:0 0 318px;display:flex;flex-direction:column;background:var(--panel);
+  border-left:1px solid var(--border);min-height:0}
+.ai-panel-hdr{flex:0 0 auto;padding:11px 14px 9px;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between}
+.ai-panel-title{font-size:12px;font-weight:700;display:flex;align-items:center;gap:6px}
+.ai-dot{width:7px;height:7px;border-radius:50%;background:var(--analyzing)}
+.btn-ai-reset{font-size:10px;color:var(--muted);background:none;border:1px solid var(--border);
+  border-radius:4px;cursor:pointer;padding:2px 8px;transition:background .15s,color .15s}
+.btn-ai-reset:hover{background:var(--panel2);color:var(--text)}
+.btn-ai-reset.hidden{display:none}
+
+/* AI stage containers */
+.ai-stage{flex:1 1 auto;display:flex;flex-direction:column;min-height:0;overflow:hidden}
+.ai-stage.hidden{display:none}
+
+/* Stage idle */
+#ai-idle{padding:18px 14px;gap:12px;align-items:stretch}
+.ai-idle-hint{font-size:11px;color:var(--muted);line-height:1.7;text-align:center;padding:4px 0}
+.btn-analyze{width:100%;padding:10px;background:var(--accent);color:#fff;
+  font-weight:700;font-size:13px;border:none;border-radius:7px;cursor:pointer;transition:filter .15s}
+.btn-analyze:hover:not(:disabled){filter:brightness(1.08)}
+.btn-analyze:disabled{opacity:.35;cursor:not-allowed;filter:none}
+
+/* Stage analyzing */
+#ai-analyzing{padding:24px 14px;gap:10px;align-items:center;justify-content:center}
+.analyzing-title{font-size:12px;color:var(--muted);text-align:center}
+.progress-stage{font-size:11px;color:var(--muted);text-align:center;margin-bottom:4px}
+.progress-bar-track{width:100%;height:6px;background:var(--border);border-radius:3px;overflow:hidden}
+.progress-bar-fill{height:100%;background:var(--analyzing);border-radius:3px;width:0;transition:width .4s}
+
+/* Stage review */
+#ai-review{overflow:hidden}
+.review-scroll{flex:1 1 auto;overflow-y:auto;padding:10px 13px;display:flex;flex-direction:column;gap:12px}
+.review-sec-label{font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;
+  letter-spacing:.07em;margin-bottom:6px}
+.review-summary-input{width:100%;background:var(--panel2);border:1px solid var(--border);
+  border-radius:6px;padding:8px 10px;color:var(--text);font-size:11px;
+  resize:vertical;line-height:1.6;outline:none;font-family:inherit;min-height:80px}
+.review-summary-input:focus{border-color:var(--keep)}
+.seg-count-badge{color:var(--text)}
+.review-segs-list{display:flex;flex-direction:column;gap:2px}
+.seg-item{display:flex;align-items:flex-start;gap:6px;
+  padding:5px 0;border-bottom:1px solid rgba(255,255,255,.04)}
+.seg-toggle{flex:0 0 36px;padding:2px 0;border-radius:3px;font-size:9px;font-weight:700;
+  border:1px solid transparent;cursor:pointer;text-align:center;transition:background .1s}
+.seg-keep{background:rgba(92,168,255,.18);color:var(--keep);border-color:rgba(92,168,255,.3)}
+.seg-cut{background:rgba(255,92,92,.18);color:var(--cut);border-color:rgba(255,92,92,.3)}
+.seg-time{flex:0 0 68px;font-size:9px;color:var(--muted);padding-top:3px;white-space:pre;line-height:1.4}
+.seg-text{flex:1;background:transparent;border:none;border-bottom:1px solid transparent;
+  color:var(--text);font-size:11px;padding:1px 3px;font-family:inherit;
+  resize:none;line-height:1.5;overflow:hidden;min-height:18px}
+.seg-text:focus{outline:none;border-bottom-color:rgba(92,168,255,.4)}
+.review-footer{flex:0 0 auto;padding:9px 13px;border-top:1px solid var(--border)}
+.btn-apply{width:100%;padding:10px;background:var(--keep);color:#fff;
+  font-weight:700;font-size:13px;border:none;border-radius:7px;cursor:pointer;transition:filter .15s}
+.btn-apply:hover{filter:brightness(1.1)}
+
+
+/* Stage chat */
+#ai-chat{overflow:hidden}
+.quick-wrap{flex:0 0 auto;padding:9px 13px;border-bottom:1px solid var(--border)}
+.quick-label{font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;
+  letter-spacing:.07em;margin-bottom:6px}
+.quick-btns{display:flex;gap:5px;flex-wrap:wrap}
+.btn-quick{padding:4px 11px;background:var(--panel2);border:1px solid var(--border);
+  border-radius:16px;color:var(--text);font-size:11px;cursor:pointer;
+  transition:border-color .15s,color .15s}
+.btn-quick:hover{border-color:var(--keep);color:var(--keep)}
+.chat-messages{flex:1 1 auto;overflow-y:auto;padding:10px 13px;
+  display:flex;flex-direction:column;gap:7px}
+.msg{padding:8px 11px;border-radius:8px;font-size:11px;line-height:1.6;max-width:92%}
+.msg-hint{background:var(--panel2);color:var(--muted);align-self:center;text-align:center;max-width:100%}
+.msg-user{background:#1e3050;color:var(--text);align-self:flex-end}
+.msg-ai{background:var(--panel2);color:var(--text);align-self:flex-start}
+.msg-err{background:#3d1a1a;color:var(--cut);align-self:flex-start}
+.chat-form{flex:0 0 auto;display:flex;gap:7px;padding:8px 10px;border-top:1px solid var(--border)}
+.chat-input{flex:1;background:var(--panel2);border:1px solid var(--border);border-radius:6px;
+  padding:7px 9px;color:var(--text);font-size:11px;resize:none;outline:none;
+  line-height:1.5;font-family:inherit}
+.chat-input:focus{border-color:var(--keep)}
+.btn-send{flex:0 0 auto;padding:7px 12px;background:var(--keep);color:#fff;
+  border:none;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;
+  transition:filter .15s;align-self:flex-end}
+.btn-send:hover{filter:brightness(1.1)}
+
+
+/* 분석 진행 */
+.btn-cancel{margin-top:8px;padding:5px 14px;font-size:11px;background:none;border:1px solid var(--border);color:var(--muted);
+  border-radius:6px;cursor:pointer}
+.label-note{color:var(--muted);font-weight:400}
+.btn-cancel:hover{border-color:var(--cut);color:var(--cut)}
+.analysis-hint{font-size:10px;color:var(--muted);text-align:center;line-height:1.6}
+
+/* 검토 목록: 컷 이유 배지 */
+.review-card{background:var(--panel2);border:1px solid var(--border);border-radius:6px;padding:9px 10px;font-size:11px;line-height:1.7}
+.review-card b{color:var(--text)}
+.review-card .warn{color:var(--analyzing);font-size:10px}
+.review-filters{display:flex;gap:4px;margin-bottom:6px}
+.review-filters button{font-size:10px;padding:2px 8px;border-radius:10px;border:1px solid var(--border);background:none;
+  color:var(--muted);cursor:pointer}
+.review-filters button.active{border-color:var(--keep);color:var(--keep)}
+.seg-time{cursor:pointer}
+.seg-time:hover{color:var(--keep)}
+.seg-side{flex:0 0 auto;display:flex;flex-direction:column;align-items:flex-end;gap:2px}
+.seg-reason{font-size:9px;font-weight:700;padding:1px 6px;border-radius:8px;white-space:nowrap}
+.reason-NG{background:rgba(255,92,92,.18);color:#ff8a8a}
+.reason-반복{background:rgba(255,160,92,.18);color:#ffb37a}
+.reason-군더더기{background:rgba(255,214,92,.15);color:#ffd65c}
+.reason-지시어{background:rgba(196,181,253,.18);color:var(--analyzing)}
+.reason-핵심{background:rgba(92,168,255,.18);color:var(--keep)}
+.reason-일반{background:rgba(255,255,255,.06);color:var(--muted)}
+.seg-source{font-size:8px;color:var(--muted)}
+.seg-item.is-cut .seg-text{color:var(--muted);text-decoration:line-through}

@@ -17,7 +17,7 @@ async function request(method, url, body) {
   try {
     res = await fetch(url, options);
   } catch (err) {
-    throw new ApiError("서버에 연결할 수 없습니다. 서버(vibecut-server)가 켜져 있는지 확인하세요.", 0);
+    throw new ApiError("서버에 연결할 수 없습니다. 서버(vibecut serve)가 켜져 있는지 확인하세요.", 0);
   }
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {

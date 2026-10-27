@@ -3,10 +3,13 @@
    - 편집 설정: 스타일 목록(자막/제목/촬영지 자막)의 항목을 펼치면 그 안으로 폼을 옮겨 그 항목을 편집
    바꾼 값은 바로 미리보기에 보이고(draft), 0.4초 뒤 서버 편집 계획(styles)에 저장한다 (실행취소 가능). */
 
-import { api } from "./api.js";
-import { emit, mutatePlan, pid, state } from "./store.js";
-import { PRESETS, STYLE_DEFAULTS, drawEvent } from "./style.js";
-import { debounce, setToggle, toast, wrapText } from "./util.js";
+import { api } from "../core/api.js";
+import { $, setToggle, toast } from "../core/dom.js";
+import { debounce } from "../core/format.js";
+import { emit, mutatePlan, pid, state } from "../core/store.js";
+import { drawEvent } from "../subtitle/draw.js";
+import { defaultStyle, PRESETS } from "../subtitle/presets.js";
+import { wrapText } from "../subtitle/wrap.js";
 
 export const STYLE_ITEMS = [
   { key: "subtitle", name: "자막", sample: "예시 자막입니다. 이렇게 보여요." },
@@ -14,20 +17,11 @@ export const STYLE_ITEMS = [
   { key: "location", name: "촬영지 자막", sample: "성수동 카페거리" },
 ];
 
-/* 서버 vibecut/models.py default_styles와 같은 기본값 */
-const ITEM_DEFAULTS = {
-  subtitle: { ...STYLE_DEFAULTS },
-  title: { ...STYLE_DEFAULTS, preset: "제목", size: 84, weight: "bold", position: "top", bottom_margin: 80,
-           max_chars_per_line: 18, fade: true },
-  location: { ...STYLE_DEFAULTS, preset: "촬영지", size: 44, position: "top", bottom_margin: 50,
-              background_box: true, bg_opacity: 55, outline: false, fade: true },
-};
-
 let activeKey = "subtitle";
 let drafts = {};
 
-export function styleOf(key) {
-  return { ...STYLE_DEFAULTS, ...(state.plan?.styles?.[key] || {}) };
+function styleOf(key) {
+  return { ...defaultStyle(key), ...(state.plan?.styles?.[key] || {}) };
 }
 
 /* 미리보기에 쓸 스타일 (저장 전 편집 중인 값 포함) */
@@ -53,29 +47,29 @@ function update(changes) {
   save();
 }
 
-export function setActiveStyle(key) {
+function setActiveStyle(key) {
   activeKey = key;
   syncForm();
 }
 
 /* 폼을 parent 안으로 옮긴다 (스타일 목록 항목 / 객체 패널) */
 export function attachPane(parent, key) {
-  const pane = document.getElementById("sub-style-pane");
+  const pane = $("sub-style-pane");
   if (pane.parentNode !== parent) parent.appendChild(pane);
   pane.style.display = "block";
   setActiveStyle(key);
 }
 
 export function detachPane() {
-  const pane = document.getElementById("sub-style-pane");
-  const objPanel = document.getElementById("obj-panel");
+  const pane = $("sub-style-pane");
+  const objPanel = $("obj-panel");
   if (pane.parentNode !== objPanel) objPanel.appendChild(pane);
   pane.style.display = "none";
   activeKey = "subtitle";
 }
 
-export function renderStylePreview() {
-  const stage = document.getElementById("ss-preview-stage");
+function renderStylePreview() {
+  const stage = $("ss-preview-stage");
   if (!stage || !stage.isConnected || stage.offsetParent === null) return;
   const vertical = state.plan?.output?.aspect === "9:16";
   const w = stage.clientWidth || 200;
@@ -89,9 +83,8 @@ export function renderStylePreview() {
   drawEvent(stage, { start: 0, end: 10, text: wrapText(sample, S.max_chars_per_line).join("\n") }, S, w, h, 1);
 }
 
-export function syncForm() {
+function syncForm() {
   const S = effectiveStyle(activeKey);
-  const $ = id => document.getElementById(id);
   $("ss-font").value = S.font;
   $("ss-color").value = S.color;
   $("ss-size").value = S.size;
@@ -126,7 +119,6 @@ export function syncForm() {
 }
 
 export function initStylePanel() {
-  const $ = id => document.getElementById(id);
   const num = (id, key) => $(id).addEventListener("input", e => update({ [key]: Number(e.target.value) }));
   const text = (id, key, ev = "input") => $(id).addEventListener(ev, e => update({ [key]: e.target.value }));
   const toggle = (id, key) => $(id).addEventListener("click", () => update({ [key]: !effectiveStyle(activeKey)[key] }));
@@ -152,6 +144,6 @@ export function initStylePanel() {
   num("ss-max-chars", "max_chars_per_line");
   toggle("ss-karaoke", "karaoke");
   toggle("ss-fade", "fade");
-  $("btn-ss-reset").addEventListener("click", () => update({ ...(ITEM_DEFAULTS[activeKey] || STYLE_DEFAULTS) }));
+  $("btn-ss-reset").addEventListener("click", () => update(defaultStyle(activeKey)));
   window.addEventListener("resize", renderStylePreview);
 }

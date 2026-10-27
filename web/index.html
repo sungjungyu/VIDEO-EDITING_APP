@@ -5,18 +5,24 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>VibeCut</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%238B5CF6'/%3E%3Ctext x='16' y='23' font-size='19' font-weight='900' text-anchor='middle' fill='white' font-family='sans-serif'%3EV%3C/text%3E%3C/svg%3E" />
-  <link rel="stylesheet" href="/static/css/app.css" />
+  <link rel="stylesheet" href="/static/css/base.css" />
+  <link rel="stylesheet" href="/static/css/layout.css" />
+  <link rel="stylesheet" href="/static/css/panels/media.css" />
+  <link rel="stylesheet" href="/static/css/panels/preview.css" />
+  <link rel="stylesheet" href="/static/css/panels/style-panel.css" />
+  <link rel="stylesheet" href="/static/css/panels/ai-panel.css" />
+  <link rel="stylesheet" href="/static/css/panels/timeline.css" />
+  <link rel="stylesheet" href="/static/css/panels/setup.css" />
+  <link rel="stylesheet" href="/static/css/panels/export.css" />
 </head>
 <body>
 <!--
-  화면 구조만 담는다. 스타일: /static/css/app.css, 동작: /static/js/*.js (ES 모듈)
-    main.js      시작·프로젝트 열기·단축키        api.js        서버 API
-    store.js     화면 상태·실행취소               util.js       공통 도구 (줄바꿈 규칙은 서버와 같음)
-    media.js     클립 목록·업로드·썸네일           timeline.js   타임라인
-    preview.js   원본/편집본 미리보기·자막 오버레이  style.js      자막 스타일 → CSS (미리보기 = 렌더 규칙)
-    stylepanel.js 자막 스타일 폼                    analysis.js   분석·검토·수정 요청
-    setup.js     편집 설정 (장면 트리·AI 가편집)     profile.js    제작자 프로필
-    exporter.js  내보내기 (렌더·결과·평가 지표)
+  화면 구조만 담는다. 스타일: /static/css/ (base·layout + panels/영역별), 동작: /static/js/ (ES 모듈)
+    main.js            시작·프로젝트 열기·단축키
+    core/              api.js 서버 API · store.js 화면 상태·실행취소 · dom.js 요소 도우미 · format.js 값 도우미
+    subtitle/          서버와 규칙이 같아야 하는 자막 코드: wrap.js 줄바꿈 · draw.js 스타일 → CSS · presets.js 프리셋
+    panels/            media 클립·업로드 · timeline 타임라인 · preview 미리보기 · analysis 분석·검토·수정 요청
+                       setup 편집 설정 · style-panel 자막 스타일 폼 · export 내보내기 · profile 제작자 프로필
 -->
 <div class="app">
 
@@ -29,7 +35,7 @@
       </div>
       <button class="btn-menu" id="btn-project-menu" title="프로젝트 열기·새로 만들기">프로젝트 ▾</button>
       <button class="project-name" id="project-name" title="클릭해서 이름 바꾸기">새 프로젝트</button>
-      <div style="display:flex;gap:3px">
+      <div class="btn-row">
         <button class="btn-tb" id="btn-undo" title="실행취소 (Ctrl+Z)" disabled>↩</button>
         <button class="btn-tb" id="btn-redo" title="다시실행 (Ctrl+Shift+Z)" disabled>↪</button>
       </div>
@@ -48,7 +54,7 @@
     <!-- ① Icon bar -->
     <nav class="icon-bar">
       <div class="icon-bar-logo">
-        <div class="brand-mark" style="width:26px;height:26px;font-size:13px">V</div>
+        <div class="brand-mark brand-mark-lg">V</div>
       </div>
       <button class="icon-btn icon-active" data-panel="media">
         <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
@@ -138,14 +144,14 @@
             <div class="obj-tab-pane active" id="obj-tab-basic"></div>
           </div>
 
-          <!-- 자막 스타일 폼: 평상시엔 이 패널, 편집 설정에서는 스타일 목록 항목 안으로 옮겨 쓴다 (style.js) -->
+          <!-- 자막 스타일 폼: 평상시엔 이 패널, 편집 설정에서는 스타일 목록 항목 안으로 옮겨 쓴다 (panels/style-panel.js) -->
           <div id="sub-style-pane" style="display:none">
             <div class="ss-label">미리보기 (렌더와 같은 크기 비율)</div>
             <div class="ss-preview-box">
               <div class="ss-preview-stage" id="ss-preview-stage"></div>
             </div>
 
-            <div class="ss-label" style="margin-top:12px">프리셋</div>
+            <div class="ss-label ss-label-spaced">프리셋</div>
             <div class="ss-preset-row">
               <button class="ss-preset-btn" data-preset="매운맛">매운맛</button>
               <button class="ss-preset-btn" data-preset="순한맛">순한맛</button>
@@ -194,11 +200,11 @@
               <div class="ss-row-ctrl"><button class="ss-toggle on" id="ss-outline"></button></div>
             </div>
             <div class="ss-row" id="ss-outline-color-row">
-              <span class="ss-row-label" style="padding-left:8px">외곽선 색</span>
+              <span class="ss-row-label ss-row-label-sub">외곽선 색</span>
               <div class="ss-row-ctrl"><input type="color" class="ss-color" id="ss-outline-color" value="#000000"></div>
             </div>
             <div class="ss-row" id="ss-outline-row">
-              <span class="ss-row-label" style="padding-left:8px">외곽선 두께</span>
+              <span class="ss-row-label ss-row-label-sub">외곽선 두께</span>
               <div class="ss-row-ctrl">
                 <input type="range" class="ss-slider" id="ss-outline-w" min="0" max="10" step="0.5" value="3">
                 <span class="ss-slider-val" id="ss-outline-w-val">3</span>
@@ -209,7 +215,7 @@
               <div class="ss-row-ctrl"><button class="ss-toggle off" id="ss-shadow"></button></div>
             </div>
             <div class="ss-row" id="ss-shadow-dist-row">
-              <span class="ss-row-label" style="padding-left:8px">그림자 거리</span>
+              <span class="ss-row-label ss-row-label-sub">그림자 거리</span>
               <div class="ss-row-ctrl">
                 <input type="range" class="ss-slider" id="ss-shadow-dist" min="0" max="20" step="1" value="4">
                 <span class="ss-slider-val" id="ss-shadow-dist-val">4</span>
@@ -220,11 +226,11 @@
               <div class="ss-row-ctrl"><button class="ss-toggle off" id="ss-bg-box"></button></div>
             </div>
             <div class="ss-row" id="ss-bg-color-row">
-              <span class="ss-row-label" style="padding-left:8px">박스 색</span>
+              <span class="ss-row-label ss-row-label-sub">박스 색</span>
               <div class="ss-row-ctrl"><input type="color" class="ss-color" id="ss-bg-color" value="#000000"></div>
             </div>
             <div class="ss-row" id="ss-bg-opacity-row">
-              <span class="ss-row-label" style="padding-left:8px">박스 불투명도</span>
+              <span class="ss-row-label ss-row-label-sub">박스 불투명도</span>
               <div class="ss-row-ctrl">
                 <input type="range" class="ss-slider" id="ss-bg-opacity" min="0" max="100" step="5" value="60">
                 <span class="ss-slider-val" id="ss-bg-opacity-val">60%</span>
@@ -262,7 +268,7 @@
               <span class="ss-row-label">페이드 인/아웃</span>
               <div class="ss-row-ctrl"><button class="ss-toggle off" id="ss-fade"></button></div>
             </div>
-            <div style="margin-top:12px">
+            <div class="spaced-top">
               <button class="btn-ss-reset" id="btn-ss-reset" type="button">기본값으로</button>
             </div>
           </div>
@@ -376,7 +382,7 @@
           <div>
             <div class="review-sec-label">
               인식된 문장 · <span class="seg-count-badge" id="review-seg-count">0</span>개
-              <span style="color:var(--muted);font-weight:400"> (남김/자름·자막 글자 수정, 바로 반영)</span>
+              <span class="label-note"> (남김/자름·자막 글자 수정, 바로 반영)</span>
             </div>
             <div class="review-filters" id="review-filters">
               <button data-filter="all" class="active">전체</button>
@@ -502,7 +508,7 @@
         <div class="render-progress" id="render-progress" style="display:none">
           <span id="render-stage">렌더링</span>
           <div class="progress-bar-track"><div class="progress-bar-fill" id="render-bar"></div></div>
-          <button class="btn-cancel" id="btn-render-cancel" style="margin-top:0">취소</button>
+          <button class="btn-cancel btn-cancel-inline" id="btn-render-cancel">취소</button>
         </div>
         <div class="render-list" id="render-list"></div>
       </div>
@@ -511,7 +517,7 @@
         <table class="metrics-table" id="metrics-table"></table>
       </div>
       <details>
-        <summary class="export-section-label" style="cursor:pointer">편집 계획 JSON</summary>
+        <summary class="export-section-label">편집 계획 JSON</summary>
         <pre class="plan-json" id="plan-json"></pre>
       </details>
     </div>
