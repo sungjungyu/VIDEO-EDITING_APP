@@ -49,3 +49,21 @@ def test_detect_silences_accepts_measured_levels():
     silences, threshold = detect_silences(db, 0.25)
     assert silences == [(0.0, 0.3), (0.8, 1.05)] and threshold == round(auto_threshold(db), 1)
     assert detect_silences(np.zeros(0), 0.25) == ([], None)
+
+
+def test_waveform_peaks_per_bucket(tmp_path):
+    import wave
+
+    from vibecut.analysis.audio import waveform_peaks
+    sr = 16000
+    samples = np.zeros(sr, dtype=np.int16)              # 1초: 앞 0.5초 무음, 뒤 0.5초 절반 크기 소리
+    samples[sr // 2:] = 16384
+    path = tmp_path / "a.wav"
+    with wave.open(str(path), "wb") as w:
+        w.setnchannels(1)
+        w.setsampwidth(2)
+        w.setframerate(sr)
+        w.writeframes(samples.tobytes())
+    peaks = waveform_peaks(path, rate=50)
+    assert len(peaks) == 50
+    assert peaks[:25] == [0] * 25 and all(p == 128 for p in peaks[25:])

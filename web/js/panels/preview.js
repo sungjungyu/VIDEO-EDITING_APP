@@ -45,8 +45,12 @@ async function load(url) {
   });
 }
 
+export const isPlaying = () => !video().paused && !video().ended;
+
 function setMode(next) {
+  const changed = next !== mode;
   mode = next;
+  if (changed) emit("preview-mode", mode);      // 타임라인 보기(편집본/원본)가 따라온다
   $("btn-mode-source").classList.toggle("active", mode === "source");
   $("btn-mode-plan").classList.toggle("active", mode === "plan");
   const badge = $("preview-badge");
@@ -89,7 +93,7 @@ async function seekRange(index, offset = 0) {
   }
 }
 
-async function startPlan(at = 0, play = true) {
+export async function startPlan(at = 0, play = true) {
   const ranges = keep();
   if (!ranges.length) return;
   setMode("plan");

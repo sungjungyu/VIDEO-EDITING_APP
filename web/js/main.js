@@ -12,7 +12,7 @@ import { initPreview, togglePlay } from "./panels/preview.js";
 import { initProfile, loadProfile } from "./panels/profile.js";
 import { closeEditSetup, initSetup } from "./panels/setup.js";
 import { attachPane, detachPane, initStylePanel } from "./panels/style-panel.js";
-import { initTimeline, zoomToFit } from "./panels/timeline.js";
+import { initTimeline, zoomToFit } from "./panels/timeline/index.js";
 
 const PROJECT_KEY = "vibecut_project_id";
 
