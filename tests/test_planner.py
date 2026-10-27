@@ -2,8 +2,7 @@
 
 from __future__ import annotations
 
-from vibecut.edit.planner import compile_plan, merge, plan_clip, subtract
-from vibecut.edit.validate import validate_plan
+from vibecut.edit.planner import compile_plan, merge, plan_clip, subtract, validate_plan
 from vibecut.models import (
     Analysis,
     ClipInfo,

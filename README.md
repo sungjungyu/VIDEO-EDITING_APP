@@ -1,115 +1,95 @@
-# AI 기반 문맥 감지형 자동 영상 편집 플랫폼
+# VIBE CUT
 
-로컬 OpenAI Whisper와 Gemini를 활용한 지능형 영상 편집 파이프라인입니다.
+여러 클립을 올리면 **받아쓰기 · 장면 분석 · AI 판단**으로 편집 계획(EditPlan)을 만들고, FFmpeg로 한 번에 렌더하는 브이로그 편집 도구입니다.
 
-## 기능
+- 문장 단위 컷 판단 (자체 규칙 + Gemini), 목표 분량에 맞춘 AI 가편집, 채팅으로 수정 요청
+- 장소 → 일 → 상황 → 대사 4단 장면 트리로 직접 고르기
+- 미리보기와 같은 자막 스타일로 렌더 (ASS, 카라오케), 16:9 / 9:16
+- Gemini 키가 없거나 한도를 넘겨도 동작 (로컬 Whisper · 화면 변화 감지 · 규칙 판단으로 대체)
 
-- 🎤 **음성 인식**: 로컬 Whisper(`medium` 기본값)로 한국어 음성을 텍스트와 타임스탬프로 변환
-- 📝 **자막 교정**: Gemini가 맞춤법·띄어쓰기·고유명사 표기만 보정하고 타임스탬프는 유지
-- 🧠 **문맥 분석**: Gemini가 영상 내용과 감정을 분석하여 최적의 편집 전략 생성
-- ✂️ **스마트 컷 편집**: 문맥에 따른 자동 컷 편집 (무음 구간 제거 등)
-- 📝 **자동 자막 생성**: 한국어 자막 자동 합성
+## 빠른 시작
 
-## 설치
+Python 3.10 이상이 필요합니다. ffmpeg는 `imageio-ffmpeg`에 들어 있어 따로 설치하지 않아도 됩니다.
 
-### 1. 라이브러리 설치
-```bash
-pip install -r requirements.txt
+```powershell
+python -m venv .venv
+.venv\Scripts\activate
+pip install -e ".[dev]"            # 앱 + 개발 도구 (로컬 Whisper까지: ".[dev,whisper]")
+
+copy .env.example .env             # .env에 GEMINI_API_KEY 입력 (없으면 오프라인 모드)
+
+vibecut-server                     # 웹 화면 → http://127.0.0.1:8000
 ```
 
-### 2. Gemini API 키 설정
+명령줄로 한 번에 편집:
 
-#### 방법 1: 자동 설정 (추천)
-```bash
-python main.py
-```
-프로그램이 자동으로 API 키 설정을 안내합니다.
-
-#### 방법 2: 환경 변수 설정
-```bash
-export GEMINI_API_KEY="your_gemini_api_key_here"
+```powershell
+vibecut input.mp4                                            # input.mp4 → output.mp4
+vibecut a.mp4 b.mp4 -o vlog.mp4 --target 90 --prompt "카페 장면 위주로"
+vibecut input.mp4 --offline                                  # Gemini 없이
 ```
 
-#### 방법 3: 파일에 직접 저장
-`api_key.txt` 파일을 만들어 API 키를 입력하세요.
+## 프로젝트 구조
 
-### 📋 API 키 발급 방법
-1. [Google AI Studio](https://aistudio.google.com/app/apikey) 접속
-2. "Create API Key" 클릭
-3. 새 프로젝트 생성 또는 기존 프로젝트 선택
-4. 발급된 API 키 복사
-
-## 사용법
-
-### 1. 영상 파일 준비
-현재 디렉토리에 `input.mp4` 파일을 넣어주세요.
-
-### 2. 프로그램 실행
-```bash
-python main.py
+```
+├─ src/vibecut/           백엔드 패키지
+│  ├─ cli.py              명령줄 편집 (vibecut)
+│  ├─ settings.py         환경 변수·.env → 설정 (모델 이름·API 키는 여기 한 곳)
+│  ├─ models.py           데이터 계약 (EditPlan, Line, Scene, TreeNode, StyleSpec, Job …)
+│  ├─ server/             FastAPI 앱(vibecut-server), REST API, 작업 큐, 저장소, 파이프라인
+│  ├─ ai/                 Gemini 클라이언트, 컷 판단, AI 가편집, 수정 요청
+│  │  └─ engines/         받아쓰기·장면 분석 원본 엔진 (단독 CLI 포함)
+│  ├─ edit/               편집 계획 계산 (남길 구간, 단어 경계, 쉼 압축, 프레임 정렬)
+│  ├─ render/             EditPlan → FFmpeg 필터 그래프, ASS 자막, 글꼴
+│  ├─ media/              ffmpeg 찾기·실행·정보 읽기·오디오 추출·프록시
+│  └─ eval/               평가 지표
+├─ web/                   브라우저 화면 (index.html · css · js ES 모듈)
+├─ tests/                 pytest 테스트, js/ 화면 테스트, fixtures/ 테스트용 영상 생성·공용 데이터
+├─ scripts/               개발 도구 (Gemini 연결 확인, 받아쓰기 엔진 비교표)
+├─ docs/                  구조 설명, 설계 결정(adr/), 지난 기획서(archive/)
+├─ .github/workflows/     CI (린트 + 테스트)
+├─ .env.example           설정 예시 → .env로 복사
+└─ pyproject.toml         의존성·명령·pytest·ruff 설정
 ```
 
-### 3. 결과 확인
-`output.mp4` 파일로 편집된 영상이 생성됩니다.
+실행 중 생기는 `data/`(프로젝트·작업·캐시)와 `.env`, `.venv/`는 git에 올라가지 않습니다.
 
-## 파이프라인 과정
+## 개발
 
-1. **Step 1**: 영상에서 오디오 추출
-2. **Step 2**: 무손실 16 kHz WAV로 변환 후 Whisper 음성 인식 및 타임스탬프 추출
-3. **Step 2-보정**: Gemini로 자막 표기 교정 (타임스탬프 유지)
-4. **Step 3-4**: Gemini로 문맥 분석 및 편집 명령어 생성
-5. **Step 5**: 최종 영상 생성 (컷 편집 + 자막 합성)
-
-## 자막 정확도 설정
-
-기본값은 정확도를 우선한 Whisper `medium` 모델입니다. 속도가 더 중요하면 실행 전에
-모델을 낮추거나, 채널의 고유명사를 힌트로 지정할 수 있습니다.
-
-```bash
-export WHISPER_MODEL="small"
-export WHISPER_INITIAL_PROMPT="출연자는 홍길동입니다. Codex, Gemini, FastAPI라는 용어가 나옵니다."
+```powershell
+pytest -q                       # 전체 테스트 (렌더 정확도 실측 포함, Gemini 호출 없음)
+ruff check .                    # 린트
+node tests/js/wrap.test.mjs     # 화면 자막 줄바꿈 = 서버 줄바꿈
+python scripts/check_gemini.py  # API 키·모델 이름 확인 (사용량 0)
+python -m vibecut.eval.metrics <프로젝트 id>                   # 평가 지표 표
+uvicorn vibecut.server.app:create_app --factory --reload       # 코드 수정 시 자동 재시작
 ```
 
-`large-v3`는 가장 높은 정확도를 기대할 수 있지만 메모리 사용량과 처리 시간이 크게 늘어납니다.
+엔진 단독 실행:
 
-## 시스템 요구사항
-
-- Python 3.8+
-- macOS (기본) / Windows / Linux
-- Gemini API 접근 권한
-- 최소 2GB RAM (영상 크기에 따라 다름)
-
-## 폰트 설정
-
-- **macOS**: AppleGothic (기본)
-- **Windows**: Malgun Gothic (경로 수정 필요)
-- **Linux**: NanumGothic (경로 수정 필요)
-
-코드 내 `KOREAN_FONT_PATH` 변수를 수정하여 폰트 경로를 변경할 수 있습니다.
-
-## 주의사항
-
-- Gemini API 호출을 위한 인터넷 연결 필요
-- 긴 영상의 경우 처리 시간이 오래 걸릴 수 있음
-- API 사용량에 따라 비용 발생 가능성
-
-## 에러 해결
-
-### 영상에 오디오가 없을 경우
+```powershell
+python -m vibecut.ai.engines.transcriber --input .\raw_clips --engine gemini --out transcript.json
+python -m vibecut.ai.engines.scene_analyzer --input .\raw_clips --out scenes.json
 ```
-ValueError: 영상에 오디오 트랙이 없습니다.
-```
-오디오가 포함된 영상 파일을 사용해주세요.
 
-### Gemini API 키 오류
-```
-❌ GEMINI_API_KEY 환경 변수를 설정해주세요.
-```
-환경 변수가 올바르게 설정되었는지 확인해주세요.
+GitHub Actions가 push·PR마다 린트와 테스트를 돌립니다.
 
-### 한국어 폰트 깨짐
-`KOREAN_FONT_PATH` 변수를 시스템에 맞는 한국어 폰트 경로로 수정해주세요.
+## 설정
 
-## 라이선스
+환경 변수 또는 `.env`로 바꿉니다 (실제 환경 변수가 우선). 전체 목록은 `src/vibecut/settings.py`에 있습니다.
 
-MIT License
+| 변수 | 기본값 | 설명 |
+| --- | --- | --- |
+| `GEMINI_API_KEY` | — | 없으면 오프라인 모드 |
+| `VIBECUT_AI_MODE` | 키가 있으면 `live` | `offline`이면 네트워크를 쓰지 않음 (저장된 AI 응답 재생 또는 규칙 판단) |
+| `STT_ENGINE` | `auto` | `gemini` → `whisper-local` → `energy` 순서로 대체 |
+| `SCENE_ENGINE` | `auto` | `gemini` 또는 `local`(화면 변화 감지) |
+| `VIBECUT_DATA_DIR` | `./data` | 프로젝트·작업·캐시 폴더 |
+| `VIBECUT_HOST` / `VIBECUT_PORT` | `127.0.0.1` / `8000` | 서버 주소 (인증이 없으니 외부 공개 주의) |
+
+## 문서
+
+- [v3 구조와 실행](docs/VIBECUT_v3_구조와_실행.md): 파이프라인, EditPlan, 알고리즘, API, 팀원별 담당
+- [ADR 0001 렌더 엔진 단일화](docs/adr/0001-렌더-엔진-단일화.md) · [ADR 0002 저장소 구조 정리](docs/adr/0002-저장소-구조-정리.md)
+- [받아쓰기 엔진 비교](docs/stt_비교.md)
+- [지난 기획서·가이드 (archive)](docs/archive/): v1·v2 시절 문서, 내용은 작성 당시 그대로

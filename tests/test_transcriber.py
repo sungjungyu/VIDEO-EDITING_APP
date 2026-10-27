@@ -2,12 +2,25 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-import transcriber
 import numpy as np
 
-from transcriber import (_offset_sec, auto_threshold, choose_split_points, clean_segments, drop_hallucinations,
-                         find_silences, globalize, hallucination_reason, order_clips, parse_gemini_response,
-                         refine_with_silence, split_sentences, to_subtitles, validate_transcript)
+from vibecut.ai.engines import transcriber
+from vibecut.ai.engines.transcriber import (
+    _offset_sec,
+    auto_threshold,
+    choose_split_points,
+    clean_segments,
+    drop_hallucinations,
+    find_silences,
+    globalize,
+    hallucination_reason,
+    order_clips,
+    parse_gemini_response,
+    refine_with_silence,
+    split_sentences,
+    to_subtitles,
+    validate_transcript,
+)
 
 
 def build_transcript(clips, raw_by_clip):

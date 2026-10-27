@@ -1,12 +1,12 @@
-// 화면 자막 줄바꿈(static/js)이 서버(vibecut/edit/text.py)와 같은지 확인한다 (미리보기 = 렌더).
-// 같은 사례 파일 tests/wrap_cases.json을 pytest(tests/test_text_and_ass.py)도 쓴다.
+// 화면 자막 줄바꿈(web/js)이 서버(vibecut/edit/text.py)와 같은지 확인한다 (미리보기 = 렌더).
+// 같은 사례 파일 tests/fixtures/wrap_cases.json을 pytest(tests/test_text_and_ass.py)도 쓴다.
 // 실행: node tests/js/wrap.test.mjs   (Node 18 이상, 의존 패키지 없음)
 
 import { readFileSync } from "node:fs";
-import { wrapText } from "../../static/js/util.js";
-import { alignWordsToLines } from "../../static/js/style.js";
+import { wrapText } from "../../web/js/util.js";
+import { alignWordsToLines } from "../../web/js/style.js";
 
-const cases = JSON.parse(readFileSync(new URL("../wrap_cases.json", import.meta.url), "utf8"));
+const cases = JSON.parse(readFileSync(new URL("../fixtures/wrap_cases.json", import.meta.url), "utf8"));
 let failed = 0;
 
 for (const c of cases) {

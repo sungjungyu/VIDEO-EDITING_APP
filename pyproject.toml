@@ -1,11 +1,48 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "vibecut"
 version = "3.0.0"
 description = "VIBE CUT — 여러 클립을 받아 받아쓰기·장면 분석·AI 판단으로 편집 계획을 만들고 FFmpeg로 렌더하는 영상 편집 도구"
+readme = "README.md"
 requires-python = ">=3.10"
+# 버전 고정 — 팀원 PC마다 같은 동작을 보장 (ffmpeg는 imageio-ffmpeg에 들어 있다)
+dependencies = [
+    "fastapi==0.162.0",
+    "uvicorn==0.54.0",
+    "python-multipart==0.0.32",
+    "pydantic==2.14.1",
+    "google-genai==2.33.0",
+    "httpx==0.28.1",
+    "numpy==2.5.4",
+    "imageio-ffmpeg==0.6.0",
+]
+
+[project.optional-dependencies]
+# 로컬 Whisper 받아쓰기 (Gemini를 못 쓸 때의 대체 엔진, STT_ENGINE=whisper-local).
+# CPU에서는 느리다 (small 모델 기준 오디오 길이의 약 1.6배, docs/stt_비교.md 참고)
+whisper = [
+    "openai-whisper==20250625",
+    "torch==2.14.1",
+]
+# 개발: 테스트(pytest)와 린트(ruff)
+dev = [
+    "pytest==9.1.1",
+    "ruff==0.17.2",
+]
+
+[project.scripts]
+vibecut = "vibecut.cli:main"                  # 명령줄 편집
+vibecut-server = "vibecut.server.app:run"     # 웹 서버
+
+[tool.setuptools.packages.find]
+where = ["src"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["src"]
 markers = [
     "slow: ffmpeg로 실제 영상을 만들고 렌더하는 테스트 (수 초~수십 초)",
     "live: 실제 Gemini API를 호출하는 테스트 (VIBECUT_LIVE_TESTS=1일 때만)",
@@ -19,7 +56,7 @@ filterwarnings = [
 [tool.ruff]
 line-length = 120
 target-version = "py310"
-extend-exclude = [".venv", "data", "uploads", "outputs"]
+extend-exclude = [".venv", "data"]
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "B", "UP"]
@@ -29,16 +66,5 @@ ignore = [
     "E731",   # 짧은 콜백 lambda
 ]
 
-[tool.ruff.lint.per-file-ignores]
-# 팀원이 만든 기존 모듈·실험 스크립트는 이번 작업 범위 밖이라 검사를 느슨하게 둔다
-"transcriber.py" = ["E", "W", "B", "UP", "I"]
-"scene_analyzer.py" = ["E", "W", "B", "UP", "I"]
-"scene_selector.py" = ["E", "W", "B", "UP", "I"]
-"scene_tree.py" = ["E", "W", "B", "UP", "I"]
-"prompt_builder.py" = ["E", "W", "B", "UP", "I"]
-"experiment.py" = ["E", "W", "B", "UP", "I", "F"]
-"stt_compare.py" = ["E", "W", "B", "UP", "I"]
-"test_prompt_builder.py" = ["E", "W", "B", "UP", "I", "F"]
-"config.py" = ["E", "W", "B", "UP", "I"]
-"tests/test_transcriber.py" = ["E", "W", "B", "UP", "I"]
-"tests/test_scene_tree.py" = ["E", "W", "B", "UP", "I"]
+[tool.ruff.lint.isort]
+known-first-party = ["vibecut"]

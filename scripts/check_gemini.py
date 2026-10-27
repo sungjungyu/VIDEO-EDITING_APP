@@ -8,12 +8,9 @@
 
 import argparse
 import sys
-from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-
-from vibecut.ai.gemini import AIError, GeminiClient  # noqa: E402
-from vibecut.settings import load_settings  # noqa: E402
+from vibecut.ai.gemini import AIError, GeminiClient
+from vibecut.settings import load_settings
 
 
 def main() -> int:
@@ -22,7 +19,7 @@ def main() -> int:
     args = ap.parse_args()
     settings = load_settings()
     if not settings.api_key:
-        print("키가 없습니다. GEMINI_API_KEY 환경 변수 또는 gemini_key.txt를 확인하세요.")
+        print("키가 없습니다. GEMINI_API_KEY 환경 변수나 .env를 확인하세요.")
         return 1
     from google import genai
     names = {m.name.replace("models/", "") for m in genai.Client(api_key=settings.api_key).models.list()}

@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import pytest
 
-from tests.media_fixtures import frame_lumas, make_clip, stream_durations
+from tests.fixtures.media import frame_lumas, make_clip, stream_durations
 from vibecut.media.ffmpeg import probe
 from vibecut.models import ClipInfo, EditPlan, Effect, KeepRange, OutputSpec, PlanOptions, SubtitleEvent, Word
 from vibecut.render.renderer import render_plan

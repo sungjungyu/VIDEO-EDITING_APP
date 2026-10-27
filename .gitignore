@@ -1,4 +1,5 @@
-# API 키 파일
+# 비밀 값 (API 키) — .env.example을 복사해 .env로 쓴다
+.env
 api_key.txt
 gemini_key.txt
 
@@ -72,10 +73,8 @@ output.mp4
 *.m4a
 audio.mp3
 
-# VIBE CUT 앱 데이터 (프로젝트·작업·AI 응답 캐시, 이전 버전의 업로드/결과 폴더)
+# VIBE CUT 앱 데이터 (프로젝트·작업·AI 응답 캐시)
 /data/
-/uploads/
-/outputs/
 
 # VIBE CUT 실험 산출물 (scene_analyzer 캐시, 촬영 원본, 장면/트리 결과)
 /.vibecut_cache/

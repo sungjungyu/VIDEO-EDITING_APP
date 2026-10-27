@@ -7,7 +7,7 @@ import time
 import pytest
 from fastapi.testclient import TestClient
 
-from tests.media_fixtures import make_clip
+from tests.fixtures.media import make_clip
 from vibecut.server.app import create_app
 from vibecut.settings import load_settings
 

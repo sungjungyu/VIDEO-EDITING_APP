@@ -1,4 +1,4 @@
-"""자막 줄바꿈과 ASS 생성 테스트. 줄바꿈 결과는 static/js/util.js의 wrapText와 같아야 한다."""
+"""자막 줄바꿈과 ASS 생성 테스트. 줄바꿈 결과는 web/js/util.js의 wrapText와 같아야 한다."""
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ from vibecut.models import StyleSpec, SubtitleEvent, Word
 from vibecut.render import ass, fonts
 
 # 화면(JS)과 같은 결과가 나와야 하는 사례 — tests/js/wrap.test.mjs도 같은 파일을 읽는다
-WRAP_CASES = json.loads((Path(__file__).with_name("wrap_cases.json")).read_text(encoding="utf-8"))
+WRAP_CASES = json.loads((Path(__file__).parent / "fixtures" / "wrap_cases.json").read_text(encoding="utf-8"))
 
 
 @pytest.mark.parametrize("case", WRAP_CASES, ids=[c["text"][:12] or "빈 문자열" for c in WRAP_CASES])
