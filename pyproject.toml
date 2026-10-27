@@ -34,8 +34,7 @@ dev = [
 ]
 
 [project.scripts]
-vibecut = "vibecut.cli:main"                  # 명령줄 편집
-vibecut-server = "vibecut.server.app:run"     # 웹 서버
+vibecut = "vibecut.cli:main"        # vibecut serve | edit | transcribe | scenes | metrics
 
 [tool.setuptools.packages.find]
 where = ["src"]

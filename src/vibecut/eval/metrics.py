@@ -8,16 +8,15 @@
     렌더 길이 오차     최종 렌더 길이 - 계획 길이 (ms, 1프레임 = 33ms 이내가 정상)
     처리 시간·AI 사용량 분석 단계별 시간, 요청 수, 토큰
 
-명령줄: python -m vibecut.eval.metrics <project_id>  → 마크다운 표
+명령줄: vibecut metrics <project_id>  → 마크다운 표
 """
 
 from __future__ import annotations
 
-import sys
 from collections import Counter
 
-from ..edit.planner import effective_decisions
-from ..models import Analysis, EditPlan, Job, Project
+from ..domain.models import Analysis, EditPlan, Job, Project
+from ..editing.planner import count_word_cuts, effective_decisions
 
 
 def project_metrics(project: Project, analysis: Analysis | None, plan: EditPlan, jobs: list[Job]) -> dict:
@@ -52,14 +51,7 @@ def project_metrics(project: Project, analysis: Analysis | None, plan: EditPlan,
             "decision_acceptance": round(1 - len(flipped) / len(decided), 3) if decided else None,
             "engines": analysis.engines,
         })
-        word_cuts = 0
-        lines_by_clip = analysis.lines_by_clip()
-        for k in plan.keep:
-            for line in lines_by_clip.get(k.clip_id, []):
-                for w in line.words:
-                    if w.start + 0.005 < k.start < w.end - 0.005 or w.start + 0.005 < k.end < w.end - 0.005:
-                        word_cuts += 1
-        out["word_cuts"] = word_cuts
+        out["word_cuts"] = count_word_cuts(plan.keep, analysis.lines_by_clip())
     ai_nodes = set(plan.selection.ai_node_ids)
     if ai_nodes:
         final = set(plan.selection.node_ids)
@@ -101,33 +93,3 @@ def to_markdown(name: str, m: dict) -> str:
     lines = [f"# {name} 평가 지표", "", "| 항목 | 값 |", "| --- | --- |"]
     lines += [f"| {k} | {'-' if v is None else v} |" for k, v in rows]
     return "\n".join(lines)
-
-
-def main(argv: list[str] | None = None) -> int:
-    from ..edit.planner import compile_plan
-    from ..server.storage import ProjectStore, read_json
-    from ..settings import get_settings
-
-    argv = argv if argv is not None else sys.argv[1:]
-    settings = get_settings()
-    store = ProjectStore(settings.data_dir)
-    if not argv:
-        for p in store.list():
-            print(p.project_id, p.name, p.updated_at)
-        return 0
-    project = store.get(argv[0])
-    analysis = store.load_analysis(project.project_id)
-    plan = compile_plan(store.load_plan(project.project_id), project.timeline_clips(), analysis)
-    # 서버가 켜져 있어도 건드리지 않게 작업 기록은 읽기만 한다 (JobManager를 만들면 '중단됨' 처리가 일어남)
-    jobs = []
-    for path in (settings.data_dir / "jobs").glob("*.json"):
-        job = Job.model_validate(read_json(path))
-        if job.project_id == project.project_id:
-            jobs.append(job)
-    jobs.sort(key=lambda j: j.created_at, reverse=True)
-    print(to_markdown(project.name, project_metrics(project, analysis, plan, jobs)))
-    return 0
-
-
-if __name__ == "__main__":
-    sys.exit(main())

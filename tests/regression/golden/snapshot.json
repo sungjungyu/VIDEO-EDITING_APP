@@ -1,0 +1,1956 @@
+{
+ "plans": {
+  "all": {
+   "duration": 53.733,
+   "effects": [
+    {
+     "clip_id": "c01",
+     "end": 3.0,
+     "scale": 1.08,
+     "seg_id": "t0001",
+     "start": 0.8,
+     "type": "punch_in"
+    }
+   ],
+   "events": [
+    {
+     "end": 3.2,
+     "seg_id": "t0001",
+     "start": 0.8,
+     "style": "subtitle",
+     "text": "안녕하세요 오늘은 성수동에 왔어요",
+     "word_lines": [
+      0,
+      0,
+      0,
+      0
+     ],
+     "words": [
+      {
+       "end": 1.33,
+       "probability": null,
+       "start": 0.8,
+       "word": "안녕하세요"
+      },
+      {
+       "end": 1.88,
+       "probability": null,
+       "start": 1.35,
+       "word": "오늘은"
+      },
+      {
+       "end": 2.43,
+       "probability": null,
+       "start": 1.9,
+       "word": "성수동에"
+      },
+      {
+       "end": 2.98,
+       "probability": null,
+       "start": 2.45,
+       "word": "왔어요"
+      }
+     ]
+    },
+    {
+     "end": 5.38,
+     "seg_id": "t0004",
+     "start": 3.2,
+     "style": "subtitle",
+     "text": "여기 라떼가 유명하다고 해서 와봤어요",
+     "word_lines": [
+      0,
+      0,
+      0,
+      0,
+      0
+     ],
+     "words": [
+      {
+       "end": 3.62,
+       "probability": null,
+       "start": 3.2,
+       "word": "여기"
+      },
+      {
+       "end": 4.06,
+       "probability": null,
+       "start": 3.64,
+       "word": "라떼가"
+      },
+      {
+       "end": 4.5,
+       "probability": null,
+       "start": 4.08,
+       "word": "유명하다고"
+      },
+      {
+       "end": 4.94,
+       "probability": null,
+       "start": 4.52,
+       "word": "해서"
+      },
+      {
+       "end": 5.38,
+       "probability": null,
+       "start": 4.96,
+       "word": "와봤어요"
+      }
+     ]
+    },
+    {
+     "end": 11.647,
+     "seg_id": "t0006",
+     "start": 8.467,
+     "style": "subtitle",
+     "text": "와 진짜 대박 맛있다!",
+     "word_lines": [
+      0,
+      0,
+      0,
+      0
+     ],
+     "words": [
+      {
+       "end": 9.247,
+       "probability": null,
+       "start": 8.467,
+       "word": "와"
+      },
+      {
+       "end": 10.047,
+       "probability": null,
+       "start": 9.267,
+       "word": "진짜"
+      },
+      {
+       "end": 10.847,
+       "probability": null,
+       "start": 10.067,
+       "word": "대박"
+      },
+      {
+       "end": 11.647,
+       "probability": null,
+       "start": 10.867,
+       "word": "맛있다!"
+      }
+     ]
+    },
+    {
+     "end": 22.947,
+     "seg_id": "t0007",
+     "start": 19.467,
+     "style": "subtitle",
+     "text": "창가 자리가 정말 예쁘네요",
+     "word_lines": [
+      0,
+      0,
+      0,
+      0
+     ],
+     "words": [
+      {
+       "end": 20.322,
+       "probability": null,
+       "start": 19.467,
+       "word": "창가"
+      },
+      {
+       "end": 21.197,
+       "probability": null,
+       "start": 20.342,
+       "word": "자리가"
+      },
+      {
+       "end": 22.072,
+       "probability": null,
+       "start": 21.217,
+       "word": "정말"
+      },
+      {
+       "end": 22.947,
+       "probability": null,
+       "start": 22.092,
+       "word": "예쁘네요"
+      }
+     ]
+    },
+    {
+     "end": 36.947,
+     "seg_id": "t0008",
+     "start": 34.467,
+     "style": "subtitle",
+     "text": "이제 거리를 걸어볼게요",
+     "word_lines": [
+      0,
+      0,
+      0
+     ],
+     "words": [
+      {
+       "end": 35.28,
+       "probability": null,
+       "start": 34.467,
+       "word": "이제"
+      },
+      {
+       "end": 36.114,
+       "probability": null,
+       "start": 35.3,
+       "word": "거리를"
+      },
+      {
+       "end": 36.947,
+       "probability": null,
+       "start": 36.134,
+       "word": "걸어볼게요"
+      }
+     ]
+    },
+    {
+     "end": 47.713,
+     "seg_id": "t0010",
+     "start": 43.733,
+     "style": "subtitle",
+     "text": "오늘 브이로그는 여기까지 구독\n부탁드려요",
+     "word_lines": [
+      0,
+      0,
+      0,
+      0,
+      1
+     ],
+     "words": [
+      {
+       "end": 44.513,
+       "probability": null,
+       "start": 43.733,
+       "word": "오늘"
+      },
+      {
+       "end": 45.313,
+       "probability": null,
+       "start": 44.533,
+       "word": "브이로그는"
+      },
+      {
+       "end": 46.113,
+       "probability": null,
+       "start": 45.333,
+       "word": "여기까지"
+      },
+      {
+       "end": 46.913,
+       "probability": null,
+       "start": 46.133,
+       "word": "구독"
+      },
+      {
+       "end": 47.713,
+       "probability": null,
+       "start": 46.933,
+       "word": "부탁드려요"
+      }
+     ]
+    }
+   ],
+   "keep": [
+    {
+     "clip_id": "c01",
+     "end": 3.1333,
+     "origin": "",
+     "out_start": 0.0,
+     "start": 0.0
+    },
+    {
+     "clip_id": "c01",
+     "end": 9.3333,
+     "origin": "",
+     "out_start": 3.1333,
+     "start": 6.9333
+    },
+    {
+     "clip_id": "c01",
+     "end": 40.0,
+     "origin": "",
+     "out_start": 5.5333,
+     "start": 12.0667
+    },
+    {
+     "clip_id": "c02",
+     "end": 8.9333,
+     "origin": "",
+     "out_start": 33.4667,
+     "start": 1.0
+    },
+    {
+     "clip_id": "c02",
+     "end": 22.0,
+     "origin": "",
+     "out_start": 41.4,
+     "start": 9.6667
+    }
+   ],
+   "lines": {},
+   "options": {
+    "fade_ms": 25,
+    "location_captions": false,
+    "loudness": true,
+    "max_pause": 0.8,
+    "min_gap": 0.25,
+    "min_keep": 0.4,
+    "pad_end": 0.12,
+    "pad_start": 0.08,
+    "pause_limit": 4.0,
+    "punch_in": true,
+    "punch_scale": 1.08,
+    "snap_to_silence": true,
+    "subtitles": true,
+    "swallow_pause": 1.5,
+    "title_text": ""
+   },
+   "output": {
+    "aspect": "16:9",
+    "fps": 30,
+    "resolution": 1080
+   },
+   "selection": {
+    "ai_node_ids": [],
+    "locked_ids": [],
+    "mode": "all",
+    "node_ids": [],
+    "reasons": {},
+    "scores": {},
+    "target_sec": null,
+    "user_prompt": ""
+   },
+   "styles": {
+    "location": {
+     "background_box": true,
+     "bg_color": "#000000",
+     "bg_opacity": 55.0,
+     "bottom_margin": 50.0,
+     "color": "#ffffff",
+     "fade": true,
+     "font": "Malgun Gothic",
+     "italic": false,
+     "karaoke": false,
+     "max_chars_per_line": 20,
+     "outline": false,
+     "outline_color": "#000000",
+     "outline_width": 3,
+     "position": "top",
+     "preset": "촬영지",
+     "shadow": false,
+     "shadow_distance": 4,
+     "size": 44.0,
+     "version": 2,
+     "weight": "normal"
+    },
+    "subtitle": {
+     "background_box": false,
+     "bg_color": "#000000",
+     "bg_opacity": 60,
+     "bottom_margin": 60,
+     "color": "#ffffff",
+     "fade": false,
+     "font": "Malgun Gothic",
+     "italic": false,
+     "karaoke": false,
+     "max_chars_per_line": 20,
+     "outline": true,
+     "outline_color": "#000000",
+     "outline_width": 3,
+     "position": "bottom",
+     "preset": "정석맛",
+     "shadow": false,
+     "shadow_distance": 4,
+     "size": 54,
+     "version": 2,
+     "weight": "normal"
+    },
+    "title": {
+     "background_box": false,
+     "bg_color": "#000000",
+     "bg_opacity": 60,
+     "bottom_margin": 80.0,
+     "color": "#ffffff",
+     "fade": true,
+     "font": "Malgun Gothic",
+     "italic": false,
+     "karaoke": false,
+     "max_chars_per_line": 18,
+     "outline": true,
+     "outline_color": "#000000",
+     "outline_width": 3,
+     "position": "top",
+     "preset": "제목",
+     "shadow": false,
+     "shadow_distance": 4,
+     "size": 84.0,
+     "version": 2,
+     "weight": "bold"
+    }
+   },
+   "version": 1,
+   "warnings": []
+  },
+  "ass_extras": "[Script Info]\nScriptType: v4.00+\nPlayResX: 1080\nPlayResY: 1920\nScaledBorderAndShadow: yes\nWrapStyle: 2\nYCbCr Matrix: TV.709\n\n[V4+ Styles]\nFormat: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding\nStyle: S_location,Malgun Gothic,58.52,&H00FFFFFF,&H00FFFFFF,&H00000000,&H73000000,0,0,0,0,100,100,0,0,4,0.0,8.8,8,54,54,50,1\nStyle: Default,Malgun Gothic,71.82,&H0000E6FF,&H00FFFFFF,&H00000000,&H40000000,0,0,0,0,100,100,0,0,1,3.0,0.0,2,54,54,60,1\nStyle: S_title,Malgun Gothic,111.73,&H00FFFFFF,&H00FFFFFF,&H00000000,&H40000000,-1,0,0,0,100,100,0,0,1,3.0,0.0,8,54,54,80,1\n\n[Events]\nFormat: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\nDialogue: 1,0:00:00.00,0:00:02.50,S_location,,0,0,0,,{\\fad(150,150)}카페\nDialogue: 1,0:00:00.00,0:00:03.00,S_title,,0,0,0,,{\\fad(150,150)}성수동 카페 브이로그\nDialogue: 0,0:00:00.80,0:00:02.45,Default,,0,0,0,,{\\k53}안녕하세요\\N{\\k2}{\\k53}오늘은 {\\k2}{\\k53}성수동에\nDialogue: 0,0:00:02.45,0:00:03.20,Default,,0,0,0,,{\\k53}왔어요\nDialogue: 0,0:00:03.20,0:00:04.96,Default,,0,0,0,,{\\k42}여기 {\\k2}{\\k42}라떼가\\N{\\k2}{\\k42}유명하다고 {\\k2}{\\k42}해서\nDialogue: 0,0:00:04.96,0:00:05.66,Default,,0,0,0,,{\\k42}와봤어요\nDialogue: 0,0:00:08.47,0:00:11.65,Default,,0,0,0,,{\\k78}와 {\\k2}{\\k78}진짜 {\\k2}{\\k78}대박\\N{\\k2}{\\k78}맛있다!\nDialogue: 0,0:00:19.47,0:00:22.95,Default,,0,0,0,,{\\k86}창가 {\\k2}{\\k86}자리가\\N{\\k2}{\\k86}정말 {\\k2}{\\k86}예쁘네요\nDialogue: 1,0:00:33.47,0:00:35.97,S_location,,0,0,0,,{\\fad(150,150)}거리\nDialogue: 0,0:00:34.47,0:00:36.95,Default,,0,0,0,,{\\k81}이제 {\\k2}{\\k81}거리를\\N{\\k2}{\\k81}걸어볼게요\nDialogue: 0,0:00:43.73,0:00:46.93,Default,,0,0,0,,{\\k78}오늘 {\\k2}{\\k78}브이로그는\\N{\\k2}{\\k78}여기까지 {\\k2}{\\k78}구독\nDialogue: 0,0:00:46.93,0:00:47.71,Default,,0,0,0,,{\\k78}부탁드려요\n",
+  "extras": {
+   "duration": 53.733,
+   "effects": [],
+   "events": [
+    {
+     "end": 2.45,
+     "seg_id": "t0001",
+     "start": 0.8,
+     "style": "subtitle",
+     "text": "안녕하세요\n오늘은 성수동에",
+     "word_lines": [
+      0,
+      1,
+      1
+     ],
+     "words": [
+      {
+       "end": 1.33,
+       "probability": null,
+       "start": 0.8,
+       "word": "안녕하세요"
+      },
+      {
+       "end": 1.88,
+       "probability": null,
+       "start": 1.35,
+       "word": "오늘은"
+      },
+      {
+       "end": 2.43,
+       "probability": null,
+       "start": 1.9,
+       "word": "성수동에"
+      }
+     ]
+    },
+    {
+     "end": 3.2,
+     "seg_id": "t0001",
+     "start": 2.45,
+     "style": "subtitle",
+     "text": "왔어요",
+     "word_lines": [
+      0
+     ],
+     "words": [
+      {
+       "end": 2.98,
+       "probability": null,
+       "start": 2.45,
+       "word": "왔어요"
+      }
+     ]
+    },
+    {
+     "end": 4.96,
+     "seg_id": "t0004",
+     "start": 3.2,
+     "style": "subtitle",
+     "text": "여기 라떼가\n유명하다고 해서",
+     "word_lines": [
+      0,
+      0,
+      1,
+      1
+     ],
+     "words": [
+      {
+       "end": 3.62,
+       "probability": null,
+       "start": 3.2,
+       "word": "여기"
+      },
+      {
+       "end": 4.06,
+       "probability": null,
+       "start": 3.64,
+       "word": "라떼가"
+      },
+      {
+       "end": 4.5,
+       "probability": null,
+       "start": 4.08,
+       "word": "유명하다고"
+      },
+      {
+       "end": 4.94,
+       "probability": null,
+       "start": 4.52,
+       "word": "해서"
+      }
+     ]
+    },
+    {
+     "end": 5.66,
+     "seg_id": "t0004",
+     "start": 4.96,
+     "style": "subtitle",
+     "text": "와봤어요",
+     "word_lines": [
+      0
+     ],
+     "words": [
+      {
+       "end": 5.38,
+       "probability": null,
+       "start": 4.96,
+       "word": "와봤어요"
+      }
+     ]
+    },
+    {
+     "end": 11.647,
+     "seg_id": "t0006",
+     "start": 8.467,
+     "style": "subtitle",
+     "text": "와 진짜 대박\n맛있다!",
+     "word_lines": [
+      0,
+      0,
+      0,
+      1
+     ],
+     "words": [
+      {
+       "end": 9.247,
+       "probability": null,
+       "start": 8.467,
+       "word": "와"
+      },
+      {
+       "end": 10.047,
+       "probability": null,
+       "start": 9.267,
+       "word": "진짜"
+      },
+      {
+       "end": 10.847,
+       "probability": null,
+       "start": 10.067,
+       "word": "대박"
+      },
+      {
+       "end": 11.647,
+       "probability": null,
+       "start": 10.867,
+       "word": "맛있다!"
+      }
+     ]
+    },
+    {
+     "end": 22.947,
+     "seg_id": "t0007",
+     "start": 19.467,
+     "style": "subtitle",
+     "text": "창가 자리가\n정말 예쁘네요",
+     "word_lines": [
+      0,
+      0,
+      1,
+      1
+     ],
+     "words": [
+      {
+       "end": 20.322,
+       "probability": null,
+       "start": 19.467,
+       "word": "창가"
+      },
+      {
+       "end": 21.197,
+       "probability": null,
+       "start": 20.342,
+       "word": "자리가"
+      },
+      {
+       "end": 22.072,
+       "probability": null,
+       "start": 21.217,
+       "word": "정말"
+      },
+      {
+       "end": 22.947,
+       "probability": null,
+       "start": 22.092,
+       "word": "예쁘네요"
+      }
+     ]
+    },
+    {
+     "end": 36.947,
+     "seg_id": "t0008",
+     "start": 34.467,
+     "style": "subtitle",
+     "text": "이제 거리를\n걸어볼게요",
+     "word_lines": [
+      0,
+      0,
+      1
+     ],
+     "words": [
+      {
+       "end": 35.28,
+       "probability": null,
+       "start": 34.467,
+       "word": "이제"
+      },
+      {
+       "end": 36.114,
+       "probability": null,
+       "start": 35.3,
+       "word": "거리를"
+      },
+      {
+       "end": 36.947,
+       "probability": null,
+       "start": 36.134,
+       "word": "걸어볼게요"
+      }
+     ]
+    },
+    {
+     "end": 46.933,
+     "seg_id": "t0010",
+     "start": 43.733,
+     "style": "subtitle",
+     "text": "오늘 브이로그는\n여기까지 구독",
+     "word_lines": [
+      0,
+      0,
+      1,
+      1
+     ],
+     "words": [
+      {
+       "end": 44.513,
+       "probability": null,
+       "start": 43.733,
+       "word": "오늘"
+      },
+      {
+       "end": 45.313,
+       "probability": null,
+       "start": 44.533,
+       "word": "브이로그는"
+      },
+      {
+       "end": 46.113,
+       "probability": null,
+       "start": 45.333,
+       "word": "여기까지"
+      },
+      {
+       "end": 46.913,
+       "probability": null,
+       "start": 46.133,
+       "word": "구독"
+      }
+     ]
+    },
+    {
+     "end": 47.713,
+     "seg_id": "t0010",
+     "start": 46.933,
+     "style": "subtitle",
+     "text": "부탁드려요",
+     "word_lines": [
+      0
+     ],
+     "words": [
+      {
+       "end": 47.713,
+       "probability": null,
+       "start": 46.933,
+       "word": "부탁드려요"
+      }
+     ]
+    },
+    {
+     "end": 3.0,
+     "seg_id": null,
+     "start": 0.0,
+     "style": "title",
+     "text": "성수동 카페 브이로그",
+     "word_lines": [],
+     "words": []
+    },
+    {
+     "end": 2.5,
+     "seg_id": null,
+     "start": 0.0,
+     "style": "location",
+     "text": "카페",
+     "word_lines": [],
+     "words": []
+    },
+    {
+     "end": 35.967,
+     "seg_id": null,
+     "start": 33.467,
+     "style": "location",
+     "text": "거리",
+     "word_lines": [],
+     "words": []
+    }
+   ],
+   "keep": [
+    {
+     "clip_id": "c01",
+     "end": 3.1333,
+     "origin": "",
+     "out_start": 0.0,
+     "start": 0.0
+    },
+    {
+     "clip_id": "c01",
+     "end": 9.3333,
+     "origin": "",
+     "out_start": 3.1333,
+     "start": 6.9333
+    },
+    {
+     "clip_id": "c01",
+     "end": 40.0,
+     "origin": "",
+     "out_start": 5.5333,
+     "start": 12.0667
+    },
+    {
+     "clip_id": "c02",
+     "end": 8.9333,
+     "origin": "",
+     "out_start": 33.4667,
+     "start": 1.0
+    },
+    {
+     "clip_id": "c02",
+     "end": 22.0,
+     "origin": "",
+     "out_start": 41.4,
+     "start": 9.6667
+    }
+   ],
+   "lines": {},
+   "options": {
+    "fade_ms": 25,
+    "location_captions": true,
+    "loudness": true,
+    "max_pause": null,
+    "min_gap": 0.25,
+    "min_keep": 0.4,
+    "pad_end": 0.12,
+    "pad_start": 0.08,
+    "pause_limit": 4.0,
+    "punch_in": false,
+    "punch_scale": 1.08,
+    "snap_to_silence": false,
+    "subtitles": true,
+    "swallow_pause": 1.5,
+    "title_text": "성수동 카페 브이로그"
+   },
+   "output": {
+    "aspect": "9:16",
+    "fps": 30,
+    "resolution": 1080
+   },
+   "selection": {
+    "ai_node_ids": [],
+    "locked_ids": [],
+    "mode": "all",
+    "node_ids": [],
+    "reasons": {},
+    "scores": {},
+    "target_sec": null,
+    "user_prompt": ""
+   },
+   "styles": {
+    "location": {
+     "background_box": true,
+     "bg_color": "#000000",
+     "bg_opacity": 55.0,
+     "bottom_margin": 50.0,
+     "color": "#ffffff",
+     "fade": true,
+     "font": "Malgun Gothic",
+     "italic": false,
+     "karaoke": false,
+     "max_chars_per_line": 20,
+     "outline": false,
+     "outline_color": "#000000",
+     "outline_width": 3,
+     "position": "top",
+     "preset": "촬영지",
+     "shadow": false,
+     "shadow_distance": 4,
+     "size": 44.0,
+     "version": 2,
+     "weight": "normal"
+    },
+    "subtitle": {
+     "background_box": false,
+     "bg_color": "#000000",
+     "bg_opacity": 60,
+     "bottom_margin": 60,
+     "color": "#ffffff",
+     "fade": false,
+     "font": "Malgun Gothic",
+     "italic": false,
+     "karaoke": true,
+     "max_chars_per_line": 8,
+     "outline": true,
+     "outline_color": "#000000",
+     "outline_width": 3,
+     "position": "bottom",
+     "preset": "정석맛",
+     "shadow": false,
+     "shadow_distance": 4,
+     "size": 54,
+     "version": 2,
+     "weight": "normal"
+    },
+    "title": {
+     "background_box": false,
+     "bg_color": "#000000",
+     "bg_opacity": 60,
+     "bottom_margin": 80.0,
+     "color": "#ffffff",
+     "fade": true,
+     "font": "Malgun Gothic",
+     "italic": false,
+     "karaoke": false,
+     "max_chars_per_line": 18,
+     "outline": true,
+     "outline_color": "#000000",
+     "outline_width": 3,
+     "position": "top",
+     "preset": "제목",
+     "shadow": false,
+     "shadow_distance": 4,
+     "size": 84.0,
+     "version": 2,
+     "weight": "bold"
+    }
+   },
+   "version": 1,
+   "warnings": []
+  },
+  "issues": {
+   "all": [],
+   "extras": [],
+   "manual": [],
+   "user": []
+  },
+  "manual": {
+   "duration": 7.467,
+   "effects": [
+    {
+     "clip_id": "c01",
+     "end": 3.0,
+     "scale": 1.08,
+     "seg_id": "t0001",
+     "start": 0.8,
+     "type": "punch_in"
+    }
+   ],
+   "events": [
+    {
+     "end": 3.2,
+     "seg_id": "t0001",
+     "start": 0.8,
+     "style": "subtitle",
+     "text": "안녕하세요 오늘은 성수동에 왔어요",
+     "word_lines": [
+      0,
+      0,
+      0,
+      0
+     ],
+     "words": [
+      {
+       "end": 1.33,
+       "probability": null,
+       "start": 0.8,
+       "word": "안녕하세요"
+      },
+      {
+       "end": 1.88,
+       "probability": null,
+       "start": 1.35,
+       "word": "오늘은"
+      },
+      {
+       "end": 2.43,
+       "probability": null,
+       "start": 1.9,
+       "word": "성수동에"
+      },
+      {
+       "end": 2.98,
+       "probability": null,
+       "start": 2.45,
+       "word": "왔어요"
+      }
+     ]
+    },
+    {
+     "end": 5.38,
+     "seg_id": "t0004",
+     "start": 3.2,
+     "style": "subtitle",
+     "text": "여기 라떼가 유명하다고 해서 와봤어요",
+     "word_lines": [
+      0,
+      0,
+      0,
+      0,
+      0
+     ],
+     "words": [
+      {
+       "end": 3.62,
+       "probability": null,
+       "start": 3.2,
+       "word": "여기"
+      },
+      {
+       "end": 4.06,
+       "probability": null,
+       "start": 3.64,
+       "word": "라떼가"
+      },
+      {
+       "end": 4.5,
+       "probability": null,
+       "start": 4.08,
+       "word": "유명하다고"
+      },
+      {
+       "end": 4.94,
+       "probability": null,
+       "start": 4.52,
+       "word": "해서"
+      },
+      {
+       "end": 5.38,
+       "probability": null,
+       "start": 4.96,
+       "word": "와봤어요"
+      }
+     ]
+    }
+   ],
+   "keep": [
+    {
+     "clip_id": "c01",
+     "end": 3.1333,
+     "origin": "",
+     "out_start": 0.0,
+     "start": 0.0
+    },
+    {
+     "clip_id": "c01",
+     "end": 9.3333,
+     "origin": "",
+     "out_start": 3.1333,
+     "start": 6.9333
+    },
+    {
+     "clip_id": "c01",
+     "end": 14.0,
+     "origin": "",
+     "out_start": 5.5333,
+     "start": 12.0667
+    }
+   ],
+   "lines": {},
+   "options": {
+    "fade_ms": 25,
+    "location_captions": false,
+    "loudness": true,
+    "max_pause": 0.8,
+    "min_gap": 0.25,
+    "min_keep": 0.4,
+    "pad_end": 0.12,
+    "pad_start": 0.08,
+    "pause_limit": 4.0,
+    "punch_in": true,
+    "punch_scale": 1.08,
+    "snap_to_silence": true,
+    "subtitles": true,
+    "swallow_pause": 1.5,
+    "title_text": ""
+   },
+   "output": {
+    "aspect": "16:9",
+    "fps": 30,
+    "resolution": 1080
+   },
+   "selection": {
+    "ai_node_ids": [],
+    "locked_ids": [],
+    "mode": "manual",
+    "node_ids": [
+     "p01-a01"
+    ],
+    "reasons": {},
+    "scores": {},
+    "target_sec": null,
+    "user_prompt": ""
+   },
+   "styles": {
+    "location": {
+     "background_box": true,
+     "bg_color": "#000000",
+     "bg_opacity": 55.0,
+     "bottom_margin": 50.0,
+     "color": "#ffffff",
+     "fade": true,
+     "font": "Malgun Gothic",
+     "italic": false,
+     "karaoke": false,
+     "max_chars_per_line": 20,
+     "outline": false,
+     "outline_color": "#000000",
+     "outline_width": 3,
+     "position": "top",
+     "preset": "촬영지",
+     "shadow": false,
+     "shadow_distance": 4,
+     "size": 44.0,
+     "version": 2,
+     "weight": "normal"
+    },
+    "subtitle": {
+     "background_box": false,
+     "bg_color": "#000000",
+     "bg_opacity": 60,
+     "bottom_margin": 60,
+     "color": "#ffffff",
+     "fade": false,
+     "font": "Malgun Gothic",
+     "italic": false,
+     "karaoke": false,
+     "max_chars_per_line": 20,
+     "outline": true,
+     "outline_color": "#000000",
+     "outline_width": 3,
+     "position": "bottom",
+     "preset": "정석맛",
+     "shadow": false,
+     "shadow_distance": 4,
+     "size": 54,
+     "version": 2,
+     "weight": "normal"
+    },
+    "title": {
+     "background_box": false,
+     "bg_color": "#000000",
+     "bg_opacity": 60,
+     "bottom_margin": 80.0,
+     "color": "#ffffff",
+     "fade": true,
+     "font": "Malgun Gothic",
+     "italic": false,
+     "karaoke": false,
+     "max_chars_per_line": 18,
+     "outline": true,
+     "outline_color": "#000000",
+     "outline_width": 3,
+     "position": "top",
+     "preset": "제목",
+     "shadow": false,
+     "shadow_distance": 4,
+     "size": 84.0,
+     "version": 2,
+     "weight": "bold"
+    }
+   },
+   "version": 1,
+   "warnings": []
+  },
+  "select_20": {
+   "engine": "rule",
+   "selection": {
+    "ai_node_ids": [
+     "p01-a01-s01",
+     "p02-a02-s01"
+    ],
+    "locked_ids": [],
+    "mode": "auto",
+    "node_ids": [
+     "p01-a01-s01",
+     "p02-a02-s01"
+    ],
+    "reasons": {
+     "p01-a01-s01": "요청 단어 포함: 카페; 강조할 말이 있음",
+     "p02-a02-s01": "기본 점수"
+    },
+    "scores": {
+     "p01-a01-s01": 0.968,
+     "p01-a02-s01": 0.597,
+     "p02-a01-s01": 0.444,
+     "p02-a02-s01": 0.507
+    },
+    "target_sec": 20.0,
+    "user_prompt": "카페 장면 위주로"
+   },
+   "warnings": []
+  },
+  "select_35": {
+   "engine": "rule",
+   "selection": {
+    "ai_node_ids": [
+     "p01-a01-s01",
+     "p01-a02-s01"
+    ],
+    "locked_ids": [],
+    "mode": "auto",
+    "node_ids": [
+     "p01-a01-s01",
+     "p01-a02-s01"
+    ],
+    "reasons": {
+     "p01-a01-s01": "요청 단어 포함: 카페; 강조할 말이 있음",
+     "p01-a02-s01": "강조할 말이 있음"
+    },
+    "scores": {
+     "p01-a01-s01": 0.968,
+     "p01-a02-s01": 0.597,
+     "p02-a01-s01": 0.444,
+     "p02-a02-s01": 0.507
+    },
+    "target_sec": 35.0,
+    "user_prompt": "카페 장면 위주로"
+   },
+   "warnings": []
+  },
+  "user": {
+   "duration": 51.033,
+   "effects": [
+    {
+     "clip_id": "c01",
+     "end": 3.0,
+     "scale": 1.08,
+     "seg_id": "t0001",
+     "start": 0.8,
+     "type": "punch_in"
+    }
+   ],
+   "events": [
+    {
+     "end": 2.98,
+     "seg_id": "t0001",
+     "start": 0.8,
+     "style": "subtitle",
+     "text": "안녕하세요 오늘은 성수동에 왔어요",
+     "word_lines": [
+      0,
+      0,
+      0,
+      0
+     ],
+     "words": [
+      {
+       "end": 1.33,
+       "probability": null,
+       "start": 0.8,
+       "word": "안녕하세요"
+      },
+      {
+       "end": 1.88,
+       "probability": null,
+       "start": 1.35,
+       "word": "오늘은"
+      },
+      {
+       "end": 2.43,
+       "probability": null,
+       "start": 1.9,
+       "word": "성수동에"
+      },
+      {
+       "end": 2.98,
+       "probability": null,
+       "start": 2.45,
+       "word": "왔어요"
+      }
+     ]
+    },
+    {
+     "end": 4.1,
+     "seg_id": "t0002",
+     "start": 3.4,
+     "style": "subtitle",
+     "text": "음",
+     "word_lines": [
+      0
+     ],
+     "words": [
+      {
+       "end": 3.88,
+       "probability": null,
+       "start": 3.4,
+       "word": "음"
+      }
+     ]
+    },
+    {
+     "end": 6.28,
+     "seg_id": "t0004",
+     "start": 4.1,
+     "style": "subtitle",
+     "text": "여기 라떼가 유명하다고 해서 와봤어요",
+     "word_lines": [
+      0,
+      0,
+      0,
+      0,
+      0
+     ],
+     "words": [
+      {
+       "end": 4.52,
+       "probability": null,
+       "start": 4.1,
+       "word": "여기"
+      },
+      {
+       "end": 4.96,
+       "probability": null,
+       "start": 4.54,
+       "word": "라떼가"
+      },
+      {
+       "end": 5.4,
+       "probability": null,
+       "start": 4.98,
+       "word": "유명하다고"
+      },
+      {
+       "end": 5.84,
+       "probability": null,
+       "start": 5.42,
+       "word": "해서"
+      },
+      {
+       "end": 6.28,
+       "probability": null,
+       "start": 5.86,
+       "word": "와봤어요"
+      }
+     ]
+    },
+    {
+     "end": 12.547,
+     "seg_id": "t0006",
+     "start": 9.367,
+     "style": "subtitle",
+     "text": "와 진짜 맛있다",
+     "word_lines": [],
+     "words": []
+    },
+    {
+     "end": 34.247,
+     "seg_id": "t0008",
+     "start": 31.767,
+     "style": "subtitle",
+     "text": "이제 거리를 걸어볼게요",
+     "word_lines": [
+      0,
+      0,
+      0
+     ],
+     "words": [
+      {
+       "end": 32.58,
+       "probability": null,
+       "start": 31.767,
+       "word": "이제"
+      },
+      {
+       "end": 33.414,
+       "probability": null,
+       "start": 32.6,
+       "word": "거리를"
+      },
+      {
+       "end": 34.247,
+       "probability": null,
+       "start": 33.434,
+       "word": "걸어볼게요"
+      }
+     ]
+    },
+    {
+     "end": 45.013,
+     "seg_id": "t0010",
+     "start": 41.033,
+     "style": "subtitle",
+     "text": "오늘 브이로그는 여기까지 구독\n부탁드려요",
+     "word_lines": [
+      0,
+      0,
+      0,
+      0,
+      1
+     ],
+     "words": [
+      {
+       "end": 41.813,
+       "probability": null,
+       "start": 41.033,
+       "word": "오늘"
+      },
+      {
+       "end": 42.613,
+       "probability": null,
+       "start": 41.833,
+       "word": "브이로그는"
+      },
+      {
+       "end": 43.413,
+       "probability": null,
+       "start": 42.633,
+       "word": "여기까지"
+      },
+      {
+       "end": 44.213,
+       "probability": null,
+       "start": 43.433,
+       "word": "구독"
+      },
+      {
+       "end": 45.013,
+       "probability": null,
+       "start": 44.233,
+       "word": "부탁드려요"
+      }
+     ]
+    }
+   ],
+   "keep": [
+    {
+     "clip_id": "c01",
+     "end": 4.0333,
+     "origin": "",
+     "out_start": 0.0,
+     "start": 0.0
+    },
+    {
+     "clip_id": "c01",
+     "end": 9.3333,
+     "origin": "",
+     "out_start": 4.0333,
+     "start": 6.9333
+    },
+    {
+     "clip_id": "c01",
+     "end": 25.9333,
+     "origin": "",
+     "out_start": 6.4333,
+     "start": 12.0667
+    },
+    {
+     "clip_id": "c01",
+     "end": 40.0,
+     "origin": "",
+     "out_start": 20.3,
+     "start": 29.5333
+    },
+    {
+     "clip_id": "c02",
+     "end": 8.9333,
+     "origin": "",
+     "out_start": 30.7667,
+     "start": 1.0
+    },
+    {
+     "clip_id": "c02",
+     "end": 22.0,
+     "origin": "",
+     "out_start": 38.7,
+     "start": 9.6667
+    }
+   ],
+   "lines": {
+    "t0002": {
+     "confidence": 0.5,
+     "emphasis": false,
+     "keep": true,
+     "note": "",
+     "reason": "일반",
+     "seg_id": "t0002",
+     "source": "user",
+     "text": null
+    },
+    "t0006": {
+     "confidence": 0.5,
+     "emphasis": false,
+     "keep": true,
+     "note": "",
+     "reason": "일반",
+     "seg_id": "t0006",
+     "source": "user",
+     "text": "와 진짜 맛있다"
+    },
+    "t0007": {
+     "confidence": 0.5,
+     "emphasis": false,
+     "keep": false,
+     "note": "",
+     "reason": "NG",
+     "seg_id": "t0007",
+     "source": "user",
+     "text": null
+    }
+   },
+   "options": {
+    "fade_ms": 25,
+    "location_captions": false,
+    "loudness": true,
+    "max_pause": 0.8,
+    "min_gap": 0.25,
+    "min_keep": 0.4,
+    "pad_end": 0.12,
+    "pad_start": 0.08,
+    "pause_limit": 4.0,
+    "punch_in": true,
+    "punch_scale": 1.08,
+    "snap_to_silence": true,
+    "subtitles": true,
+    "swallow_pause": 1.5,
+    "title_text": ""
+   },
+   "output": {
+    "aspect": "16:9",
+    "fps": 30,
+    "resolution": 1080
+   },
+   "selection": {
+    "ai_node_ids": [],
+    "locked_ids": [],
+    "mode": "all",
+    "node_ids": [],
+    "reasons": {},
+    "scores": {},
+    "target_sec": null,
+    "user_prompt": ""
+   },
+   "styles": {
+    "location": {
+     "background_box": true,
+     "bg_color": "#000000",
+     "bg_opacity": 55.0,
+     "bottom_margin": 50.0,
+     "color": "#ffffff",
+     "fade": true,
+     "font": "Malgun Gothic",
+     "italic": false,
+     "karaoke": false,
+     "max_chars_per_line": 20,
+     "outline": false,
+     "outline_color": "#000000",
+     "outline_width": 3,
+     "position": "top",
+     "preset": "촬영지",
+     "shadow": false,
+     "shadow_distance": 4,
+     "size": 44.0,
+     "version": 2,
+     "weight": "normal"
+    },
+    "subtitle": {
+     "background_box": false,
+     "bg_color": "#000000",
+     "bg_opacity": 60,
+     "bottom_margin": 60,
+     "color": "#ffffff",
+     "fade": false,
+     "font": "Malgun Gothic",
+     "italic": false,
+     "karaoke": false,
+     "max_chars_per_line": 20,
+     "outline": true,
+     "outline_color": "#000000",
+     "outline_width": 3,
+     "position": "bottom",
+     "preset": "정석맛",
+     "shadow": false,
+     "shadow_distance": 4,
+     "size": 54,
+     "version": 2,
+     "weight": "normal"
+    },
+    "title": {
+     "background_box": false,
+     "bg_color": "#000000",
+     "bg_opacity": 60,
+     "bottom_margin": 80.0,
+     "color": "#ffffff",
+     "fade": true,
+     "font": "Malgun Gothic",
+     "italic": false,
+     "karaoke": false,
+     "max_chars_per_line": 18,
+     "outline": true,
+     "outline_color": "#000000",
+     "outline_width": 3,
+     "position": "top",
+     "preset": "제목",
+     "shadow": false,
+     "shadow_distance": 4,
+     "size": 84.0,
+     "version": 2,
+     "weight": "bold"
+    }
+   },
+   "version": 1,
+   "warnings": []
+  }
+ },
+ "prompts": {
+  "cache_keys": {
+   "judge": "c3a0b52f868bf11aaaf33396df44c2fd4aed8b2250d433e55b9ea217b869615f",
+   "revise": "941fc96b9bb5e53dbbd4471d9b19292170059ff3b4297a8cc85edd04c48b4967",
+   "select": "4cbd36b92f0d742634dfc0ebc5f69d3e5a061075cf711caa05fd70eadcdbf6d2"
+  },
+  "schema_sha256": {
+   "judge": "14751a9cada74484b597c53ca6cd9935f0b6e8988e8e426e53c6b707500d35c2",
+   "revise": "52a3f9cac1409f04d25662d520ba638636021c40f0275897f372d1a5ebb39011",
+   "scene": "d06c18d117b5552fc063a921a827f625c4b63c9888f06b5484be3b5021c14673",
+   "select": "67cd025c529f9d0c4875bb14b968cf812ac625bc95095a6808d2851c2abcac16"
+  },
+  "text_sha256": {
+   "judge": "2aeaf00825baa9268d58565d846928fdb93c206675d85268ad05a1ccb284aa8b",
+   "revise": "17c2e292c1fa3249efdacf467d1f456e98fbff9838fb9342695d52841b7147e6",
+   "scene": "a5c3ca8f9b61d19e0aca3b3df8d16829c03079f4152906aa2c3e5fea51356441",
+   "scene_first": "11244068964ab26df5e6522013b140e101ac55f56f26e20fa55cb121a555e05d",
+   "select": "767635f5afb7a63f247ad55c9f2d58b6688d5afb2da75c33a4215abb41a7d50a"
+  },
+  "texts": {
+   "judge": "당신은 한국어 브이로그·유튜브 영상 편집자다. 아래는 촬영 원본의 받아쓰기 문장 목록이다.\n각 문장을 결과 영상에 남길지 판단하라.\n\n[자르는 이유]\n- NG: 말실수, 다시 찍은 앞부분 (같은 말을 여러 번 했으면 가장 완성된 마지막 것만 남긴다)\n- 반복: 앞에서 한 내용을 의미 없이 되풀이\n- 군더더기: 의미 없는 추임새·머뭇거림 (군말 제거 강도: 강 (추임새 전부))\n- 지시어: \"다시 할게\", \"이거 편집해\" 같은 촬영 지시\n[남기는 이유] 핵심(하이라이트·꼭 필요한 정보), 일반\n[원칙]\n- 확신이 없으면 남긴다. 뒤 문장과 의미가 이어지는 문장은 자르지 않는다.\n- emphasis=true는 감정이 크거나 핵심 정보라 화면 줌인이 어울리는 문장 (전체의 10% 이하).\n- 자주 쓰는 단어(강조 후보): 성수동, 라떼\n- [규칙: …] 표시는 자동 규칙이 자르려는 문장이다. 남겨야 하면 keep=true로 돌려줘라.\n\n[출력] 다음 문장만 decisions에 넣는다 (나머지는 남김으로 처리한다):\n  ① 자를 문장  ② 강조할 문장  ③ [규칙] 표시가 있지만 남길 문장\n  각 항목: id, keep, reason(위 이유 중 하나), confidence(0~1), emphasis, note(20자 이내 한국어 설명)\n  시각은 출력하지 않는다.\n\n[문장 목록] id | 시작 | 길이 | 장면 | 내용\nt0001 | 0.8s | 2.2s | 카페/주문 | 안녕하세요 오늘은 성수동에 왔어요\nt0002 | 3.4s | 0.5s | 카페/주문 | 음 [규칙: 군더더기]\nt0003 | 4.3s | 2.3s | 카페/주문 | 여기 라떼가 유명하다고 해서 [규칙: NG]\nt0004 | 7.0s | 2.2s | 카페/주문 | 여기 라떼가 유명하다고 해서 와봤어요\nt0005 | 10.5s | 1.5s | 카페/주문 | 아 다시 할게 [규칙: 지시어]\nt0006 | 15.0s | 3.2s | 카페/시음 | 와 진짜 대박 맛있다!\nt0007 | 26.0s | 3.5s | 카페/시음 | 창가 자리가 정말 예쁘네요\nt0008 | 2.0s | 2.5s | 거리/산책 | 이제 거리를 걸어볼게요\nt0009 | 9.0s | 0.6s | 거리/산책 | 어 그니까 [규칙: 군더더기]\nt0010 | 12.0s | 4.0s | 거리/마무리 | 오늘 브이로그는 여기까지 구독 부탁드려요\n",
+   "revise": "당신은 영상 편집 도우미다. 사용자의 수정 요청을 문장 목록에 적용하라.\n\n[요청] 말더듬 다 잘라줘\n\n[규칙]\n- 바꿀 문장만 changes에 넣는다. 각 항목: id, keep(남기면 true, 자르면 false, 그대로면 생략), text(자막 글자를 고칠 때만)\n- 시각·순서는 바꿀 수 없다. 문장을 새로 만들거나 합치지 않는다.\n- message: 무엇을 바꿨는지 한국어 한두 문장.\n\n[문장 목록] id | 시작 | 현재 상태 | 자막\nt0001 | 0.8s | 남김 | 안녕하세요 오늘은 성수동에 왔어요\nt0002 | 3.4s | 자름(군더더기) | 음\nt0003 | 4.3s | 자름(NG) | 여기 라떼가 유명하다고 해서\nt0004 | 7.0s | 남김 | 여기 라떼가 유명하다고 해서 와봤어요\nt0005 | 10.5s | 자름(지시어) | 아 다시 할게\nt0006 | 15.0s | 남김 | 와 진짜 대박 맛있다!\nt0007 | 26.0s | 남김 | 창가 자리가 정말 예쁘네요\nt0008 | 2.0s | 남김 | 이제 거리를 걸어볼게요\nt0009 | 9.0s | 자름(군더더기) | 어 그니까\nt0010 | 12.0s | 남김 | 오늘 브이로그는 여기까지 구독 부탁드려요\n",
+   "scene": "당신은 브이로그 영상의 장면 기록자다. 소리는 없고 화면만 본다.\n이 클립의 길이는 42.5초다.\n\n[장면을 나누는 기준]\n- 장소가 바뀌거나 주된 활동이 바뀔 때 새 장면으로 나눈다.\n- 같은 장소·활동에서 카메라 방향(셀카↔풍경)이나 화각만 바뀐 것은 같은 장면이다.\n- 10.0초 미만의 짧은 변화는 앞 장면에 합친다.\n\n[출력 규칙]\n- 클립의 0초부터 42.5초까지 빈틈없이, 겹치지 않게 나눈다.\n- start, end는 이 클립 시작 기준 초 단위 숫자다.\n- place, activity는 짧은 한국어 명사구로 쓴다. (예: \"카페 실내\", \"음료 주문\")\n- people은 화면에 직접 등장하는 인물만 옷차림·외형 라벨로 쓴다. (예: \"빨간 후드 촬영자\", \"남색 패딩\") 아무도 없으면 빈 문자열. 이름 추정이나 얼굴로 신원 판단은 절대 금지.\n- 이전 클립 인물과 같은 사람으로 보이면 반드시 같은 라벨을 재사용한다.\n- background_people은 배경에 행인·군중이 보이면 true, 없으면 false.\n- event는 눈에 띄는 화면 사건이 있으면 쓰고, 없으면 빈 문자열로 둔다.\n- mood는 장면 분위기를 한 단어로 쓴다. (예: 차분, 활기, 긴장, 설렘, 무거움) 판단하기 어려우면 빈 문자열로 둔다.\n- summary는 그 장면을 한 문장으로 요약한다.\n\n[이전 클립 등장인물 라벨]\n빨간 후드\n\n[이전 클립 요약]\n카페: 주문한다\n\nJSON 배열만 출력한다. 다른 설명은 쓰지 않는다.\n[{\"start\": 0, \"end\": 0, \"place\": \"\", \"activity\": \"\", \"people\": \"\", \"background_people\": false, \"event\": \"\", \"mood\": \"\", \"summary\": \"\"}]\n",
+   "scene_first": "당신은 브이로그 영상의 장면 기록자다. 소리는 없고 화면만 본다.\n이 클립의 길이는 12.0초다.\n\n[장면을 나누는 기준]\n- 장소가 바뀌거나 주된 활동이 바뀔 때 새 장면으로 나눈다.\n- 같은 장소·활동에서 카메라 방향(셀카↔풍경)이나 화각만 바뀐 것은 같은 장면이다.\n- 10.0초 미만의 짧은 변화는 앞 장면에 합친다.\n\n[출력 규칙]\n- 클립의 0초부터 12.0초까지 빈틈없이, 겹치지 않게 나눈다.\n- start, end는 이 클립 시작 기준 초 단위 숫자다.\n- place, activity는 짧은 한국어 명사구로 쓴다. (예: \"카페 실내\", \"음료 주문\")\n- people은 화면에 직접 등장하는 인물만 옷차림·외형 라벨로 쓴다. (예: \"빨간 후드 촬영자\", \"남색 패딩\") 아무도 없으면 빈 문자열. 이름 추정이나 얼굴로 신원 판단은 절대 금지.\n- 이전 클립 인물과 같은 사람으로 보이면 반드시 같은 라벨을 재사용한다.\n- background_people은 배경에 행인·군중이 보이면 true, 없으면 false.\n- event는 눈에 띄는 화면 사건이 있으면 쓰고, 없으면 빈 문자열로 둔다.\n- mood는 장면 분위기를 한 단어로 쓴다. (예: 차분, 활기, 긴장, 설렘, 무거움) 판단하기 어려우면 빈 문자열로 둔다.\n- summary는 그 장면을 한 문장으로 요약한다.\n\n[이전 클립 등장인물 라벨]\n(없음)\n\n[이전 클립 요약]\n(첫 클립)\n\nJSON 배열만 출력한다. 다른 설명은 쓰지 않는다.\n[{\"start\": 0, \"end\": 0, \"place\": \"\", \"activity\": \"\", \"people\": \"\", \"background_people\": false, \"event\": \"\", \"mood\": \"\", \"summary\": \"\"}]\n",
+   "select": "당신은 영상 편집자다. 아래 장면 목록을 보고 결과 영상에 넣을 가치를 장면마다 점수로 매겨라.\n\n[사용자 요청] 카페 장면 위주로\n[목표 분량] 30초 (원본 64초)  ※ 분량 계산은 하지 마라. 고르는 것은 프로그램이 한다.\n[제작자 컷 템포] 빠름\n[규칙]\n- score(0~1): 높을수록 넣을 가치가 크다. 요청에 맞는 장면, 처음 시작·마무리 장면, 사건이 있는 장면을 높게.\n- must: 요청상 꼭 넣어야 하는 장면만 true.\n- never: 요청에서 빼 달라고 한 내용(사람·장소·주제)이 있는 장면만 true.\n- reason: 20자 이내 한국어 한 줄.\n- 모든 장면 id를 빠짐없이 돌려준다.\n\n[장면 목록] id | 원본 시각 | 제목 | 요약 | 주요 대사\np01-a01-s01 | 0~14s | 라떼 주문 | 카페에 들어가 주문한다 | 여기 라떼가 유명하다고 해서 와봤어요 / 안녕하세요 오늘은 성수동에 왔어요\np01-a02-s01 | 14~40s | 라떼를 마신다 | 라떼를 마신다 | 창가 자리가 정말 예쁘네요 / 와 진짜 대박 맛있다!\np02-a01-s01 | 40~50s | 거리를 걷는다 | 거리를 걷는다 | 이제 거리를 걸어볼게요\np02-a02-s01 | 50~64s | 인사 | 마무리 인사 | 오늘 브이로그는 여기까지 구독 부탁드려요\n"
+  }
+ },
+ "rules": {
+  "t0001": {
+   "confidence": 0.6,
+   "emphasis": true,
+   "keep": true,
+   "note": "",
+   "reason": "핵심",
+   "seg_id": "t0001",
+   "source": "rule",
+   "text": null
+  },
+  "t0002": {
+   "confidence": 0.75,
+   "emphasis": false,
+   "keep": false,
+   "note": "의미 없는 추임새",
+   "reason": "군더더기",
+   "seg_id": "t0002",
+   "source": "rule",
+   "text": null
+  },
+  "t0003": {
+   "confidence": 0.7,
+   "emphasis": false,
+   "keep": false,
+   "note": "바로 뒤에서 같은 말을 다시 했습니다",
+   "reason": "NG",
+   "seg_id": "t0003",
+   "source": "rule",
+   "text": null
+  },
+  "t0004": {
+   "confidence": 0.5,
+   "emphasis": false,
+   "keep": true,
+   "note": "",
+   "reason": "일반",
+   "seg_id": "t0004",
+   "source": "rule",
+   "text": null
+  },
+  "t0005": {
+   "confidence": 0.8,
+   "emphasis": false,
+   "keep": false,
+   "note": "촬영 지시·NG 신호",
+   "reason": "지시어",
+   "seg_id": "t0005",
+   "source": "rule",
+   "text": null
+  },
+  "t0006": {
+   "confidence": 0.6,
+   "emphasis": true,
+   "keep": true,
+   "note": "",
+   "reason": "핵심",
+   "seg_id": "t0006",
+   "source": "rule",
+   "text": null
+  },
+  "t0007": {
+   "confidence": 0.5,
+   "emphasis": false,
+   "keep": true,
+   "note": "",
+   "reason": "일반",
+   "seg_id": "t0007",
+   "source": "rule",
+   "text": null
+  },
+  "t0008": {
+   "confidence": 0.5,
+   "emphasis": false,
+   "keep": true,
+   "note": "",
+   "reason": "일반",
+   "seg_id": "t0008",
+   "source": "rule",
+   "text": null
+  },
+  "t0009": {
+   "confidence": 0.75,
+   "emphasis": false,
+   "keep": false,
+   "note": "의미 없는 추임새",
+   "reason": "군더더기",
+   "seg_id": "t0009",
+   "source": "rule",
+   "text": null
+  },
+  "t0010": {
+   "confidence": 0.5,
+   "emphasis": false,
+   "keep": true,
+   "note": "",
+   "reason": "일반",
+   "seg_id": "t0010",
+   "source": "rule",
+   "text": null
+  }
+ },
+ "tree": {
+  "analysis_tree": [
+   {
+    "children": [
+     {
+      "children": [
+       {
+        "children": [
+         {
+          "children": [],
+          "end": 3.0,
+          "id": "p01-a01-s01-l01",
+          "level": 3,
+          "seg_id": "t0001",
+          "start": 0.8,
+          "summary": "안녕하세요 오늘은 성수동에 왔어요",
+          "tags": [],
+          "title": "안녕하세요 오늘은 성수동에 왔어요"
+         },
+         {
+          "children": [],
+          "end": 3.9,
+          "id": "p01-a01-s01-l02",
+          "level": 3,
+          "seg_id": "t0002",
+          "start": 3.4,
+          "summary": "음",
+          "tags": [
+           "AI 컷 제안"
+          ],
+          "title": "음"
+         },
+         {
+          "children": [],
+          "end": 6.6,
+          "id": "p01-a01-s01-l03",
+          "level": 3,
+          "seg_id": "t0003",
+          "start": 4.3,
+          "summary": "여기 라떼가 유명하다고 해서",
+          "tags": [
+           "AI 컷 제안"
+          ],
+          "title": "여기 라떼가 유명하다고 해서"
+         },
+         {
+          "children": [],
+          "end": 9.2,
+          "id": "p01-a01-s01-l04",
+          "level": 3,
+          "seg_id": "t0004",
+          "start": 7.0,
+          "summary": "여기 라떼가 유명하다고 해서 와봤어요",
+          "tags": [],
+          "title": "여기 라떼가 유명하다고 해서 와봤어요"
+         },
+         {
+          "children": [],
+          "end": 12.0,
+          "id": "p01-a01-s01-l05",
+          "level": 3,
+          "seg_id": "t0005",
+          "start": 10.5,
+          "summary": "아 다시 할게",
+          "tags": [
+           "AI 컷 제안"
+          ],
+          "title": "아 다시 할게"
+         }
+        ],
+        "end": 14.0,
+        "id": "p01-a01-s01",
+        "level": 2,
+        "seg_id": null,
+        "start": 0.0,
+        "summary": "카페에 들어가 주문한다",
+        "tags": [
+         "설렘",
+         "빨간 후드"
+        ],
+        "title": "라떼 주문"
+       }
+      ],
+      "end": 14.0,
+      "id": "p01-a01",
+      "level": 1,
+      "seg_id": null,
+      "start": 0.0,
+      "summary": "",
+      "tags": [],
+      "title": "주문"
+     },
+     {
+      "children": [
+       {
+        "children": [
+         {
+          "children": [],
+          "end": 18.2,
+          "id": "p01-a02-s01-l01",
+          "level": 3,
+          "seg_id": "t0006",
+          "start": 15.0,
+          "summary": "와 진짜 대박 맛있다!",
+          "tags": [],
+          "title": "와 진짜 대박 맛있다!"
+         },
+         {
+          "children": [],
+          "end": 29.5,
+          "id": "p01-a02-s01-l02",
+          "level": 3,
+          "seg_id": "t0007",
+          "start": 26.0,
+          "summary": "창가 자리가 정말 예쁘네요",
+          "tags": [],
+          "title": "창가 자리가 정말 예쁘네요"
+         }
+        ],
+        "end": 40.0,
+        "id": "p01-a02-s01",
+        "level": 2,
+        "seg_id": null,
+        "start": 14.0,
+        "summary": "라떼를 마신다",
+        "tags": [],
+        "title": "라떼를 마신다"
+       }
+      ],
+      "end": 40.0,
+      "id": "p01-a02",
+      "level": 1,
+      "seg_id": null,
+      "start": 14.0,
+      "summary": "",
+      "tags": [],
+      "title": "시음"
+     }
+    ],
+    "end": 40.0,
+    "id": "p01",
+    "level": 0,
+    "seg_id": null,
+    "start": 0.0,
+    "summary": "",
+    "tags": [],
+    "title": "카페"
+   },
+   {
+    "children": [
+     {
+      "children": [
+       {
+        "children": [
+         {
+          "children": [],
+          "end": 44.5,
+          "id": "p02-a01-s01-l01",
+          "level": 3,
+          "seg_id": "t0008",
+          "start": 42.0,
+          "summary": "이제 거리를 걸어볼게요",
+          "tags": [],
+          "title": "이제 거리를 걸어볼게요"
+         },
+         {
+          "children": [],
+          "end": 49.6,
+          "id": "p02-a01-s01-l02",
+          "level": 3,
+          "seg_id": "t0009",
+          "start": 49.0,
+          "summary": "어 그니까",
+          "tags": [
+           "AI 컷 제안"
+          ],
+          "title": "어 그니까"
+         }
+        ],
+        "end": 50.0,
+        "id": "p02-a01-s01",
+        "level": 2,
+        "seg_id": null,
+        "start": 40.0,
+        "summary": "거리를 걷는다",
+        "tags": [],
+        "title": "거리를 걷는다"
+       }
+      ],
+      "end": 50.0,
+      "id": "p02-a01",
+      "level": 1,
+      "seg_id": null,
+      "start": 40.0,
+      "summary": "",
+      "tags": [],
+      "title": "산책"
+     },
+     {
+      "children": [
+       {
+        "children": [
+         {
+          "children": [],
+          "end": 56.0,
+          "id": "p02-a02-s01-l01",
+          "level": 3,
+          "seg_id": "t0010",
+          "start": 52.0,
+          "summary": "오늘 브이로그는 여기까지 구독 부탁드려요",
+          "tags": [],
+          "title": "오늘 브이로그는 여기까지 구독 부탁드려요"
+         }
+        ],
+        "end": 64.0,
+        "id": "p02-a02-s01",
+        "level": 2,
+        "seg_id": null,
+        "start": 50.0,
+        "summary": "마무리 인사",
+        "tags": [],
+        "title": "인사"
+       }
+      ],
+      "end": 64.0,
+      "id": "p02-a02",
+      "level": 1,
+      "seg_id": null,
+      "start": 50.0,
+      "summary": "",
+      "tags": [],
+      "title": "마무리"
+     }
+    ],
+    "end": 64.0,
+    "id": "p02",
+    "level": 0,
+    "seg_id": null,
+    "start": 40.0,
+    "summary": "",
+    "tags": [],
+    "title": "거리"
+   }
+  ],
+  "group_tree": [
+   {
+    "children": [
+     {
+      "children": [
+       {
+        "children": [
+         {
+          "children": [],
+          "end": 3.0,
+          "id": "p01-a01-s01-l01",
+          "seg_id": "t1",
+          "start": 1.0,
+          "summary": "안녕",
+          "title": "안녕"
+         }
+        ],
+        "end": 20.0,
+        "id": "p01-a01-s01",
+        "start": 0.0,
+        "summary": "메뉴판",
+        "tags": [
+         "설렘",
+         "빨간 후드"
+        ],
+        "title": "메뉴"
+       },
+       {
+        "children": [
+         {
+          "children": [],
+          "end": 23.0,
+          "id": "p01-a01-s02-l01",
+          "seg_id": "t2",
+          "start": 20.0,
+          "summary": "아메리카노 두 잔이요",
+          "tags": [
+           "AI 컷 제안"
+          ],
+          "title": "아메리카노 두 잔이요"
+         }
+        ],
+        "end": 45.0,
+        "id": "p01-a01-s02",
+        "start": 20.0,
+        "summary": "음료",
+        "title": "음료"
+       }
+      ],
+      "end": 45.0,
+      "id": "p01-a01",
+      "start": 0.0,
+      "title": "주문"
+     }
+    ],
+    "end": 45.0,
+    "id": "p01",
+    "start": 0.0,
+    "title": "카페"
+   }
+  ]
+ }
+}

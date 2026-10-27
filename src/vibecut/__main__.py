@@ -1,4 +1,4 @@
-"""python -m vibecut → 명령줄 편집 (vibecut.cli)."""
+"""python -m vibecut <명령> → vibecut.cli."""
 
 import sys
 

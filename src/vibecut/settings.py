@@ -14,6 +14,9 @@
     SCENE_MODEL               영상 장면 이해 (gemini-3.5-flash-lite)
     STT_ENGINE                auto | gemini | whisper-local | energy
     SCENE_ENGINE              auto | gemini | local
+    WHISPER_MODEL             로컬 Whisper 크기 (small)
+    WHISPER_INITIAL_PROMPT    로컬 Whisper 안내 문구 (고유명사·숫자 표기 안내)
+    FFMPEG_BIN                ffmpeg 실행 파일 (없으면 PATH → imageio-ffmpeg 내장)
     VIBECUT_DATA_DIR          프로젝트·작업·캐시 폴더 (./data)
     VIBECUT_HOST / PORT       서버 주소 (127.0.0.1 / 8000)
 """
@@ -27,6 +30,8 @@ from pathlib import Path
 
 ROOT_DIR = Path(__file__).resolve().parents[2]     # src/vibecut/settings.py → 저장소 루트
 KEY_FILES = ("gemini_key.txt", "api_key.txt")
+DEFAULT_WHISPER_PROMPT = "다음은 자연스러운 한국어 영상 자막입니다. 고유명사, 제품명, 숫자와 단위를 정확히 표기하세요."
+TARGET_TOLERANCE = 0.05       # AI 가편집 목표 분량 허용 오차 (±5%) — 화면에도 /api/config로 알려 준다
 
 
 def read_dotenv(root: Path = ROOT_DIR) -> dict[str, str]:
@@ -47,6 +52,11 @@ def read_dotenv(root: Path = ROOT_DIR) -> dict[str, str]:
 def _env(name: str, default: str, dotenv: dict[str, str] | None = None) -> str:
     value = os.getenv(name) or (dotenv or {}).get(name)
     return value.strip() if value and value.strip() else default
+
+
+def env(name: str, default: str) -> str:
+    """설정 하나 읽기 (환경 변수 → .env → 기본값). Settings에 없는 명령줄 전용 값에 쓴다."""
+    return _env(name, default, read_dotenv())
 
 
 def _env_int(name: str, default: int, dotenv: dict[str, str] | None = None) -> int:
@@ -102,6 +112,8 @@ class Settings:
     models: Models
     language: str
     whisper_model: str
+    whisper_prompt: str
+    ffmpeg_bin: str
     gemini_timeout: float
     gemini_retries: int
     max_upload_mb: int
@@ -155,6 +167,8 @@ def load_settings(**overrides) -> Settings:
         ),
         language=_env("VIBECUT_LANGUAGE", "ko", dotenv),
         whisper_model=_env("WHISPER_MODEL", "small", dotenv),
+        whisper_prompt=_env("WHISPER_INITIAL_PROMPT", DEFAULT_WHISPER_PROMPT, dotenv),
+        ffmpeg_bin=_env("FFMPEG_BIN", "", dotenv),
         gemini_timeout=_env_float("VIBECUT_GEMINI_TIMEOUT", 90.0, dotenv),
         gemini_retries=_env_int("VIBECUT_GEMINI_RETRIES", 2, dotenv),
         max_upload_mb=_env_int("VIBECUT_MAX_UPLOAD_MB", 2048, dotenv),

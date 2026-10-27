@@ -1,0 +1,153 @@
+{
+ "operations": [
+  "DELETE /api/projects/{project_id}",
+  "DELETE /api/projects/{project_id}/clips/{clip_id}",
+  "GET /api/config",
+  "GET /api/jobs/{job_id}",
+  "GET /api/projects",
+  "GET /api/projects/{project_id}",
+  "GET /api/projects/{project_id}/analysis",
+  "GET /api/projects/{project_id}/clips/{clip_id}/file",
+  "GET /api/projects/{project_id}/clips/{clip_id}/proxy",
+  "GET /api/projects/{project_id}/jobs",
+  "GET /api/projects/{project_id}/metrics",
+  "GET /api/projects/{project_id}/plan",
+  "GET /api/projects/{project_id}/renders/{file_name}",
+  "PATCH /api/projects/{project_id}",
+  "PATCH /api/projects/{project_id}/plan/lines",
+  "POST /api/jobs/{job_id}/cancel",
+  "POST /api/projects",
+  "POST /api/projects/{project_id}/analyze",
+  "POST /api/projects/{project_id}/clips",
+  "POST /api/projects/{project_id}/render",
+  "POST /api/projects/{project_id}/revise",
+  "POST /api/projects/{project_id}/select",
+  "PUT /api/projects/{project_id}/plan"
+ ],
+ "schemas": {
+  "AnalyzeRequest": [
+   "profile"
+  ],
+  "Body_upload_clips_api_projects__project_id__clips_post": [
+   "files"
+  ],
+  "ClipPatch": [
+   "clip_id",
+   "in_point",
+   "out_point"
+  ],
+  "HTTPValidationError": [
+   "detail"
+  ],
+  "LineChange": [
+   "keep",
+   "reset",
+   "seg_id",
+   "text"
+  ],
+  "LineDecision": [
+   "confidence",
+   "emphasis",
+   "keep",
+   "note",
+   "reason",
+   "seg_id",
+   "source",
+   "text"
+  ],
+  "LinesPatch": [
+   "changes"
+  ],
+  "OutputSpec": [
+   "aspect",
+   "fps",
+   "resolution"
+  ],
+  "PlanOptions": [
+   "fade_ms",
+   "location_captions",
+   "loudness",
+   "max_pause",
+   "min_gap",
+   "min_keep",
+   "pad_end",
+   "pad_start",
+   "pause_limit",
+   "punch_in",
+   "punch_scale",
+   "snap_to_silence",
+   "subtitles",
+   "swallow_pause",
+   "title_text"
+  ],
+  "PlanUpdate": [
+   "lines",
+   "options",
+   "output",
+   "selection",
+   "styles"
+  ],
+  "ProjectCreate": [
+   "name"
+  ],
+  "ProjectPatch": [
+   "clips",
+   "name",
+   "timeline"
+  ],
+  "RenderRequest": [
+   "quality"
+  ],
+  "ReviseRequest": [
+   "instruction",
+   "profile"
+  ],
+  "SelectRequest": [
+   "locked_ids",
+   "mode",
+   "node_ids",
+   "profile",
+   "target_sec",
+   "user_prompt"
+  ],
+  "Selection": [
+   "ai_node_ids",
+   "locked_ids",
+   "mode",
+   "node_ids",
+   "reasons",
+   "scores",
+   "target_sec",
+   "user_prompt"
+  ],
+  "StyleSpec": [
+   "background_box",
+   "bg_color",
+   "bg_opacity",
+   "bottom_margin",
+   "color",
+   "fade",
+   "font",
+   "italic",
+   "karaoke",
+   "max_chars_per_line",
+   "outline",
+   "outline_color",
+   "outline_width",
+   "position",
+   "preset",
+   "shadow",
+   "shadow_distance",
+   "size",
+   "version",
+   "weight"
+  ],
+  "ValidationError": [
+   "ctx",
+   "input",
+   "loc",
+   "msg",
+   "type"
+  ]
+ }
+}

@@ -10,7 +10,7 @@
 
 from __future__ import annotations
 
-from ..models import StyleSpec, SubtitleEvent
+from ..domain.models import StyleSpec, SubtitleEvent
 from . import fonts
 
 REFERENCE_SHORT_SIDE = 1080

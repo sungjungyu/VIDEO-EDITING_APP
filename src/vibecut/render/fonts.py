@@ -19,15 +19,16 @@ log = logging.getLogger("vibecut.render.fonts")
 
 DEFAULT_RATIO = 1.3
 
-# 화면에서 고를 수 있는 글꼴 → (보통, 굵게) 파일 이름 후보 (Windows / macOS / Linux 공통 이름)
-KNOWN_FONTS: dict[str, tuple[tuple[str, ...], tuple[str, ...]]] = {
-    "malgun gothic": (("malgun.ttf",), ("malgunbd.ttf",)),
-    "nanumgothic": (("NanumGothic.ttf",), ("NanumGothicBold.ttf",)),
-    "nanummyeongjo": (("NanumMyeongjo.ttf",), ("NanumMyeongjoBold.ttf",)),
-    "noto sans kr": (("NotoSansKR-Regular.otf", "NotoSansKR-Regular.ttf", "NotoSansKR-VF.ttf"),
+# 화면에서 고를 수 있는 글꼴: 표시 이름 → (보통, 굵게) 파일 이름 후보 (Windows / macOS / Linux 공통 이름)
+FONT_FAMILIES: dict[str, tuple[tuple[str, ...], tuple[str, ...]]] = {
+    "Malgun Gothic": (("malgun.ttf",), ("malgunbd.ttf",)),
+    "NanumGothic": (("NanumGothic.ttf",), ("NanumGothicBold.ttf",)),
+    "NanumMyeongjo": (("NanumMyeongjo.ttf",), ("NanumMyeongjoBold.ttf",)),
+    "Noto Sans KR": (("NotoSansKR-Regular.otf", "NotoSansKR-Regular.ttf", "NotoSansKR-VF.ttf"),
                      ("NotoSansKR-Bold.otf", "NotoSansKR-Bold.ttf", "NotoSansKR-VF.ttf")),
-    "arial": (("arial.ttf", "Arial.ttf"), ("arialbd.ttf", "Arial Bold.ttf")),
+    "Arial": (("arial.ttf", "Arial.ttf"), ("arialbd.ttf", "Arial Bold.ttf")),
 }
+_BY_LOWER = {name.lower(): files for name, files in FONT_FAMILIES.items()}
 FALLBACK_FAMILY = "Malgun Gothic" if sys.platform == "win32" else "NanumGothic"
 
 
@@ -50,7 +51,7 @@ def font_dirs() -> list[Path]:
 
 @lru_cache(maxsize=64)
 def find_font_file(family: str, bold: bool = False) -> Path | None:
-    names = KNOWN_FONTS.get(family.strip().lower())
+    names = _BY_LOWER.get(family.strip().lower())
     if not names:
         return None
     candidates = names[1] + names[0] if bold else names[0]
@@ -113,11 +114,8 @@ def line_ratio(family: str, bold: bool = False) -> float:
 
 def font_metrics_table() -> dict[str, float]:
     """화면에서 쓰는 글꼴별 비율 (/api/config로 프론트에 넘긴다)."""
-    labels = {"malgun gothic": "Malgun Gothic", "nanumgothic": "NanumGothic", "nanummyeongjo": "NanumMyeongjo",
-              "noto sans kr": "Noto Sans KR", "arial": "Arial"}
-    return {label: round(line_ratio(label), 4) for label in labels.values()}
+    return {name: round(line_ratio(name), 4) for name in FONT_FAMILIES}
 
 
 def available_fonts() -> dict[str, bool]:
-    return {label: find_font_file(label) is not None
-            for label in ("Malgun Gothic", "NanumGothic", "NanumMyeongjo", "Noto Sans KR", "Arial")}
+    return {name: find_font_file(name) is not None for name in FONT_FAMILIES}

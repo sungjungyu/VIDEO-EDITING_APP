@@ -21,9 +21,9 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from ..media import ffmpeg
-from ..media.ffmpeg import filter_script_args
-from ..models import ClipInfo, EditPlan, KeepRange
+from ..domain.models import ClipInfo, EditPlan, KeepRange
+from ..media.ffmpeg import filter_script_args, run_with_progress
+from ..media.probe import probe
 from . import fonts
 from .ass import build_ass
 
@@ -180,9 +180,9 @@ def render_plan(plan: EditPlan, clips: dict[str, ClipInfo], files: dict[str, Pat
     log.info("렌더 시작: %s, 구간 %d개, 예상 %.1f초, %dx%d", quality, len(plan.keep), spec.duration,
              spec.width, spec.height)
     try:
-        ffmpeg.run_with_progress(spec.args, spec.duration, on_progress, cancel, cwd=workdir)
+        run_with_progress(spec.args, spec.duration, on_progress, cancel, cwd=workdir)
         result = workdir / "out.mp4"
-        info = ffmpeg.probe(result)
+        info = probe(result)
         shutil.move(str(result), str(output))
     finally:
         if not keep_workdir:
