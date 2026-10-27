@@ -33,6 +33,7 @@ export const state = {
   ui: {
     selectedClipId: null,
     aiStage: "idle",
+    pxPerSec: 40,
   },
 };
 

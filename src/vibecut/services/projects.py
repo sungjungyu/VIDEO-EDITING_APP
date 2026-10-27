@@ -91,4 +91,3 @@ def sort_timeline_by_shooting_time(store: ProjectStore, project_id: str) -> Proj
     """촬영 시각 → 파일 이름 순으로 타임라인을 다시 놓는다 (명령줄 --sort)."""
     return store.update(project_id, lambda p: setattr(p, "timeline", [c.clip_id for c in sorted(
         p.timeline_clips(), key=lambda c: (c.created_at or 0, c.filename))]))
-

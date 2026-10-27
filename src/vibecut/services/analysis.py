@@ -33,10 +33,10 @@ from ..domain.models import (
 from ..domain.timebase import clip_spans
 from ..editing.planner import compile_plan
 from ..errors import Canceled
+from ..media.convert import extract_audio
 from ..settings import Settings
 from ..storage.projects import ProjectStore
 from .context import RunContext
-from .media import audio_wav
 
 log = logging.getLogger("vibecut.services.analysis")
 
@@ -115,7 +115,10 @@ def _analyze(ctx: RunContext, store: ProjectStore, settings: Settings, project_i
         for i, c in enumerate(clips):
             ctx.check()
             ctx.progress(8 * i / len(clips), "오디오 추출", c.filename)
-            wavs[c.clip_id] = audio_wav(store, project_id, c)
+            wav = store.cache_dir / "audio" / f"{c.sha1[:20]}.wav"
+            wav.parent.mkdir(parents=True, exist_ok=True)
+            ok = c.has_audio and extract_audio(store.clip_path(project_id, c.stored_name), wav)
+            wavs[c.clip_id] = wav if ok else None
 
     stt: dict[str, dict] = {}
     scene_out: dict[str, dict] = {}

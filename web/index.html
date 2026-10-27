@@ -11,9 +11,7 @@
   <link rel="stylesheet" href="/static/css/panels/preview.css" />
   <link rel="stylesheet" href="/static/css/panels/style-panel.css" />
   <link rel="stylesheet" href="/static/css/panels/ai-panel.css" />
-  <link rel="stylesheet" href="/static/css/panels/timeline/layout.css" />
-  <link rel="stylesheet" href="/static/css/panels/timeline/tracks.css" />
-  <link rel="stylesheet" href="/static/css/panels/timeline/overlay.css" />
+  <link rel="stylesheet" href="/static/css/panels/timeline.css" />
   <link rel="stylesheet" href="/static/css/panels/setup.css" />
   <link rel="stylesheet" href="/static/css/panels/export.css" />
 </head>
@@ -278,22 +276,32 @@
 
       </div><!-- end .middle-top -->
 
-      <!-- ⑥ Timeline (panels/timeline/*: 도구 막대·눈금·트랙은 JS가 그린다) -->
-      <section class="timeline-panel" id="timeline-panel" aria-label="타임라인">
-        <div class="tl-resizer" id="tl-resizer" title="끌어서 타임라인 높이 조절" role="separator" aria-orientation="horizontal"></div>
-        <div class="tl-toolbar" id="tl-toolbar"></div>
-        <div class="tl-scroll" id="tl-scroll" tabindex="0">
+      <!-- ⑥ Timeline -->
+      <section class="timeline-panel">
+        <div class="tl-toolbar">
+          <span class="tl-title">타임라인</span>
+          <span class="tl-stats" id="tl-stats"></span>
+          <span class="tl-wheel-hint">휠: 가로 이동 · Ctrl+휠: 확대 · 자막 칸 클릭: 남김/자름 · 파란 줄: 결과에 남는 구간</span>
+        </div>
+        <div class="tl-scroll" id="tl-scroll">
           <div class="tl-content" id="tl-content">
-            <div class="tl-row tl-ruler-row" id="tl-ruler-row">
-              <div class="tl-corner" id="tl-corner"></div>
-              <div class="tl-ruler" id="tl-ruler"><canvas class="tl-canvas" id="tl-ruler-canvas"></canvas>
-                <div class="tl-markers" id="tl-markers"></div>
-                <div class="tl-playhead-cap" id="tl-playhead-cap"><span id="tl-playhead-time">00:00:00:00</span></div>
+            <div class="tl-row ruler-row">
+              <div class="tl-row-label"></div>
+              <div class="tl-row-body" id="ruler-body"></div>
+            </div>
+            <div class="tl-row video-row">
+              <div class="tl-row-label">영상</div>
+              <div class="tl-row-body" id="video-track-body">
+                <div class="tl-empty-hint" id="tl-empty-hint">좌측 클립을 여기로 드래그하거나 [+] 버튼을 누르세요</div>
               </div>
             </div>
-            <div id="tl-tracks"></div>
-            <div class="tl-playhead" id="tl-playhead"></div>
-            <div class="tl-snap-guide" id="tl-snap-guide"></div>
+            <div class="tl-row sub-row">
+              <div class="tl-row-label" id="sub-track-label" title="클릭: 자막 스타일 편집">자막</div>
+              <div class="tl-row-body" id="subtitle-track-body"></div>
+            </div>
+            <div class="playhead" id="playhead" style="left:52px">
+              <div class="playhead-handle" id="playhead-handle"></div>
+            </div>
           </div>
         </div>
       </section>
@@ -415,9 +423,6 @@
 </div><!-- end .app -->
 
 <div class="tl-zoom-hint" id="zoom-hint"></div>
-<div class="tl-menu hidden" id="tl-menu" role="menu"></div>
-<div class="tl-popover hidden" id="tl-popover"></div>
-<div class="tl-tooltip hidden" id="tl-tooltip"></div>
 <div class="toast-area" id="toast-area"></div>
 
 <!-- 내 프로필 (브라우저 localStorage) -->

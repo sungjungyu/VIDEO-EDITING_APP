@@ -13,7 +13,6 @@ from fastapi.responses import FileResponse
 from ...domain.models import ClipInfo
 from ...errors import FFmpegError, NotFound
 from ...media.probe import VIDEO_EXTENSIONS, probe
-from ...services import media as media_service
 from ...services import projects as project_service
 from ...services.rendering import run_proxy
 from ..deps import state
@@ -116,10 +115,3 @@ def clip_proxy(request: Request, project_id: str, clip_id: str) -> FileResponse:
     store = state(request).store
     store.get(project_id)
     return media_response(store.proxy_path(project_id, clip_id))
-
-
-@router.get("/projects/{project_id}/clips/{clip_id}/waveform")
-async def clip_waveform(request: Request, project_id: str, clip_id: str) -> dict:
-    """오디오 트랙 파형 (처음 한 번은 오디오를 뽑아 계산하므로 스레드에서 돌린다)."""
-    store = state(request).store
-    return await run_in_threadpool(media_service.clip_waveform, store, project_id, clip_id)

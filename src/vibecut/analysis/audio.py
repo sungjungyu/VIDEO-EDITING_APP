@@ -36,19 +36,6 @@ def read_samples(wav: Path) -> tuple[np.ndarray, int]:
     return x, sr
 
 
-def waveform_peaks(wav: Path, rate: int = 50) -> list[int]:
-    """타임라인 오디오 트랙 파형: 1초에 rate개, 구간마다 가장 큰 소리 (0~255)."""
-    x, sr = read_samples(wav)
-    n = max(1, sr // rate)
-    if len(x) == 0:
-        return []
-    pad = (-len(x)) % n
-    if pad:
-        x = np.concatenate([x, np.zeros(pad, dtype=x.dtype)])
-    peaks = np.abs(x).reshape(-1, n).max(axis=1)
-    return np.clip(np.round(peaks * 255), 0, 255).astype(int).tolist()
-
-
 def frame_levels(wav: Path, frame_sec: float = FRAME_SEC) -> np.ndarray:
     """16bit 모노 WAV를 frame_sec 단위로 잘라 프레임별 음량(RMS, dB)을 돌려준다."""
     x, sr = read_samples(wav)

@@ -38,6 +38,3 @@ jobs:
 
       - name: 화면 자막 줄바꿈 = 서버 줄바꿈
         run: node tests/js/wrap.test.mjs
-
-      - name: 타임라인 계산 (편집본/원본 시간축·잘린 곳·눈금)
-        run: node tests/js/timeline-model.test.mjs

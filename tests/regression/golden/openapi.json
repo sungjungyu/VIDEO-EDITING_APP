@@ -9,7 +9,6 @@
   "GET /api/projects/{project_id}/analysis",
   "GET /api/projects/{project_id}/clips/{clip_id}/file",
   "GET /api/projects/{project_id}/clips/{clip_id}/proxy",
-  "GET /api/projects/{project_id}/clips/{clip_id}/waveform",
   "GET /api/projects/{project_id}/jobs",
   "GET /api/projects/{project_id}/metrics",
   "GET /api/projects/{project_id}/plan",

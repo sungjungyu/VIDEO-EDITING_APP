@@ -39,7 +39,6 @@ export const api = {
   patchProject: (pid, body) => request("PATCH", P(pid), body),
   deleteProject: pid => request("DELETE", P(pid)),
   deleteClip: (pid, cid) => request("DELETE", `${P(pid)}/clips/${cid}`),
-  waveform: (pid, cid) => get(`${P(pid)}/clips/${cid}/waveform`),
   analyze: (pid, profile) => post(`${P(pid)}/analyze`, { profile }),
   getAnalysis: pid => get(`${P(pid)}/analysis`),
   getPlan: pid => get(`${P(pid)}/plan`),

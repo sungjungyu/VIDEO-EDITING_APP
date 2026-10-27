@@ -48,10 +48,6 @@ def test_full_flow(settings, media):
         ids = [c["clip_id"] for c in uploaded["clips"]]
         assert ids == ["c01", "c02"] and uploaded["clips"][1]["height"] == 320
 
-        wave = client.get(f"/api/projects/{pid}/clips/c01/waveform").json()       # 오디오 트랙 파형
-        assert wave["rate"] == 50 and abs(len(wave["peaks"]) - 12 * 50) <= 2 and max(wave["peaks"]) > 0
-        assert client.get(f"/api/projects/{pid}/clips/c99/waveform").status_code == 404
-
         bad = client.post(f"/api/projects/{pid}/clips", files=[("files", ("x.txt", b"hello", "text/plain"))])
         assert bad.status_code == 400
 

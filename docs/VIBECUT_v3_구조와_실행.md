@@ -15,10 +15,8 @@ pip install -e ".[whisper]"              # 선택: 로컬 Whisper 받아쓰기 (
 vibecut serve                            # 웹 화면 → http://127.0.0.1:8000 (--reload: 개발용 자동 재시작)
 vibecut edit a.mp4 b.mp4 -o out.mp4 --target 90 --prompt "카페 장면 위주로"   # 명령줄로 한 번에
 vibecut edit input.mp4 --offline         # Gemini 없이 (규칙 판단 + 로컬 엔진)
-vibecut transcribe --input .
-aw_clips   # 받아쓰기만 (transcript.json + .md)
-vibecut scenes --input .
-aw_clips       # 장면 분석만 (scenes.json + .md)
+vibecut transcribe --input .aw_clips   # 받아쓰기만 (transcript.json + .md)
+vibecut scenes --input .aw_clips       # 장면 분석만 (scenes.json + .md)
 vibecut metrics <프로젝트 id>             # 평가 지표 표 (발표·보고서용)
 python scripts/check_gemini.py           # 키·모델 이름 확인 (사용량 0)
 pytest -q                                # 테스트 103개 (렌더 정확도 실측·골든 회귀·계층 규칙 포함, Gemini 호출 없음)
@@ -48,7 +46,7 @@ pytest -q                                # 테스트 103개 (렌더 정확도 �
 계층 구조다. 위 계층은 아래 계층을 쓸 수 있고 아래 계층은 위 계층을 모른다 (`tests/test_architecture.py`가 검사).
 
 ```
-[브라우저] web/  index.html · css/(base·layout·panels/) · js/(core·subtitle·panels, 타임라인은 panels/timeline/) — 주소는 /static/…
+[브라우저] web/  index.html · css/(base·layout·panels/) · js/(core·subtitle·panels) — 주소는 /static/…
      │  js/core/api.js (REST + 작업 상태 폴링)
 src/vibecut/
   5 server/          FastAPI: app.py(조립) · routes/(system·projects·editing·render) · schemas · views · deps
@@ -136,7 +134,6 @@ keep -= 남기는 문장 사이의 긴 쉼 (컷 템포: 느림 1.5초 / 보통 0
 | --- | --- |
 | `POST /api/projects`, `GET/PATCH/DELETE /api/projects/{id}` | 프로젝트 (이름, 타임라인 순서, 클립 사용 범위) |
 | `POST /api/projects/{id}/clips` | 클립 업로드 (여러 개, 1MB씩 저장, 형식 검사) → 540p 프록시 작업 |
-| `GET /api/projects/{id}/clips/{cid}/waveform` | 타임라인 소리 트랙 파형 (20ms마다 가장 큰 소리 0~255, 캐시) |
 | `POST /api/projects/{id}/analyze` → 작업 | 받아쓰기 ∥ 장면 분석 → 컷 판단 → 트리 → 편집 계획 |
 | `GET /api/projects/{id}/analysis` | 문장·장면·트리·판단 |
 | `GET/PUT /api/projects/{id}/plan`, `PATCH …/plan/lines` | 편집 계획 (계산 결과 + 렌더 전 검사 포함) |
@@ -174,7 +171,7 @@ keep -= 남기는 문장 사이의 긴 쉼 (컷 템포: 느림 1.5초 / 보통 0
 | --- | --- |
 | 조경우 (영상 이해·트리·평가) | `analysis/scenes/*`, `cli/scenes.py`, `editing/select.py`(점수·분량), `eval/metrics.py` |
 | 권용관 (받아쓰기·백엔드) | `analysis/audio.py`, `analysis/stt/*`, `analysis/tree.py`, `cli/transcribe.py`, `ai/client.py`, `services/*`, `server/*` |
-| 신정빈 (화면) | `web/index.html`, `web/css/*`, `web/js/panels/*` (편집 설정은 `setup.js`, 스타일 폼은 `style-panel.js`, 타임라인은 `timeline/` — [ADR 0004](adr/0004-타임라인-디자인.md)) |
+| 신정빈 (화면) | `web/index.html`, `web/css/*`, `web/js/panels/*` (편집 설정은 `setup.js`, 스타일 폼은 `style-panel.js`) |
 | 성준규 (편집 실행·렌더·자막) | `editing/planner.py`·`subtitles.py`, `render/*`, `domain/*`, `web/js/subtitle/*`·`panels/preview.js` |
 
 (경로는 모두 `src/vibecut/` 기준)
