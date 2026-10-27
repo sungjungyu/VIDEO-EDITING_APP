@@ -18,33 +18,38 @@ pip install -e ".[dev]"            # 앱 + 개발 도구 (로컬 Whisper까지: 
 
 copy .env.example .env             # .env에 GEMINI_API_KEY 입력 (없으면 오프라인 모드)
 
-vibecut-server                     # 웹 화면 → http://127.0.0.1:8000
+vibecut serve                      # 웹 화면 → http://127.0.0.1:8000
 ```
 
-명령줄로 한 번에 편집:
+명령줄 (`vibecut <명령> --help`로 옵션 확인):
 
 ```powershell
-vibecut input.mp4                                            # input.mp4 → output.mp4
-vibecut a.mp4 b.mp4 -o vlog.mp4 --target 90 --prompt "카페 장면 위주로"
-vibecut input.mp4 --offline                                  # Gemini 없이
+vibecut edit input.mp4                                   # 분석 → 편집 → 렌더: input.mp4 → output.mp4
+vibecut edit a.mp4 b.mp4 -o vlog.mp4 --target 90 --prompt "카페 장면 위주로"   # AI 가편집으로 90초
+vibecut edit input.mp4 --offline                         # Gemini 없이
+vibecut transcribe --input .\raw_clips --engine gemini   # 받아쓰기만 → transcript.json + .md
+vibecut scenes --input .\raw_clips                       # 장면 분석만 → scenes.json + .md
+vibecut metrics <프로젝트 id>                             # 평가 지표 표
 ```
 
 ## 프로젝트 구조
 
 ```
-├─ src/vibecut/           백엔드 패키지
-│  ├─ cli.py              명령줄 편집 (vibecut)
-│  ├─ settings.py         환경 변수·.env → 설정 (모델 이름·API 키는 여기 한 곳)
-│  ├─ models.py           데이터 계약 (EditPlan, Line, Scene, TreeNode, StyleSpec, Job …)
-│  ├─ server/             FastAPI 앱(vibecut-server), REST API, 작업 큐, 저장소, 파이프라인
-│  ├─ ai/                 Gemini 클라이언트, 컷 판단, AI 가편집, 수정 요청
-│  │  └─ engines/         받아쓰기·장면 분석 원본 엔진 (단독 CLI 포함)
-│  ├─ edit/               편집 계획 계산 (남길 구간, 단어 경계, 쉼 압축, 프레임 정렬)
-│  ├─ render/             EditPlan → FFmpeg 필터 그래프, ASS 자막, 글꼴
-│  ├─ media/              ffmpeg 찾기·실행·정보 읽기·오디오 추출·프록시
-│  └─ eval/               평가 지표
-├─ web/                   브라우저 화면 (index.html · css · js ES 모듈)
-├─ tests/                 pytest 테스트, js/ 화면 테스트, fixtures/ 테스트용 영상 생성·공용 데이터
+├─ src/vibecut/           백엔드 (계층 구조: 위는 아래를 쓰고 아래는 위를 모른다)
+│  ├─ server/             HTTP 입구: FastAPI 조립·라우트 (서비스만 부른다)
+│  ├─ cli/                명령줄 입구: serve · edit · transcribe · scenes · metrics
+│  ├─ services/           사용 사례 (웹·명령줄 공통): 프로젝트·편집·분석 작업·렌더 작업, 작업 큐
+│  ├─ analysis/           원본 이해: 받아쓰기(stt/) · 장면 분석(scenes/) · 음량·무음 · 4단 트리 · 컷 판단
+│  ├─ editing/            편집 계획 계산 · 자막 장면 · AI 가편집 · 수정 요청
+│  ├─ render/             EditPlan → FFmpeg 필터 그래프 · ASS 자막 · 글꼴
+│  ├─ eval/               평가 지표
+│  ├─ ai/                 Gemini 호출 전부 (글 판단·영상 분석·받아쓰기, 재시도·캐시·사용량)
+│  ├─ media/              ffmpeg 실행 · 영상 정보 · 변환
+│  ├─ storage/            프로젝트 저장소 · 결과 캐시 · 원자적 JSON
+│  ├─ domain/             데이터 모델(EditPlan 등) · 구간·시간·자막 글자·한국어 규칙 (순수 코드)
+│  └─ settings.py · errors.py · log.py
+├─ web/                   화면: index.html · css/(base·layout·panels/) · js/(core·subtitle·panels)
+├─ tests/                 unit/(패키지별) · integration/(실제 ffmpeg·API) · regression/(골든) · js/
 ├─ scripts/               개발 도구 (Gemini 연결 확인, 받아쓰기 엔진 비교표)
 ├─ docs/                  구조 설명, 설계 결정(adr/), 지난 기획서(archive/)
 ├─ .github/workflows/     CI (린트 + 테스트)
@@ -57,20 +62,15 @@ vibecut input.mp4 --offline                                  # Gemini 없이
 ## 개발
 
 ```powershell
-pytest -q                       # 전체 테스트 (렌더 정확도 실측 포함, Gemini 호출 없음)
+pytest -q                       # 전체 테스트 (렌더 정확도 실측·골든 회귀·계층 규칙 포함, Gemini 호출 없음)
+pytest -q -m "not slow"         # 빠른 테스트만 (실제 영상 렌더 제외)
 ruff check .                    # 린트
 node tests/js/wrap.test.mjs     # 화면 자막 줄바꿈 = 서버 줄바꿈
 python scripts/check_gemini.py  # API 키·모델 이름 확인 (사용량 0)
-python -m vibecut.eval.metrics <프로젝트 id>                   # 평가 지표 표
-uvicorn vibecut.server.app:create_app --factory --reload       # 코드 수정 시 자동 재시작
+vibecut serve --reload          # 코드를 고치면 자동으로 다시 시작
 ```
 
-엔진 단독 실행:
-
-```powershell
-python -m vibecut.ai.engines.transcriber --input .\raw_clips --engine gemini --out transcript.json
-python -m vibecut.ai.engines.scene_analyzer --input .\raw_clips --out scenes.json
-```
+`tests/regression/`은 리팩터링 전 코드로 만든 결과(프롬프트·AI 캐시 키·편집 계획·API 모양)와 지금 결과를 비교합니다. 기능을 일부러 바꿨을 때만 `VIBECUT_UPDATE_GOLDEN=1 pytest tests/regression`으로 기준을 다시 만듭니다.
 
 GitHub Actions가 push·PR마다 린트와 테스트를 돌립니다.
 
@@ -90,6 +90,6 @@ GitHub Actions가 push·PR마다 린트와 테스트를 돌립니다.
 ## 문서
 
 - [v3 구조와 실행](docs/VIBECUT_v3_구조와_실행.md): 파이프라인, EditPlan, 알고리즘, API, 팀원별 담당
-- [ADR 0001 렌더 엔진 단일화](docs/adr/0001-렌더-엔진-단일화.md) · [ADR 0002 저장소 구조 정리](docs/adr/0002-저장소-구조-정리.md)
+- 설계 결정: [0001 렌더 엔진 단일화](docs/adr/0001-렌더-엔진-단일화.md) · [0002 저장소 구조 정리](docs/adr/0002-저장소-구조-정리.md) · [0003 계층 구조와 최적화](docs/adr/0003-계층-구조와-최적화.md)
 - [받아쓰기 엔진 비교](docs/stt_비교.md)
 - [지난 기획서·가이드 (archive)](docs/archive/): v1·v2 시절 문서, 내용은 작성 당시 그대로

@@ -1,7 +1,7 @@
 """
 받아쓰기 엔진 비교표 만들기 (작업계획서 Step 3)
 
-같은 클립 폴더를 엔진별로 받아쓰기 엔진(vibecut.ai.engines.transcriber)으로 돌린 결과(transcript.json)들을
+같은 클립 폴더를 엔진별로 vibecut transcribe로 돌린 결과(transcript.json)들을
 받아 표 하나로 비교한다.
 
 사용 예:

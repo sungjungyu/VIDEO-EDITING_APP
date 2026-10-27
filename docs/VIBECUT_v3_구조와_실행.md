@@ -12,12 +12,14 @@
 pip install -e ".[dev]"                  # 필수 + 개발 도구 (ffmpeg는 imageio-ffmpeg에 들어 있어 따로 설치하지 않아도 된다)
 pip install -e ".[whisper]"              # 선택: 로컬 Whisper 받아쓰기 (Gemini를 못 쓸 때 대체 엔진)
 
-vibecut-server                           # 웹 화면 → http://127.0.0.1:8000
-vibecut a.mp4 b.mp4 -o out.mp4 --target 90 --prompt "카페 장면 위주로"   # 명령줄로 한 번에
-vibecut input.mp4 --offline              # Gemini 없이 (규칙 판단 + 로컬 엔진)
-python -m vibecut.eval.metrics <프로젝트 id>   # 평가 지표 표 (발표·보고서용)
+vibecut serve                            # 웹 화면 → http://127.0.0.1:8000 (--reload: 개발용 자동 재시작)
+vibecut edit a.mp4 b.mp4 -o out.mp4 --target 90 --prompt "카페 장면 위주로"   # 명령줄로 한 번에
+vibecut edit input.mp4 --offline         # Gemini 없이 (규칙 판단 + 로컬 엔진)
+vibecut transcribe --input .aw_clips   # 받아쓰기만 (transcript.json + .md)
+vibecut scenes --input .aw_clips       # 장면 분석만 (scenes.json + .md)
+vibecut metrics <프로젝트 id>             # 평가 지표 표 (발표·보고서용)
 python scripts/check_gemini.py           # 키·모델 이름 확인 (사용량 0)
-pytest -q                                # 테스트 93개 (렌더 정확도 실측 포함, Gemini 호출 없음)
+pytest -q                                # 테스트 103개 (렌더 정확도 실측·골든 회귀·계층 규칙 포함, Gemini 호출 없음)
 ```
 
 키는 `GEMINI_API_KEY` 환경 변수 → `.env`(`.env.example`을 복사) → 예전 방식 `gemini_key.txt` / `api_key.txt` 순서로 찾는다.
@@ -41,36 +43,29 @@ pytest -q                                # 테스트 93개 (렌더 정확도 실
 
 ## 2. 구조
 
+계층 구조다. 위 계층은 아래 계층을 쓸 수 있고 아래 계층은 위 계층을 모른다 (`tests/test_architecture.py`가 검사).
+
 ```
-[브라우저] web/index.html + css/app.css + js/*.js (ES 모듈, 주소는 /static/…)
-     │  js/api.js (REST + 작업 상태 폴링)
-[vibecut-server] → src/vibecut/server/app.py (FastAPI)
-     ├─ server/api/         REST API (/api/…): projects·editing·render 라우터 + common 도우미
-     ├─ server/jobs.py      작업 큐: 디스크 기록, 종류별 동시 실행 제한, 취소, 재시작 복구
-     ├─ server/storage.py   프로젝트 저장소 (data/projects/{id}/)
-     └─ server/pipeline.py  분석·렌더·프록시 작업 내용
+[브라우저] web/  index.html · css/(base·layout·panels/) · js/(core·subtitle·panels) — 주소는 /static/…
+     │  js/core/api.js (REST + 작업 상태 폴링)
 src/vibecut/
-  cli.py         명령줄 편집 (명령 `vibecut`)
-  models.py      데이터 계약 (EditPlan, Line, Scene, TreeNode, StyleSpec, Job …)
-  settings.py    환경 변수 → 설정 (모델 이름은 여기 한 곳)
-  media/ffmpeg.py   ffmpeg 찾기·실행·진행률·취소, ffprobe 없이 정보 읽기, 오디오 추출, 프록시
-  ai/gemini.py   Gemini 통합 클라이언트 (타임아웃·재시도·대체 모델·스키마·캐시·사용량)
-  ai/stt.py      받아쓰기 엔진 선택·대체 (엔진 코드는 ai/engines/transcriber.py)
-  ai/scenes.py   장면 분석 (Gemini는 ai/engines/scene_analyzer.py, 대체는 화면 변화 감지)
-  ai/tree.py     4단 트리 (장소 → 일 → 상황 → 대사, 권용관의 scene_tree 규칙)
-  ai/engines/    팀원 원본 엔진 (받아쓰기·장면 분석, 단독 CLI 포함)
-  ai/judge.py    문장별 컷 판단 (자체 규칙 + Gemini)
-  ai/select.py   AI 가편집 (Gemini 점수 + 코드가 분량 맞춤)
-  ai/revise.py   채팅 수정 요청
-  edit/planner.py  편집 계획 계산 (남길 구간, 단어 경계, 쉼 압축, 프레임 정렬) + 렌더 전 규칙 검사
-  edit/timeline.py 결과 시각 변환, 자막 장면(2줄 나누기·카라오케 단어)
-  render/ass.py    ASS 자막 (PlayRes = 출력 해상도)
-  render/fonts.py  글꼴 찾기, CSS px ↔ ASS 크기 변환
-  render/renderer.py EditPlan → FFmpeg 필터 그래프 하나 → 렌더 실행 + 결과 길이 검증
-  eval/metrics.py  평가 지표
+  5 server/          FastAPI: app.py(조립) · routes/(system·projects·editing·render) · schemas · views · deps
+    cli/             vibecut serve | edit | transcribe | scenes | metrics
+  4 services/        사용 사례 (API와 CLI가 같이 씀): projects · editing · analysis(분석 작업) · rendering
+                     jobs(작업 큐: 디스크 기록·동시 실행 제한·취소·재시작 복구) · context(진행률·취소·AI 사용량)
+  3 analysis/        audio(음량·무음) · stt/(engines·postprocess·transcribe) · scenes/(gemini·local·analyze)
+                     tree(4단 트리) · judge(문장별 컷 판단: 규칙 + Gemini)
+    editing/         planner(편집 계획 계산 + 렌더 전 검사) · subtitles(자막 장면) · select(AI 가편집) · revise(수정 요청)
+    render/          ass(ASS 자막) · fonts(글꼴·CSS px ↔ ASS) · renderer(EditPlan → FFmpeg 필터 그래프 → 실행·검증)
+    eval/            metrics(평가 지표)
+  2 ai/              client.py — Gemini 호출 전부 (글 판단·영상 분석·받아쓰기, 재시도·대체 모델·캐시·사용량)
+  1 media/           ffmpeg(실행) · probe(영상 정보) · convert(오디오 추출·프록시·저해상도·흑백 프레임)
+    storage/         files(원자적 JSON) · cache(AI·받아쓰기·장면 캐시) · projects(프로젝트 저장소, data/projects/{id}/)
+  0 domain/          models/(analysis·plan·project·job) · intervals · timebase · text(자막 줄바꿈) · korean(한국어 규칙)
+    errors.py · settings.py · log.py
 ```
 
-팀원 엔진 `transcriber.py`, `scene_analyzer.py`는 2026-10-27 저장소 정리 때 `src/vibecut/ai/engines/`로 옮겼고, `scene_tree.py`는 `ai/tree.py`에 합쳤다 ([ADR 0002](adr/0002-저장소-구조-정리.md)). 단독 실행은 `python -m vibecut.ai.engines.transcriber --input …`처럼 한다 (옛 실행 가이드의 `python transcriber.py …` 대신). `stt_compare.py`는 `scripts/`로 옮겼고, v3에서 대체된 `prompt_builder.py`·`scene_selector.py`·`config.py`와 실험 스크립트는 지웠다 (git 이력에 남아 있다).
+팀원 엔진은 2026-10-27에 역할별로 나눴다 ([ADR 0003](adr/0003-계층-구조와-최적화.md)): 받아쓰기(transcriber)는 `analysis/audio.py`·`analysis/stt/`·`cli/transcribe.py`로, 장면 분석(scene_analyzer)은 `analysis/scenes/gemini.py`·`cli/scenes.py`로, 4단 트리(scene_tree)는 `analysis/tree.py`로. 옛 실행 가이드의 `python transcriber.py …`는 `vibecut transcribe …`로 실행한다.
 
 ### 핵심 계약: EditPlan
 
@@ -129,7 +124,7 @@ keep -= 남기는 문장 사이의 긴 쉼 (컷 템포: 느림 1.5초 / 보통 0
 | 결과 길이 − 계획 길이 | +3ms 안팎 |
 | 미리보기 캡처 vs 렌더 프레임 자막 영역 (960x540 기준) | 외곽선 스타일 0~3px, 배경 상자 스타일 0~1px 차이 |
 
-자막 크기·여백·두께는 **출력 영상의 짧은 변이 1080px일 때의 px**이다. 화면(`web/js/style.js`)과 서버(`src/vibecut/render/ass.py`)가 같은 규칙으로 계산하고, 줄바꿈 규칙은 `tests/fixtures/wrap_cases.json`으로 양쪽을 함께 검사한다.
+자막 크기·여백·두께는 **출력 영상의 짧은 변이 1080px일 때의 px**이다. 화면(`web/js/subtitle/draw.js`)과 서버(`src/vibecut/render/ass.py`)가 같은 규칙으로 계산하고, 줄바꿈 규칙(`web/js/subtitle/wrap.js` ↔ `src/vibecut/domain/text.py`)은 `tests/fixtures/wrap_cases.json`으로 양쪽을 함께 검사한다.
 
 ---
 
@@ -154,7 +149,7 @@ keep -= 남기는 문장 사이의 긴 쉼 (컷 템포: 느림 1.5초 / 보통 0
 
 ## 7. 평가 지표 (발표용)
 
-`python -m vibecut.eval.metrics <id>` 또는 내보내기 창.
+`vibecut metrics <id>` 또는 내보내기 창. 분석 작업의 AI 사용량에는 글 판단·받아쓰기·장면 분석 호출이 모두 들어간다.
 
 | 지표 | 뜻 |
 | --- | --- |
@@ -174,10 +169,12 @@ keep -= 남기는 문장 사이의 긴 쉼 (컷 템포: 느림 1.5초 / 보통 0
 
 | 담당 | 파일 |
 | --- | --- |
-| 조경우 (영상 이해·트리·평가) | `src/vibecut/ai/engines/scene_analyzer.py`, `src/vibecut/ai/scenes.py`, `src/vibecut/ai/select.py`(점수·분량), `src/vibecut/eval/metrics.py` |
-| 권용관 (받아쓰기·백엔드) | `src/vibecut/ai/engines/transcriber.py`, `src/vibecut/ai/stt.py`, `src/vibecut/ai/tree.py`, `src/vibecut/server/*`, `src/vibecut/ai/gemini.py` |
-| 신정빈 (화면) | `web/index.html`, `web/css/app.css`, `web/js/*` (편집 설정은 `setup.js`, 스타일 폼은 `stylepanel.js`) |
-| 성준규 (편집 실행·렌더·자막) | `src/vibecut/edit/*`, `src/vibecut/render/*`, `web/js/style.js`·`preview.js` |
+| 조경우 (영상 이해·트리·평가) | `analysis/scenes/*`, `cli/scenes.py`, `editing/select.py`(점수·분량), `eval/metrics.py` |
+| 권용관 (받아쓰기·백엔드) | `analysis/audio.py`, `analysis/stt/*`, `analysis/tree.py`, `cli/transcribe.py`, `ai/client.py`, `services/*`, `server/*` |
+| 신정빈 (화면) | `web/index.html`, `web/css/*`, `web/js/panels/*` (편집 설정은 `setup.js`, 스타일 폼은 `style-panel.js`) |
+| 성준규 (편집 실행·렌더·자막) | `editing/planner.py`·`subtitles.py`, `render/*`, `domain/*`, `web/js/subtitle/*`·`panels/preview.js` |
+
+(경로는 모두 `src/vibecut/` 기준)
 
 ## 9. 알려진 한계
 
