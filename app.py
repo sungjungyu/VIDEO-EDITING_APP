@@ -28,7 +28,8 @@ from config import config
 from main import VideoEditingPipeline
 from media_engine import render_video as me_render_video, segments_to_edit_data
 from scene_selector import select_scenes as _run_select_scenes
-from scene_tree import analyze_scenes, build_tree
+from scene_tree import build_scene_tree, lines_to_segments, mark_cut_suggestions, scene_context
+from shot_analyzer import analyze_video_shots
 from concurrent.futures import ThreadPoolExecutor
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -121,47 +122,52 @@ def _analyze_video_with_progress(job_id: str, input_path: Path, stored_name: str
     try:
         stage("영상 정보 수집 중...", 5)
         video_context = pipeline.step0_collect_video_context(str(input_path))
+        duration = float(video_context.get("duration") or 0)
 
-        # 영상분석(scene_analyzer, Gemini)은 받아쓰기와 동시에 돌린다
-        scene_future = executor.submit(
-            analyze_scenes, str(input_path), config.load_api_key(), pipeline.temp_dir
+        # 1. 영상 분석(L4 장면, shot_analyzer)은 받아쓰기와 동시에 돌린다
+        shot_future = executor.submit(
+            analyze_video_shots, str(input_path), config.load_api_key(), pipeline.temp_dir, duration or None
         )
 
         stage("음성 추출 중...", 10)
         audio_path = pipeline.step1_extract_audio(str(input_path))
 
-        stage("음성 인식(Gemini 받아쓰기) + 영상분석 중...", 15)
+        stage("음성 인식(Gemini 받아쓰기) + 장면 분석 중...", 15)
         segments = pipeline.step2_transcribe_audio(audio_path)
 
-        stage("자막 교정 중...", 55)
-        segments = pipeline.step2_refine_transcript(segments)
-
-        stage("영상분석 결과 기다리는 중...", 65)
-        scene_error = None
+        stage("장면 분석 결과 기다리는 중...", 50)
+        notes = []
         try:
-            scenes = scene_future.result(timeout=600)
-        except Exception as error:      # 영상분석이 실패해도 분석 전체는 계속한다 (대사만으로 트리)
+            shots = shot_future.result(timeout=900)
+        except Exception as error:      # 장면 분석이 실패해도 분석 전체는 계속한다 (대사만으로 트리)
             traceback.print_exc()
-            scenes, scene_error = [], f"영상분석 실패, 대사만으로 장면 트리를 만들었습니다: {str(error)[:200]}"
-        if scenes:
-            # 컷 판단(step3)에 화면 내용(장소·활동·사건)도 함께 넘긴다
-            video_context["scenes"] = [{k: sc.get(k) for k in ("start", "end", "place", "activity", "event", "summary")}
-                                       for sc in scenes]
+            shots = []
+            notes.append(f"장면 분석 실패, 대사만으로 장면을 나눴습니다: {str(error)[:200]}")
 
-        stage("AI 문맥 분석(Gemini) 중...", 75)
+        # 2~4. 정형화 → 합치기 + AI 보정(앞뒤 대사·화면으로 잘못 들은 단어 고침) → 4단 트리
+        #      (예전 step2_refine_transcript의 대사만 보는 교정을 대신한다)
+        stage("대사 보정 + 4단 트리 만드는 중...", 60)
+        built = build_scene_tree([{"id": "c01", "file": stored_name, "duration": duration, "offset": 0.0}],
+                                 shots, segments, api_key=config.load_api_key())
+        notes += built["notes"]
+        segments = lines_to_segments(built["lines"])
+        # 컷 판단(step3)에 화면 문맥(세션·흐름·세부 행동 요약)도 함께 넘긴다
+        video_context["scenes"] = scene_context(built["tree"])
+
+        stage("AI 문맥 분석(Gemini) 중...", 80)
         segments = pipeline.step3_analyze_context(segments, video_context)
-
-        stage("장면 트리 만드는 중...", 95)
-        scene_tree = build_tree(scenes, segments, float(video_context.get("duration") or 0))
+        mark_cut_suggestions(built["tree"], segments)
 
         analyze_jobs[job_id].update(
             status="completed",
             stage="분석 완료",
             progress=100,
             segments=segments,
-            scenes=scenes,
-            scene_tree=scene_tree,
-            scene_error=scene_error,
+            scenes=shots,
+            scene_tree=built["tree"],
+            scene_error=" / ".join(notes) or None,
+            scene_tree_meta={"source": built["source"], "units": len(built["units"]),
+                             "corrections": built["corrections"], "warnings": built["warnings"][:20]},
             source_file=stored_name,
             source_url=f"/media/{stored_name}",
         )

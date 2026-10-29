@@ -330,30 +330,42 @@
       transition:color .15s,border-color .15s}
     .style-add-btn:hover{color:var(--accent);border-color:var(--accent)}
 
-    /* 장면 탭 + 장면 목록 (가운데 영역 아래쪽) */
+    /* 장면 트리 (가운데 영역 아래쪽) - 펼치기/접기 */
     .scene-tabs-section{display:none;flex:0 0 auto;flex-direction:column;
       margin-top:12px;max-height:38vh;min-height:160px;
       background:var(--panel);border:1px solid var(--border);
       border-radius:var(--radius);overflow:hidden}
     body.setup-active .scene-tabs-section{display:flex}
-    .scene-tabs{flex:0 0 auto;display:flex;border-bottom:1px solid var(--border);
-      background:var(--panel2)}
-    .scene-tab{flex:1;padding:9px 10px;background:none;border:none;color:var(--muted);
-      font-size:11px;cursor:pointer;border-bottom:2px solid transparent;
-      transition:color .15s,border-color .15s;font-family:inherit}
-    .scene-tab:hover{color:var(--text)}
-    .scene-tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+    .scene-tree-bar{flex:0 0 auto;display:flex;align-items:center;gap:6px;padding:6px 10px;
+      border-bottom:1px solid var(--border);background:var(--panel2)}
+    .scene-tree-bar-title{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;
+      white-space:nowrap;font-size:11px;color:var(--muted)}
+    .scene-tree-btn{flex:0 0 auto;background:none;border:1px solid var(--border);border-radius:4px;
+      color:var(--muted);font-size:10px;padding:3px 8px;cursor:pointer;font-family:inherit;
+      transition:color .15s,border-color .15s}
+    .scene-tree-btn:hover{color:var(--accent);border-color:var(--accent)}
     .scene-list{flex:1 1 auto;overflow-y:auto;padding:6px 8px;
       display:flex;flex-direction:column;gap:2px}
     .scene-row{display:flex;align-items:center;gap:9px;padding:7px 9px;border-radius:5px;
       cursor:pointer;flex-wrap:wrap;transition:background .15s}
     .scene-row:hover{background:var(--panel2)}
+    .scene-row-toggle{flex:0 0 14px;width:14px;padding:0;background:none;border:none;
+      color:var(--muted);font-size:9px;line-height:1;cursor:pointer}
+    .scene-row-toggle:hover{color:var(--accent)}
+    .scene-row-toggle.is-leaf{visibility:hidden}
     .scene-row-check{flex:0 0 auto;cursor:pointer;margin:0}
+    .scene-row-level{flex:0 0 auto;font-size:9px;color:var(--muted);
+      border:1px solid var(--border);border-radius:3px;padding:1px 5px}
     .scene-row-title{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;
       white-space:nowrap;font-size:12px}
     .scene-row-dur{flex:0 0 auto;color:var(--muted);font-size:10px}
-    .scene-row-reason{flex:1 1 100%;margin-left:26px;font-size:10px;
+    .scene-row-reason{flex:1 1 100%;margin-left:49px;font-size:10px;
       color:var(--analyzing);font-style:italic;line-height:1.5}
+    .scene-row-sub{flex:1 1 100%;margin-left:49px;font-size:10px;color:var(--muted);line-height:1.5;
+      white-space:normal;overflow-wrap:anywhere}
+    .scene-row-line{flex:1 1 100%;margin-left:49px;font-size:11px;line-height:1.5;
+      white-space:normal;overflow-wrap:anywhere}
+    .scene-row-line.is-fixed{color:var(--analyzing)}
     .scene-list-empty{padding:22px;text-align:center;color:var(--muted);font-size:11px}
 
     /* 프로필 모달 */
@@ -669,9 +681,13 @@
             </div>
           </div>
 
-          <!-- 장면 탭/목록 - 편집 설정 모드에서만 보임 -->
+          <!-- 장면 트리 (펼치기/접기) - 편집 설정 모드에서만 보임 -->
           <div class="scene-tabs-section" id="scene-tabs-section">
-            <div class="scene-tabs" id="scene-tabs"></div>
+            <div class="scene-tree-bar">
+              <span class="scene-tree-bar-title">장소·세션 › 행동 흐름 › 세부 행동 › 장면</span>
+              <button type="button" class="scene-tree-btn" id="btn-tree-expand">모두 펼치기</button>
+              <button type="button" class="scene-tree-btn" id="btn-tree-collapse">모두 접기</button>
+            </div>
             <div class="scene-list" id="scene-list"></div>
           </div>
         </section>
@@ -2122,9 +2138,10 @@ async function analyzeSelectedClip() {
       if (job.status === "completed") {
         media.analysis_status = "review";
         if (job.source_file) media.source_file = job.source_file;
-        // 영상분석 + 대사로 만든 장면 트리 (편집 설정 화면에서 가짜 트리 대신 쓴다)
-        media.scene_tree  = Array.isArray(job.scene_tree) ? job.scene_tree : null;
-        media.scene_error = job.scene_error || null;
+        // 장면 분석 + 대사로 만든 4단 트리 (편집 설정 화면에서 예시 트리 대신 쓴다)
+        media.scene_tree      = Array.isArray(job.scene_tree) ? job.scene_tree : null;
+        media.scene_error     = job.scene_error || null;
+        media.scene_tree_meta = job.scene_tree_meta || null;
         updateClipEl(media); renderVideoTrack();
         const summary = job.scene_summary || buildSummary(job.segments);
         showReview(job.segments, summary);
@@ -2473,54 +2490,64 @@ document.getElementById("btn-ss-reset").addEventListener("click", () => {
 ===================================================================== */
 
 /* ---------------------------------------------------------------------
-   가짜 raw 트리 (test_prompt_builder.py의 RAW_TREE와 동일한 내용)
+   예시 4단 트리 (영상을 분석하기 전에 보여 주는 가짜 데이터)
    ---------------------------------------------------------------------
-   백엔드가 아직 트리를 못 주므로, 프론트에서 UI만 미리 테스트하기 위한
-   더미 데이터. 외부 포맷처럼 "node_id/name/start_sec" alias도 섞어 뒀다.
-   아래 normalizeFakeTreeNode()가 이것을 내부 포맷(id/title/start/end/
-   children)으로 통일해 준다.
+   실제 트리(scene_tree.py)와 같은 모양이다:
+     L1 장소·세션 → L2 행동 흐름 → L3 세부 행동 → L4 장면(3~7초, 대사 lines가 붙음)
+   자식 구간이 부모 구간을 빈틈없이 덮는다. 외부 포맷처럼 "node_id/name/start_sec"
+   alias도 섞어 뒀다. 아래 normalizeFakeTreeNode()가 내부 포맷으로 통일해 준다.
 --------------------------------------------------------------------- */
 const FAKE_RAW_TREE = [
   {
-    "node_id": "intro",
-    "name": "오프닝",
-    "start_sec": 0,
-    "end_sec": 30,
-    "description": "채널 소개 및 오늘 주제 티저",
-    "tags": ["opening", "hook"],
+    "node_id": "p01", "name": "카페 (1차 방문)", "start_sec": 0, "end_sec": 58,
+    "description": "카페에서 음료를 주문하고 창가 자리에 앉아 마신다",
     "children": [
-      { "id": "intro-hook",  "title": "훅 멘트",   "start": 0,  "end": 10, "tags": ["hook"] },
-      { "id": "intro-topic", "title": "오늘 주제", "start": 10, "end": 30 }
-    ]
-  },
-  {
-    "id": "body",
-    "title": "본론: 영상편집 꿀팁 3가지",
-    "start": 30,
-    "end": 330,
-    "summary": "핵심 꿀팁 세 가지를 순서대로 설명",
-    "children": [
-      {
-        "id": "tip-1",
-        "title": "꿀팁 1 - 컷편집",
-        "start": 30,
-        "end": 120,
+      { "id": "p01-f01", "title": "주문 흐름", "start": 0, "end": 30, "summary": "메뉴를 고르고 주문·결제한다",
         "children": [
-          { "id": "tip-1-demo", "title": "데모", "start": 60, "end": 100 }
-        ]
-      },
-      { "id": "tip-2", "title": "꿀팁 2 - 자막",   "start": 120, "end": 220 },
-      { "id": "tip-3", "title": "꿀팁 3 - 색보정", "start": 220, "end": 330 }
+          { "id": "p01-f01-a01", "title": "메뉴판 보기", "start": 0, "end": 11, "summary": "무엇을 마실지 고민한다", "tags": ["고민"],
+            "children": [
+              { "id": "s0001", "title": "카운터 앞에서 메뉴판을 올려다본다", "start": 0, "end": 5,
+                "lines": [{ "id": "t0001", "text": "뭐 먹지 진짜 고민된다" }] },
+              { "id": "s0002", "title": "메뉴판의 시즌 음료를 손가락으로 가리킨다", "start": 5, "end": 11 } ] },
+          { "id": "p01-f01-a02", "title": "주문 말하기", "start": 11, "end": 21, "summary": "아이스 아메리카노 두 잔을 주문한다",
+            "children": [
+              { "id": "s0003", "title": "직원에게 음료를 주문한다", "start": 11, "end": 16,
+                "lines": [{ "id": "t0002", "text": "아이스 아메리카노 두 잔이요" }] },
+              { "id": "s0004", "title": "직원이 주문을 확인하며 고개를 끄덕인다", "start": 16, "end": 21 } ] },
+          { "id": "p01-f01-a03", "title": "결제", "start": 21, "end": 30, "summary": "카드로 결제하고 영수증을 받는다",
+            "children": [
+              { "id": "s0005", "title": "카드를 단말기에 꽂는다", "start": 21, "end": 26 },
+              { "id": "s0006", "title": "영수증을 받아 든다", "start": 26, "end": 30 } ] } ] },
+      { "id": "p01-f02", "title": "착석·식사 흐름", "start": 30, "end": 58, "summary": "자리에 앉아 음료를 마신다",
+        "children": [
+          { "id": "p01-f02-a01", "title": "자리 잡기", "start": 30, "end": 40, "summary": "창가 자리에 앉는다",
+            "children": [
+              { "id": "s0007", "title": "창가 자리로 걸어간다", "start": 30, "end": 35 },
+              { "id": "s0008", "title": "가방을 내려놓고 앉는다", "start": 35, "end": 40,
+                "lines": [{ "id": "t0003", "text": "여기 자리 좋다" }] } ] },
+          { "id": "p01-f02-a02", "title": "첫 모금 리액션", "start": 40, "end": 58, "summary": "한 모금 마시고 맛있다고 감탄한다", "tags": ["리액션"],
+            "children": [
+              { "id": "s0009", "title": "음료를 받아 한 모금 마신다", "start": 40, "end": 46 },
+              { "id": "s0010", "title": "눈이 커지며 엄지를 든다", "start": 46, "end": 53,
+                "lines": [{ "id": "t0004", "text": "와 진짜 맛있다" }] },
+              { "id": "s0011", "title": "창밖을 바라본다", "start": 53, "end": 58 } ] } ] }
     ]
   },
   {
-    "id": "outro",
-    "title": "엔딩",
-    "start": 330,
-    "end": 390,
+    "id": "p02", "title": "한강 공원 (1차 방문)", "start": 58, "end": 80, "summary": "강변을 걷다가 노을을 본다",
     "children": [
-      { "id": "outro-cta",  "title": "구독 유도",     "start": 330, "end": 360 },
-      { "id": "outro-next", "title": "다음 영상 예고", "start": 360, "end": 390 }
+      { "id": "p02-f01", "title": "산책 흐름", "start": 58, "end": 80,
+        "children": [
+          { "id": "p02-f01-a01", "title": "강변 걷기", "start": 58, "end": 69, "tags": ["풍경"],
+            "children": [
+              { "id": "s0012", "title": "강변 산책로를 따라 걷는다", "start": 58, "end": 64 },
+              { "id": "s0013", "title": "옆으로 자전거가 지나간다", "start": 64, "end": 69 } ] },
+          { "id": "p02-f01-a02", "title": "노을 감상", "start": 69, "end": 80, "summary": "노을을 보며 마무리 인사를 한다",
+            "children": [
+              { "id": "s0014", "title": "노을 지는 강을 비춘다", "start": 69, "end": 75,
+                "lines": [{ "id": "t0005", "text": "오늘 날씨 진짜 좋다" }] },
+              { "id": "s0015", "title": "카메라를 보며 손을 흔든다", "start": 75, "end": 80,
+                "lines": [{ "id": "t0006", "text": "다음에 또 올게요" }] } ] } ] }
     ]
   }
 ];
@@ -2535,7 +2562,7 @@ const FAKE_RAW_TREE = [
        누르지 않고 사용자가 체크만 바꾸면 manual 로 간주한다.
      - 요청에 보낼 값은 target_minutes, user_prompt, selected_nodes 뿐이다.
 --------------------------------------------------------------------- */
-const SCENE_DEPTH_LABELS = ["장소", "일", "상황", "대사"]; // depth 0~3
+const SCENE_DEPTH_LABELS = ["장소·세션", "행동 흐름", "세부 행동", "장면"]; // depth 0~3 (L1~L4)
 
 const editSetup = {
   tree:          [],         // 정규화된 트리 (내부 포맷)
@@ -2543,7 +2570,7 @@ const editSetup = {
   userPrompt:    "",         // AI 프롬프트 (사용자 요청 글)
   checkedIds:    new Set(),  // 체크된 노드 id
   reasons:       {},         // AI가 돌려준 선택 이유 (id → 문자열)
-  activeDepth:   0,          // 현재 보고 있는 탭 depth (0..3)
+  expandedIds:   new Set(),  // 펼쳐 둔 노드 id (여기 있는 노드의 자식만 보인다)
 };
 
 /* ---------------------------------------------------------------------
@@ -2556,15 +2583,18 @@ const editSetup = {
 --------------------------------------------------------------------- */
 
 // 입력: raw 노드 하나 (dict)
-// 출력: 내부 포맷의 새 노드 (id/title/start/end/children)
+// 출력: 내부 포맷의 새 노드 (id/title/start/end/summary/tags/lines/children)
+//       summary·tags 는 AI 가편집 요청에도 그대로 실려 가서 Gemini가 장면 내용을 보고 고른다.
+//       lines 는 L4 장면에 붙은 대사 [{id, text, fixed?, text_raw?}] (화면 표시용)
 // 예시: {"node_id":"a","name":"ㅁ","start_sec":0,"end_sec":10}
-//    → {id:"a", title:"ㅁ", start:0, end:10, children:[]}
+//    → {id:"a", title:"ㅁ", start:0, end:10, summary:"", tags:[], lines:[], children:[]}
 function normalizeFakeTreeNode(raw) {
   // 각 필드마다 "가장 먼저 발견되는 별명"을 찾아 꺼낸다.
-  const id    = raw.id    ?? raw.node_id    ?? raw.uid        ?? "";
-  const title = raw.title ?? raw.name       ?? raw.label      ?? "";
-  const start = raw.start ?? raw.start_sec  ?? raw.start_time ?? 0;
-  const end   = raw.end   ?? raw.end_sec    ?? raw.end_time   ?? 0;
+  const id      = raw.id      ?? raw.node_id     ?? raw.uid        ?? "";
+  const title   = raw.title   ?? raw.name        ?? raw.label      ?? "";
+  const start   = raw.start   ?? raw.start_sec   ?? raw.start_time ?? 0;
+  const end     = raw.end     ?? raw.end_sec     ?? raw.end_time   ?? 0;
+  const summary = raw.summary ?? raw.description ?? raw.desc       ?? "";
   const childrenRaw = raw.children ?? raw.nodes ?? [];
 
   // 자식을 재귀적으로 변환 → 트리 전체가 내부 포맷으로 바뀜.
@@ -2574,10 +2604,13 @@ function normalizeFakeTreeNode(raw) {
   }
 
   return {
-    id:    String(id),
-    title: String(title),
-    start: Number(start),
-    end:   Number(end),
+    id:      String(id),
+    title:   String(title),
+    start:   Number(start),
+    end:     Number(end),
+    summary: String(summary),
+    tags:    Array.isArray(raw.tags) ? raw.tags.map(String) : [],
+    lines:   Array.isArray(raw.lines) ? raw.lines : [],
     children: children,
   };
 }
@@ -2748,25 +2781,28 @@ function openEditSetup() {
   editSetup.tree       = normalizeFakeTree(treeMedia ? treeMedia.scene_tree : FAKE_RAW_TREE);
   editSetup.checkedIds = new Set();                 // 처음엔 아무것도 체크되지 않은 상태
   editSetup.reasons    = {};
-  editSetup.activeDepth = 0;
+  editSetup.expandedIds = new Set();                // 처음엔 모두 접힌 상태 (장소·세션만 보임)
 
   // 5) 입력값/상태 리셋
-  // 목표 분량 기본값: 실제 트리면 영상 길이의 절반 (예시 트리는 3분)
+  // 목표 분량 기본값: 트리 전체 길이의 절반
   const totalSec = editSetup.tree.reduce((a, n) => a + Math.max(0, n.end - n.start), 0);
-  editSetup.targetMinutes = treeMedia ? Math.max(0.1, Math.round(totalSec / 2 / 60 * 10) / 10) : 3;
+  editSetup.targetMinutes = Math.max(0.1, Math.round(totalSec / 2 / 60 * 10) / 10);
   editSetup.userPrompt    = "";
   document.getElementById("setup-target-minutes").value = String(editSetup.targetMinutes);
   document.getElementById("setup-user-prompt").value    = "";
   if (!treeMedia) {
-    setSetupStatus("아직 분석한 영상이 없어 예시 트리를 보여 줍니다. 영상을 AI 분석하면 실제 장면 트리로 바뀝니다.", "info");
+    setSetupStatus("아직 분석한 영상이 없어 예시 트리를 보여 줍니다. 영상을 AI 분석하면 실제 4단 트리로 바뀝니다.", "info");
   } else if (treeMedia.scene_error) {
     setSetupStatus(treeMedia.scene_error, "error");
   } else {
-    setSetupStatus(`"${treeMedia.filename}" 영상분석 + 대사로 만든 장면 트리입니다.`, "info");
+    const meta  = treeMedia.scene_tree_meta || {};
+    const fixes = Array.isArray(meta.corrections) ? meta.corrections.length : 0;
+    const how   = meta.source === "rules" ? "규칙으로 묶은" : "AI가 맥락을 읽어 묶은";
+    setSetupStatus(`"${treeMedia.filename}" 장면 분석 + 대사로 ${how} 4단 트리입니다.`
+      + (meta.units ? ` (장면 ${meta.units}개` + (fixes ? `, 대사 보정 ${fixes}건)` : ")") : ""), "info");
   }
 
   // 6) 가운데/오른쪽 패널을 setup 단계로
-  renderSceneTabs();
   renderSceneList();
   updateSetupSummary();
   renderStyleList();
@@ -2831,80 +2867,105 @@ function updateSetupSummary() {
 }
 
 /* ---------------------------------------------------------------------
-   장면 탭 (①장소 ②일 ③상황 ④대사)
+   장면 트리 (펼치기/접기)
    ---------------------------------------------------------------------
-   탭 하나 = 트리의 한 depth. depth 0 은 루트(장소), 3 은 가장 깊은 대사.
+   처음엔 장소·세션(depth 0)만 보인다. 노드를 누르면 그 노드의 자식만
+   바로 아래에 펼쳐진다: 장소·세션 → 행동 흐름 → 세부 행동 → 장면(대사).
+   펼친 노드 id 는 editSetup.expandedIds 에 둔다.
 --------------------------------------------------------------------- */
-function renderSceneTabs() {
-  const tabsEl = document.getElementById("scene-tabs");
-  tabsEl.innerHTML = "";
-  for (let depth = 0; depth < SCENE_DEPTH_LABELS.length; depth++) {
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "scene-tab" + (depth === editSetup.activeDepth ? " active" : "");
-    btn.textContent = (depth + 1) + ". " + SCENE_DEPTH_LABELS[depth];
-    btn.addEventListener("click", function() {
-      editSetup.activeDepth = depth;
-      renderSceneTabs();
-      renderSceneList();
-    });
-    tabsEl.appendChild(btn);
-  }
+
+// 노드 하나를 펼치거나 접는다 (자식이 없는 장면은 그대로)
+function toggleExpanded(node) {
+  if (node.children.length === 0) return;
+  if (editSetup.expandedIds.has(node.id)) editSetup.expandedIds.delete(node.id);
+  else                                     editSetup.expandedIds.add(node.id);
+  renderSceneList();
 }
 
-/* ---------------------------------------------------------------------
-   트리에서 특정 depth 의 노드들만 모아 돌려준다.
-     nodes        - 둘러볼 노드 리스트
-     targetDepth  - 원하는 깊이 (0=루트)
-     out          - 결과를 담을 리스트 (호출자가 넘기는 빈 배열)
-     currentDepth - 재귀용 (0부터 시작)
---------------------------------------------------------------------- */
-function collectNodesAtDepth(nodes, targetDepth, out, currentDepth) {
-  if (currentDepth === undefined) currentDepth = 0;
+// 자식이 있는 노드를 모두 펼친다 (expand=false 면 모두 접는다)
+function setAllExpanded(expand) {
+  editSetup.expandedIds = new Set();
+  if (expand) {
+    const walk = function(nodes) {
+      for (const node of nodes) {
+        if (node.children.length > 0) {
+          editSetup.expandedIds.add(node.id);
+          walk(node.children);
+        }
+      }
+    };
+    walk(editSetup.tree);
+  }
+  renderSceneList();
+}
+
+// ids 중 하나라도 자손으로 가진 노드를 펼쳐서 그 노드들이 보이게 한다 (AI 선택 결과 표시용)
+function expandToShow(nodes, ids) {
   for (const node of nodes) {
-    if (currentDepth === targetDepth) {
-      out.push(node);
-    } else if (currentDepth < targetDepth) {
-      collectNodesAtDepth(node.children, targetDepth, out, currentDepth + 1);
+    if (hasAnyCheckedDescendant(node, ids)) {
+      editSetup.expandedIds.add(node.id);
+      expandToShow(node.children, ids);
     }
   }
 }
 
+document.getElementById("btn-tree-expand").addEventListener("click", function() { setAllExpanded(true); });
+document.getElementById("btn-tree-collapse").addEventListener("click", function() { setAllExpanded(false); });
+
 /* ---------------------------------------------------------------------
-   현재 탭의 장면 목록 다시 그리기
+   장면 트리 다시 그리기
    ---------------------------------------------------------------------
-   비어 있으면 "이 단계의 장면이 없습니다" 를 보여준다.
+   펼친 노드의 자식만 재귀적으로 그린다. 다시 그려도 스크롤 위치는 유지.
+   비어 있으면 "장면이 없습니다" 를 보여준다.
 --------------------------------------------------------------------- */
 function renderSceneList() {
   const container = document.getElementById("scene-list");
+  const scrollTop = container.scrollTop;
   container.innerHTML = "";
 
-  const nodes = [];
-  collectNodesAtDepth(editSetup.tree, editSetup.activeDepth, nodes);
-
-  if (nodes.length === 0) {
+  if (editSetup.tree.length === 0) {
     const empty = document.createElement("div");
     empty.className   = "scene-list-empty";
-    empty.textContent = "이 단계의 장면이 없습니다";
+    empty.textContent = "장면이 없습니다";
     container.appendChild(empty);
     return;
   }
 
-  for (const node of nodes) {
-    container.appendChild(makeSceneRow(node));
-  }
+  const addRows = function(nodes, depth) {
+    for (const node of nodes) {
+      container.appendChild(makeSceneRow(node, depth));
+      if (editSetup.expandedIds.has(node.id)) addRows(node.children, depth + 1);
+    }
+  };
+  addRows(editSetup.tree, 0);
+  container.scrollTop = scrollTop;
 }
 
 /* ---------------------------------------------------------------------
    장면 한 줄 DOM 만들기
    ---------------------------------------------------------------------
    row 는 flex-wrap 이라 "이유" 가 있으면 아래 줄로 넘어간다.
-   입력:  node (장면 노드 하나)
+   입력:  node (장면 노드 하나), depth (0=장소·세션 … 3=장면, 들여쓰기에 씀)
    출력:  DOM 요소 (scene-row div)
 --------------------------------------------------------------------- */
-function makeSceneRow(node) {
+function makeSceneRow(node, depth) {
   const row = document.createElement("div");
   row.className = "scene-row";
+  row.style.paddingLeft = (9 + depth * 20) + "px";
+
+  // 펼치기/접기 화살표 (장면처럼 자식이 없으면 자리만 차지하고 안 보임)
+  const hasChildren = node.children.length > 0;
+  const expanded    = editSetup.expandedIds.has(node.id);
+  const toggle = document.createElement("button");
+  toggle.type      = "button";
+  toggle.className = "scene-row-toggle" + (hasChildren ? "" : " is-leaf");
+  toggle.textContent = expanded ? "▼" : "▶";
+  toggle.title       = expanded ? "접기" : "펼치기";
+  toggle.addEventListener("click", function(e) {
+    e.stopPropagation();
+    toggleExpanded(node);
+  });
+  row.appendChild(toggle);
 
   // 체크박스 - 포함/제외 토글 (부모 노드를 체크하면 자손도 함께 체크)
   const check = document.createElement("input");
@@ -2924,6 +2985,12 @@ function makeSceneRow(node) {
   });
   row.appendChild(check);
 
+  // 층 이름 (장소·세션 / 행동 흐름 / 세부 행동 / 장면)
+  const level = document.createElement("span");
+  level.className   = "scene-row-level";
+  level.textContent = SCENE_DEPTH_LABELS[depth] || "";
+  row.appendChild(level);
+
   // 제목
   const title = document.createElement("span");
   title.className   = "scene-row-title";
@@ -2936,6 +3003,23 @@ function makeSceneRow(node) {
   dur.textContent = nodeDuration(node).toFixed(1) + "초";
   row.appendChild(dur);
 
+  // 요약 (L1~L3: 그 구간에서 일어나는 일). L4 장면은 제목이 곧 화면 설명이라 생략
+  if (node.summary && node.children.length > 0) {
+    const sub = document.createElement("div");
+    sub.className   = "scene-row-sub";
+    sub.textContent = node.summary;
+    row.appendChild(sub);
+  }
+
+  // 대사 (L4 장면에 붙은 받아쓰기 문장). AI가 고친 대사는 색을 바꾸고 원래 글을 툴팁으로
+  for (const line of node.lines) {
+    const lineEl = document.createElement("div");
+    lineEl.className   = "scene-row-line" + (line.fixed ? " is-fixed" : "");
+    lineEl.textContent = "💬 " + line.text + (line.part ? " …" : "") + (line.fixed ? "  (AI 보정)" : "");
+    if (line.fixed && line.text_raw) lineEl.title = "받아쓰기 원문: " + line.text_raw;
+    row.appendChild(lineEl);
+  }
+
   // AI 가 돌려준 "이유" (있을 때만)
   const reasonText = editSetup.reasons[node.id];
   if (reasonText) {
@@ -2945,8 +3029,11 @@ function makeSceneRow(node) {
     row.appendChild(reasonEl);
   }
 
-  // 줄을 클릭하면 영상이 그 장면 시작 시간으로 이동
-  row.addEventListener("click", function() { seekPreviewTo(node.start); });
+  // 줄을 클릭하면 영상이 그 구간 시작 시간으로 이동하고, 자식이 있으면 펼치기/접기
+  row.addEventListener("click", function() {
+    seekPreviewTo(node.start);
+    toggleExpanded(node);
+  });
 
   return row;
 }
@@ -3065,7 +3152,8 @@ function handleSelectScenesResult(data) {
   editSetup.checkedIds = new Set(selectedIds);
   editSetup.reasons    = (data.reasons && typeof data.reasons === "object") ? data.reasons : {};
 
-  // 2) 가운데 장면 목록 + 요약 다시 그리기
+  // 2) AI 가 고른 노드가 보이도록 그 위 노드들을 펼치고, 장면 트리 + 요약 다시 그리기
+  expandToShow(editSetup.tree, editSetup.checkedIds);
   renderSceneList();
   updateSetupSummary();
 
