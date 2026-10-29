@@ -72,6 +72,8 @@ from google.genai import types
 
 # prompt_builder의 공개 함수들만 가져온다.
 from prompt_builder import build_prompt, normalize_tree, validate_response
+# API 키는 앱의 다른 단계(분석·장면 분석·트리)와 같은 곳에서 읽는다.
+from config import config
 
 
 # ---------------------------------------------------------------------------
@@ -80,7 +82,6 @@ from prompt_builder import build_prompt, normalize_tree, validate_response
 MODEL_NAME = "gemini-3.5-flash"
 # MODEL_NAME이 혼잡(503)할 때 대신 쓸 가벼운 모델.
 FALLBACK_MODEL_NAME = "gemini-3.5-flash-lite"
-API_KEY_PATH = "gemini_key.txt"
 
 
 # ---------------------------------------------------------------------------
@@ -88,18 +89,23 @@ API_KEY_PATH = "gemini_key.txt"
 # ---------------------------------------------------------------------------
 
 def _load_api_key() -> str:
-    """gemini_key.txt에서 API 키를 읽어 문자열로 돌려준다.
+    """API 키를 읽어 문자열로 돌려준다 (config.load_api_key와 같음).
+
+    순서: 환경 변수 GEMINI_API_KEY → 프로젝트 폴더의 gemini_key.txt.
+    실행한 폴더와 상관없이 프로젝트 폴더에서 찾는다.
 
     [입력]  없음
     [출력]  API 키 문자열
     [예시]  key = _load_api_key()  → "AIza..."
     """
-    with open(API_KEY_PATH, "r", encoding="utf-8") as f:
-        return f.read().strip()
+    api_key = config.load_api_key()
+    if not api_key:
+        raise RuntimeError("Gemini API 키가 설정되지 않았습니다. GEMINI_API_KEY 또는 gemini_key.txt를 확인하세요.")
+    return api_key
 
 
 def _make_gemini_client() -> genai.Client:
-    """gemini_key.txt를 읽어 Gemini Client를 하나 만들어 돌려준다.
+    """API 키를 읽어 Gemini Client를 하나 만들어 돌려준다.
 
     [입력]  없음
     [출력]  genai.Client 객체

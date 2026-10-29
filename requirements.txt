@@ -1,8 +1,22 @@
-moviepy>=1.0.3
-openai-whisper>=20231117
-torch>=2.0.0
-google-generativeai>=0.8.0
-google-genai>=1.12.1
+# VIBE CUT 앱(python app.py) 실행에 필요한 패키지
+# Python 3.10 이상 (확인: 3.13.7)
+# FFmpeg(ffmpeg·ffprobe)는 pip로 설치되지 않는다 → README.md「설치」참고
+
+# 웹 서버
 fastapi>=0.104.0
 uvicorn>=0.24.0
 python-multipart>=0.0.6
+pydantic
+
+# Gemini (받아쓰기·장면 분석·4단 트리·컷 판단·AI 가편집)
+google-genai>=2.3.0   # 2.3 미만은 장면 분석(interactions)·4단 트리(response_json_schema)가 동작하지 않음
+httpx                 # transcriber.py가 Gemini 받아쓰기를 직접 호출
+
+# 영상·오디오
+moviepy>=2.0          # scene_analyzer가 2.x 방식(from moviepy import VideoFileClip)을 쓴다
+imageio-ffmpeg
+numpy
+Pillow
+
+# 선택: 로컬 Whisper 받아쓰기(STT_ENGINE=whisper-local, transcriber.py --engine whisper-local)를 쓸 때만
+#   pip install openai-whisper torch     (수백 MB~수 GB, 모델은 처음 실행 때 따로 받아짐)

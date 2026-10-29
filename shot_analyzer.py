@@ -352,6 +352,8 @@ def analyze_video_shots(video_path: str, api_key: str, work_dir: str, duration: 
 # ---------------------------------------------------------------- 메인
 
 def main():
+    if hasattr(sys.stdout, "reconfigure"):     # 진행 로그의 이모지가 한글(cp949) 콘솔에서 오류 나지 않게 (app.py와 같음)
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     from scene_analyzer import collect_inputs
     from transcriber import order_clips
 

@@ -1,114 +1,144 @@
-# AI 기반 문맥 감지형 자동 영상 편집 플랫폼
+# VIBE CUT
 
-로컬 OpenAI Whisper와 Gemini를 활용한 지능형 영상 편집 파이프라인입니다.
+촬영 원본을 올리면 Gemini가 대사와 화면을 분석해 **4단 트리**(장소·세션 → 행동 흐름 → 세부 행동 → 장면)로 정리하고,
+고른 장면으로 컷 편집·자막을 입힌 영상을 만들어 주는 웹 앱입니다.
 
-## 기능
+## 준비물
 
-- 🎤 **음성 인식**: 로컬 Whisper(`medium` 기본값)로 한국어 음성을 텍스트와 타임스탬프로 변환
-- 📝 **자막 교정**: Gemini가 맞춤법·띄어쓰기·고유명사 표기만 보정하고 타임스탬프는 유지
-- 🧠 **문맥 분석**: Gemini가 영상 내용과 감정을 분석하여 최적의 편집 전략 생성
-- ✂️ **스마트 컷 편집**: 문맥에 따른 자동 컷 편집 (무음 구간 제거 등)
-- 📝 **자동 자막 생성**: 한국어 자막 자동 합성
+| 항목 | 내용 |
+| --- | --- |
+| Python | **3.10 이상** (확인한 버전: 3.13.7). 3.9 이하는 실행되지 않습니다 |
+| FFmpeg | `ffmpeg`와 `ffprobe` 둘 다 필요. pip로는 설치되지 않습니다 |
+| Gemini API 키 | [Google AI Studio](https://aistudio.google.com/app/apikey)에서 발급 |
 
-## 설치
+## 설치 (처음 한 번)
 
-### 1. 라이브러리 설치
+### 1. FFmpeg
+
+```powershell
+# Windows (설치 후 터미널을 닫았다가 다시 연다)
+winget install Gyan.FFmpeg
+```
+
 ```bash
+# macOS
+brew install ffmpeg
+```
+
+설치 확인: `ffmpeg -version`, `ffprobe -version`. 없으면 분석은 되어도 **내보내기(렌더)가 실패**합니다.
+
+### 2. 파이썬 패키지
+
+다른 프로젝트와 버전이 섞이지 않도록 가상환경을 권장합니다.
+
+```powershell
+# Windows (PowerShell)
+python -m venv venv
+venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 ```
 
-### 2. Gemini API 키 설정
-
-#### 방법 1: 자동 설정 (추천)
 ```bash
-python main.py
-```
-프로그램이 자동으로 API 키 설정을 안내합니다.
-
-#### 방법 2: 환경 변수 설정
-```bash
-export GEMINI_API_KEY="your_gemini_api_key_here"
+# macOS
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
 ```
 
-#### 방법 3: 파일에 직접 저장
-`api_key.txt` 파일을 만들어 API 키를 입력하세요.
+로컬 Whisper(openai-whisper, torch)는 기본 설치에 들어 있지 않습니다. 받아쓰기는 Gemini로 하므로 필요 없습니다 (아래「선택: 로컬 Whisper」).
 
-### 📋 API 키 발급 방법
-1. [Google AI Studio](https://aistudio.google.com/app/apikey) 접속
-2. "Create API Key" 클릭
-3. 새 프로젝트 생성 또는 기존 프로젝트 선택
-4. 발급된 API 키 복사
+## API 키 설정
 
-## 사용법
+둘 중 하나만 하면 됩니다. 둘 다 있으면 환경 변수를 먼저 씁니다.
 
-### 1. 영상 파일 준비
-현재 디렉토리에 `input.mp4` 파일을 넣어주세요.
+**방법 1 (권장): 파일**
 
-### 2. 프로그램 실행
-```bash
-python main.py
+프로젝트 폴더(`app.py`가 있는 폴더)에 `gemini_key.txt`를 만들고 키 한 줄만 넣습니다.
+
+```
+AIza로 시작하는 키
 ```
 
-### 3. 결과 확인
-`output.mp4` 파일로 편집된 영상이 생성됩니다.
+- 파일 이름은 정확히 `gemini_key.txt`입니다.
+- `.gitignore`에 들어 있어 GitHub에 올라가지 않습니다. 키를 커밋하거나 채팅에 붙여 넣지 마세요.
 
-## 파이프라인 과정
+**방법 2: 환경 변수** (그 터미널을 닫으면 사라집니다)
 
-1. **Step 1**: 영상에서 오디오 추출
-2. **Step 2**: 무손실 16 kHz WAV로 변환 후 Whisper 음성 인식 및 타임스탬프 추출
-3. **Step 2-보정**: Gemini로 자막 표기 교정 (타임스탬프 유지)
-4. **Step 3-4**: Gemini로 문맥 분석 및 편집 명령어 생성
-5. **Step 5**: 최종 영상 생성 (컷 편집 + 자막 합성)
-
-## 자막 정확도 설정
-
-기본값은 정확도를 우선한 Whisper `medium` 모델입니다. 속도가 더 중요하면 실행 전에
-모델을 낮추거나, 채널의 고유명사를 힌트로 지정할 수 있습니다.
+```powershell
+$env:GEMINI_API_KEY="발급받은_키"      # Windows PowerShell
+```
 
 ```bash
-export WHISPER_MODEL="small"
-export WHISPER_INITIAL_PROMPT="출연자는 홍길동입니다. Codex, Gemini, FastAPI라는 용어가 나옵니다."
+export GEMINI_API_KEY="발급받은_키"    # macOS
 ```
 
-`large-v3`는 가장 높은 정확도를 기대할 수 있지만 메모리 사용량과 처리 시간이 크게 늘어납니다.
+**키 확인** (실제 API를 1번 호출합니다)
 
-## 시스템 요구사항
-
-- Python 3.8+
-- macOS (기본) / Windows / Linux
-- Gemini API 접근 권한
-- 최소 2GB RAM (영상 크기에 따라 다름)
-
-## 폰트 설정
-
-- **macOS**: AppleGothic (기본)
-- **Windows**: Malgun Gothic (경로 수정 필요)
-- **Linux**: NanumGothic (경로 수정 필요)
-
-코드 내 `KOREAN_FONT_PATH` 변수를 수정하여 폰트 경로를 변경할 수 있습니다.
-
-## 주의사항
-
-- Gemini API 호출을 위한 인터넷 연결 필요
-- 긴 영상의 경우 처리 시간이 오래 걸릴 수 있음
-- API 사용량에 따라 비용 발생 가능성
-
-## 에러 해결
-
-### 영상에 오디오가 없을 경우
 ```
-ValueError: 영상에 오디오 트랙이 없습니다.
+python tests/test_gemini.py
 ```
-오디오가 포함된 영상 파일을 사용해주세요.
 
-### Gemini API 키 오류
-```
-❌ GEMINI_API_KEY 환경 변수를 설정해주세요.
-```
-환경 변수가 올바르게 설정되었는지 확인해주세요.
+키가 없어도 앱은 켜집니다. 대신「AI 분석 시작」을 누르면
+`분석 실패: Gemini API 키가 설정되지 않았습니다…`가 표시됩니다.
 
-### 한국어 폰트 깨짐
-`KOREAN_FONT_PATH` 변수를 시스템에 맞는 한국어 폰트 경로로 수정해주세요.
+## 실행
+
+```
+python app.py
+```
+
+브라우저에서 http://localhost:8000 을 엽니다.
+
+1. **영상 추가**: 영상을 끌어다 놓거나 클릭해서 올린다.
+2. **AI 분석 시작**: 받아쓰기와 장면 분석을 동시에 하고, 4단 트리를 만든다 (1분 47초 영상 기준 약 2분).
+3. **편집 설정**: 왼쪽 아이콘. 4단 트리를 펼치거나 접으며 쓸 장면을 체크하거나, 요청 글을 쓰고「AI 가편집하기」를 누른다.
+4. **내보내기**: 고른 구간으로 영상을 만든다.
+
+## 테스트
+
+```
+python -m unittest discover -s tests
+```
+
+실제 API를 부르지 않는 테스트입니다 (현재 95개). `tests/test_gemini.py`는 자동으로 실행되지 않는 키 확인용 스크립트입니다.
+
+## 선택: 로컬 Whisper
+
+인터넷 없이 받아쓰기를 해야 할 때만 씁니다. 느리고(CPU에서 오디오 길이의 약 3~4배) 문장을 빠뜨리는 경우가 있어 예비용입니다.
+
+```
+pip install openai-whisper torch
+```
+
+- 앱: 실행 전에 환경 변수 `STT_ENGINE=whisper-local`
+- 명령줄: `python transcriber.py --input .\raw_clips --engine whisper-local`
+- 모델(medium 약 1.5GB)은 처음 실행할 때 받아집니다.
+
+## 문제 해결
+
+| 증상 | 원인과 해결 |
+| --- | --- |
+| `ModuleNotFoundError` | 가상환경을 켰는지 확인하고 `pip install -r requirements.txt` |
+| 실행하자마자 `TypeError: unsupported operand type(s) for \|` | Python 3.9 이하. 3.10 이상으로 실행 |
+| `분석 실패: Gemini API 키가 설정되지 않았습니다` | 위「API 키 설정」. 파일 이름·위치(app.py 옆) 확인 |
+| `429` / `RESOURCE_EXHAUSTED` / `사용 한도를 다 썼습니다` | 무료 키의 사용 한도 초과 (Gemini 받아쓰기는 하루 25회). 다음 날 다시 하거나 유료 키 사용 |
+| `503` / `UNAVAILABLE` | Gemini 서버 혼잡. 자동으로 다시 시도하고 가벼운 모델로 넘어간다. 계속되면 잠시 후 다시 |
+| 「장면 분석 실패, 대사만으로 장면을 나눴습니다」 | 장면 분석 단계만 실패 (대개 한도 초과). 트리는 대사만으로 만들어진다 |
+| 「AI 보정·구조화에 실패해 규칙으로 묶었습니다」 | `pip show google-genai`로 버전 확인 (2.3.0 이상 필요). 최신이면 한도 초과·혼잡 |
+| 내보내기 실패, 메시지에 `ffprobe` | FFmpeg 설치 확인. 설치 위치가 PATH에 없으면 환경 변수 `FFMPEG_BIN`, `FFPROBE_BIN`에 실행 파일 경로 |
+| 렌더된 영상의 자막 한글이 깨짐 (macOS·Linux) | 자막 글꼴 기본값이 Windows용 `Malgun Gothic`. `media_engine/config.py`의 `DEFAULT_FONT`를 설치된 한글 글꼴 이름(`Apple SD Gothic Neo`, `NanumGothic` 등)으로 |
+| `영상에 오디오 트랙이 없습니다` | 소리가 들어 있는 영상을 사용 |
+
+## 문서
+
+| 문서 | 내용 |
+| --- | --- |
+| [VIBECUT_4단트리설명.md](VIBECUT_4단트리설명.md) | 4단 트리가 무엇이고 어떻게 만들어지는지 |
+| [scene_tree_실행가이드.md](scene_tree_실행가이드.md) | 4단 트리 명령줄 실행, 규칙, 설정(환경 변수), 실측 |
+| [transcriber_실행가이드.md](transcriber_실행가이드.md) | 받아쓰기 명령줄 실행 |
+| [scene_analyzer_실행가이드.md](scene_analyzer_실행가이드.md) | 장면 분석(조경우) 명령줄 실행 |
+| [prompt_builder_설명.md](prompt_builder_설명.md) | AI 가편집 지시문 조립 |
+| [docs/통합테스트_병합기록.md](docs/통합테스트_병합기록.md) | 브랜치 병합·통합 점검 기록, 알려진 한계 |
 
 ## 라이선스
 

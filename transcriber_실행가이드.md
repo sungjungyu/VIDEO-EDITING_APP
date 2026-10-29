@@ -8,16 +8,18 @@ VIBE CUT 1-2 소리 갈래: 촬영 클립 폴더 → 받아쓰기 JSON(문장 + 
 # FFmpeg (scene_analyzer와 같음, 설치 후 터미널 다시 열기)
 winget install Gyan.FFmpeg
 
-# Whisper (requirements.txt에 포함)
 pip install -r requirements.txt
+
+# 로컬 Whisper까지 쓸 때만 (수백 MB~수 GB, requirements.txt에는 없음)
+pip install openai-whisper torch
 ```
 
 엔진은 두 가지다. 비교 결과는 `docs/stt_비교.md`.
 
 | 엔진 | 준비 | 속도 (이 노트북) | 특징 |
 | --- | --- | --- | --- |
-| `gemini` (권장) | API 키: `GEMINI_API_KEY` 또는 `gemini_key.txt` | 오디오 길이의 약 0.2배 | 단어 시각·문장 단위 제공, 화자 구분 가능. 무료 키는 하루 25회 |
-| `whisper-local` (기본값, 예비) | 키 필요 없음. 모델은 처음 실행 때 `~/.cache/whisper`에 받아짐 (medium 약 1.5GB) | 약 3.4배 | 인터넷 없이 동작. 문장을 빼먹거나 무음에서 지어내는 경우가 있음 |
+| `gemini` (기본값, 권장) | API 키: `GEMINI_API_KEY` 또는 `gemini_key.txt` | 오디오 길이의 약 0.2배 | 단어 시각·문장 단위 제공, 화자 구분 가능. 무료 키는 하루 25회 |
+| `whisper-local` (예비) | `pip install openai-whisper torch`. 키 필요 없음. 모델은 처음 실행 때 `~/.cache/whisper`에 받아짐 (medium 약 1.5GB) | 약 3.4배 | 인터넷 없이 동작. 문장을 빼먹거나 무음에서 지어내는 경우가 있음 |
 
 ## 2. 실행
 
@@ -27,11 +29,11 @@ pip install -r requirements.txt
 # ① 정렬·오디오 추출만 확인 (받아쓰기 안 함)
 python transcriber.py --input .\raw_clips --dry-run
 
-# ② Gemini
-python transcriber.py --input .\raw_clips --engine gemini --out transcript.json
-
-# ③ 로컬 Whisper (기본값)
+# ② Gemini (기본값)
 python transcriber.py --input .\raw_clips --out transcript.json
+
+# ③ 로컬 Whisper (예비, 위의 openai-whisper·torch 설치 필요)
+python transcriber.py --input .\raw_clips --engine whisper-local --out transcript.json
 ```
 
 결과
@@ -79,7 +81,7 @@ problems = validate_transcript(transcript)      # text를 고친 뒤 words와 �
 
 | 옵션 | 기본값 | 설명 |
 | --- | --- | --- |
-| `--engine` | whisper-local | `gemini` 또는 `whisper-local` |
+| `--engine` | gemini | `gemini` 또는 `whisper-local` |
 | `--model` | 엔진별 기본값 | whisper-local: medium (환경변수 `WHISPER_MODEL`, 개발할 때는 `small`이 빠름) / gemini: gemini-3.5-transcribe |
 | `--vocab` | 없음 | gemini 전용. 고유명사 힌트를 쉼표로 (예: `"성수동,소금빵"`) |
 | `--diarize` | 끔 | gemini 전용. 화자 구분 → `segments[].speaker` (예: `spk:0`) |

@@ -36,7 +36,7 @@ if not hasattr(Image, "ANTIALIAS"):
 # from moviepy.config import change_settings  # 더 이상 사용하지 않음
 # import openai  # 더 이상 사용하지 않음
 # from openai import OpenAI  # 더 이상 사용하지 않음
-import whisper
+# 로컬 Whisper(openai-whisper, torch)는 STT_ENGINE=whisper-local일 때만 쓰므로 그때 불러온다 (_import_whisper).
 
 if imageio_ffmpeg is not None:
     def _load_audio_with_absolute_ffmpeg(file: str, sr: int = 16000):
@@ -59,14 +59,26 @@ if imageio_ffmpeg is not None:
 
         return np.frombuffer(out, np.int16).flatten().astype(np.float32) / 32768.0
 
-    try:
-        import whisper.audio as whisper_audio
-        import whisper.transcribe as whisper_transcribe
 
-        whisper_audio.load_audio = _load_audio_with_absolute_ffmpeg
-        whisper_transcribe.load_audio = _load_audio_with_absolute_ffmpeg
-    except Exception:
-        pass
+def _import_whisper():
+    """로컬 Whisper를 불러온다 (설치돼 있지 않으면 설치 방법을 알려 준다).
+    오디오를 읽을 때 imageio-ffmpeg의 ffmpeg를 쓰도록 바꿔 둔다 (PATH에 ffmpeg가 없어도 동작)."""
+    try:
+        import whisper
+    except ImportError as error:
+        raise RuntimeError("로컬 Whisper(STT_ENGINE=whisper-local)를 쓰려면 먼저 설치하세요: "
+                           "pip install openai-whisper torch") from error
+    if imageio_ffmpeg is not None:
+        try:
+            import whisper.audio as whisper_audio
+            import whisper.transcribe as whisper_transcribe
+
+            whisper_audio.load_audio = _load_audio_with_absolute_ffmpeg
+            whisper_transcribe.load_audio = _load_audio_with_absolute_ffmpeg
+        except Exception:
+            pass
+    return whisper
+
 
 try:
     from google import genai as google_genai
@@ -74,11 +86,6 @@ try:
 except Exception:
     google_genai = None
     google_types = None
-
-try:
-    import google.generativeai as genai
-except Exception:
-    genai = None
 
 from config import config
 
@@ -110,7 +117,6 @@ class VideoEditingPipeline:
             api_key (str): Gemini API 키
         """
         self.gemini_client = None
-        self.gemini_model = None
         self.gemini_model_name = "gemini-3.5-flash"
         # 정확도를 우선하는 기본값입니다. 처리 속도가 더 중요하면 환경 변수로
         # WHISPER_MODEL=base 또는 small을 지정할 수 있습니다.
@@ -121,13 +127,9 @@ class VideoEditingPipeline:
         )
 
         # Gemini API 설정
-        if google_genai is not None:
-            self.gemini_client = google_genai.Client(api_key=api_key)
-        elif genai is not None:
-            genai.configure(api_key=api_key)
-            self.gemini_model = genai.GenerativeModel(self.gemini_model_name)
-        else:
-            raise ImportError("Google Gemini SDK를 불러올 수 없습니다.")
+        if google_genai is None:
+            raise ImportError("google-genai 패키지를 불러올 수 없습니다. pip install -r requirements.txt 로 설치하세요.")
+        self.gemini_client = google_genai.Client(api_key=api_key)
 
         self.temp_dir = tempfile.mkdtemp()
         print(f"📁 임시 디렉토리 생성: {self.temp_dir}")
@@ -422,7 +424,7 @@ class VideoEditingPipeline:
         print("🎤 Step 2: 로컬 Whisper로 음성 인식 중...")
         
         print(f"📥 Whisper {self.whisper_model_name} 모델 로딩 중...")
-        model = whisper.load_model(self.whisper_model_name)
+        model = _import_whisper().load_model(self.whisper_model_name)
         
         # 오디오 파일 처리
         print("🔊 오디오 처리 중...")
@@ -573,18 +575,6 @@ class VideoEditingPipeline:
                         max_output_tokens=8192,
                         response_mime_type="application/json",
                     ),
-                )
-                return getattr(response, "text", "")
-
-            if self.gemini_model is not None:
-                model = self.gemini_model if model_name == self.gemini_model_name else genai.GenerativeModel(model_name)
-                response = model.generate_content(
-                    prompt,
-                    generation_config=genai.types.GenerationConfig(
-                        temperature=0.1,
-                        max_output_tokens=8192,
-                        response_mime_type="application/json",
-                    )
                 )
                 return getattr(response, "text", "")
 

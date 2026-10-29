@@ -5,8 +5,15 @@
 """
 
 import os
+import sys
 from pathlib import Path
 from typing import Optional
+
+# 진행 로그의 이모지(✅ 🧠 ⚠️ …)가 한글 윈도우(cp949) 출력에서 UnicodeEncodeError를 내지 않게 한다.
+# (Git Bash·출력 저장(>)·일부 IDE 실행 창. app.py와 같은 처리, config를 불러오는 모든 모듈에 적용됨)
+for _stream in (sys.stdout, sys.stderr):
+    if hasattr(_stream, "reconfigure"):
+        _stream.reconfigure(encoding="utf-8", errors="replace")
 
 class Config:
     """설정 관리 클래스"""
@@ -25,7 +32,7 @@ class Config:
         # 1. 환경 변수 확인
         api_key = os.getenv("GEMINI_API_KEY")
         if api_key:
-            api_key = api_key.strip().strip('"').strip("'").replace("\ufeff", "")
+            api_key = api_key.replace("\ufeff", "").strip().strip('"').strip("'")
             print("✅ 환경 변수에서 API 키를 찾았습니다.")
             return api_key
         
@@ -33,7 +40,7 @@ class Config:
         if self.api_key_file.exists():
             try:
                 with open(self.api_key_file, 'r', encoding='utf-8') as f:
-                    api_key = f.read().strip().strip('"').strip("'").replace("\ufeff", "")
+                    api_key = f.read().replace("\ufeff", "").strip().strip('"').strip("'")
                 if api_key:
                     print("✅ 파일에서 API 키를 찾았습니다.")
                     return api_key
@@ -74,7 +81,7 @@ class Config:
                 print("❌ API 키가 입력되지 않았습니다.")
                 return None
 
-            api_key = api_key.strip().strip('"').strip("'").replace("\ufeff", "")
+            api_key = api_key.replace("\ufeff", "").strip().strip('"').strip("'")
             
             # 자동으로 파일에 저장
             self.save_api_key(api_key)

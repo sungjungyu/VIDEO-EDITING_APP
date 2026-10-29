@@ -7,13 +7,13 @@ VIBE CUT 1-2 소리 갈래: 받아쓰기 (문장 + 단어 단위 타임스탬프
 4단 트리(1-3)에서 장면 목록과 바로 합칠 수 있다.
 
 사용 예:
-    python transcriber.py --input ./raw_clips --out transcript.json
-    python transcriber.py --input a.mp4 b.mp4 --model small
-    python transcriber.py --input ./raw_clips --engine gemini --out transcript_gemini.json
+    python transcriber.py --input ./raw_clips --out transcript.json                 # Gemini (기본)
+    python transcriber.py --input ./raw_clips --engine whisper-local --model small  # 로컬 Whisper (예비)
     python transcriber.py --input ./raw_clips --dry-run      # 정렬·오디오 추출만
 
-필요: Python 3.10+, openai-whisper, imageio-ffmpeg(또는 PATH의 ffmpeg), moviepy
-gemini 엔진: httpx(google-genai 설치 시 함께 설치됨), API 키(GEMINI_API_KEY 또는 gemini_key.txt)
+필요: Python 3.10+, imageio-ffmpeg(또는 PATH의 ffmpeg), moviepy
+gemini 엔진: httpx, API 키(GEMINI_API_KEY 또는 gemini_key.txt)
+whisper-local 엔진: pip install openai-whisper torch (requirements.txt에는 없음, 모델은 처음 실행 때 받아짐)
 """
 
 import argparse
@@ -557,7 +557,8 @@ def main():
     ap = argparse.ArgumentParser(description="VIBE CUT 받아쓰기 (단어 단위 타임스탬프)")
     ap.add_argument("--input", nargs="+", required=True, help="클립 파일들 또는 폴더")
     ap.add_argument("--out", default="transcript.json")
-    ap.add_argument("--engine", default="whisper-local", choices=sorted(ENGINES))
+    ap.add_argument("--engine", default="gemini", choices=sorted(ENGINES),
+                    help="gemini(기본, 앱과 같음) / whisper-local(예비, pip install openai-whisper torch 필요)")
     ap.add_argument("--model", default=None,
                     help="whisper-local: tiny/base/small/medium/large-v3 (기본 medium) / gemini: 기본 gemini-3.5-transcribe")
     ap.add_argument("--language", default="ko")
