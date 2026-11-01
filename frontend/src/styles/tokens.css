@@ -1,0 +1,32 @@
+/* 목업 :root와 동일한 이름 유지. 이 파일만 바꾸면 전체 팔레트가 교체된다. */
+:root {
+  --color-bg: #F4F3EF;
+  --color-surface: #FFFFFF;
+  --color-surface-2: #F7F6F2;
+  --color-border: #E3E1DA;
+  --color-border-strong: #C9C6BC;
+  --color-text: #22211E;
+  --color-text-muted: #6B6960;
+  --color-text-subtle: #9A978C;
+  --color-accent: #2F6FD0;
+  --color-accent-bg: #E6EFFB;
+  --color-accent-border: #9CC0EE;
+  --color-success: #3B7A1E;
+  --color-success-bg: #EAF3DE;
+  --color-success-border: #A9CF86;
+  --color-warning: #8A5A00;
+  --color-warning-bg: #FBF0D9;
+  --color-warning-border: #E6C277;
+  --color-danger: #B23A2B;
+  --color-danger-bg: #FBE7E3;
+  --color-danger-border: #E9A79C;
+  --color-off: #D9D7CF;
+  --color-video: #2C2C2A;
+  --topic-1: #85B7EB;
+  --topic-2: #9FE1CB;
+  --topic-3: #FAC775;
+  --topic-4: #F0997B;
+  --radius: 8px;
+  --radius-lg: 12px;
+  --font: "Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+}

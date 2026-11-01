@@ -31,6 +31,12 @@ MANIFEST
 venv/
 env/
 ENV/
+.venv/
+
+# Frontend
+node_modules/
+.env
+frontend/dist/
 
 # IDE
 .vscode/
