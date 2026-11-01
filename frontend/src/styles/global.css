@@ -293,8 +293,21 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 .miller-item.sel { background: var(--color-accent-bg); }
 .miller-item.off { color: var(--color-text-subtle); }
 
+/* 상태 점 래퍼 — 24px 최소 클릭 영역 */
+.st-btn {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+.st-btn:hover { background: var(--color-border); }
+
 /* 상태 점 */
-.st { width: 10px; height: 10px; border-radius: 3px; flex: none; background: var(--color-accent); }
+.st { width: 10px; height: 10px; border-radius: 3px; background: var(--color-accent); }
 .st.part {
   background: repeating-linear-gradient(45deg, var(--color-accent) 0 2px, transparent 2px 4px);
   border: 1px solid var(--color-accent);
@@ -338,3 +351,8 @@ details summary { cursor: pointer; font-size: 12px; color: var(--color-text-mute
   .pane + .pane { border-left: none; border-top: 1px solid var(--color-border); }
   .miller { grid-template-columns: repeat(2, 1fr); }
 }
+
+/* Context menu */
+.ctx-menu { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius); box-shadow: 0 4px 12px rgba(0,0,0,.12); min-width: 140px; overflow: hidden; }
+.ctx-item { padding: 7px 12px; font-size: 13px; cursor: pointer; }
+.ctx-item:hover { background: var(--color-surface-2); }
