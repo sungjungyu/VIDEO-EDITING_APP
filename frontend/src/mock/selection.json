@@ -1,0 +1,18 @@
+{
+  "target_sec": 600,
+  "nodes": {
+    "sc5":  { "state": "on",  "by": "ai",   "reason": "요청의 '과자 고르기' 강조 · 두 사람 반응이 뚜렷한 구간", "lock": null },
+    "sc6":  { "state": "off", "by": "ai",   "reason": null, "lock": null },
+    "sc7":  { "state": "on",  "by": "ai",   "reason": "신상 발견 장면 · 먹방 복선", "lock": null },
+    "sc8":  { "state": "on",  "by": "user", "reason": null, "lock": "must_include" },
+    "sc9":  { "state": "on",  "by": "ai",   "reason": "계산 장면 · 분량 조정용", "lock": null },
+    "sc10": { "state": "off", "by": "user", "reason": null, "lock": "must_exclude" },
+    "sc11": { "state": "off", "by": "ai",   "reason": null, "lock": null },
+    "sc12": { "state": "on",  "by": "ai",   "reason": "요청의 '먹방 위주' · 세 명 반응이 겹치는 구간", "lock": null },
+    "sc13": { "state": "on",  "by": "ai",   "reason": "먹방 핵심 구간", "lock": null },
+    "sc14": { "state": "on",  "by": "ai",   "reason": "맛 리액션 · 먹방 하이라이트", "lock": null },
+    "sc15": { "state": "off", "by": "ai",   "reason": null, "lock": null },
+    "sc16": { "state": "on",  "by": "user", "reason": null, "lock": null }
+  },
+  "total_sec": 604
+}

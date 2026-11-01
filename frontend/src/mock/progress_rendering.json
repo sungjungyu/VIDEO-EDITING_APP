@@ -1,0 +1,31 @@
+{
+  "stage": "rendering",
+  "percent": 48,
+  "eta_sec": 90,
+  "elapsed_sec": 78,
+  "steps": [
+    { "key": "edl",      "label": "편집 지시서",        "status": "done" },
+    { "key": "review",   "label": "렌더 전 검수",        "status": "done" },
+    { "key": "cut",      "label": "자르기·이어붙이기",   "status": "running", "detail": "14/23" },
+    { "key": "subtitle", "label": "자막 입히기",          "status": "waiting" },
+    { "key": "io",       "label": "인트로·아웃트로",      "status": "waiting" }
+  ],
+  "current": { "scene_id": "sc12", "label": "과자 언박싱", "clip_label": "집_먹방", "src_start": 947.0, "src_end": 1021.0 },
+  "segments": [
+    { "topic_id": "t2", "topic_title": "편의점", "pct_start": 0,  "pct_end": 9  },
+    { "topic_id": "t2", "topic_title": "편의점", "pct_start": 9,  "pct_end": 23 },
+    { "topic_id": "t2", "topic_title": "편의점", "pct_start": 23, "pct_end": 29 },
+    { "topic_id": "t3", "topic_title": "귀가길", "pct_start": 29, "pct_end": 40 },
+    { "topic_id": "t3", "topic_title": "귀가길", "pct_start": 40, "pct_end": 48 },
+    { "topic_id": "t4", "topic_title": "집 먹방","pct_start": 48, "pct_end": 60 },
+    { "topic_id": "t4", "topic_title": "집 먹방","pct_start": 60, "pct_end": 72 },
+    { "topic_id": "t4", "topic_title": "집 먹방","pct_start": 72, "pct_end": 100}
+  ],
+  "review_logs": [
+    { "type": "fix",  "text": "단어 중간에 걸린 컷 3곳 → 단어 경계로 이동" },
+    { "type": "fix",  "text": "구간 연결부 오디오 페이드 22곳" },
+    { "type": "warn", "text": "\"이거 잘라줘\" 지시 발언 1곳 → 결과에서 제외" },
+    { "type": "ok",   "text": "꼭 넣기 2개 모두 포함 · 꼭 빼기 1개 제외" }
+  ],
+  "stats": { "word_boundary": 3, "fades": 22 }
+}

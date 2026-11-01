@@ -1,0 +1,162 @@
+{
+  "tree": [
+    {
+      "id": "t1", "level": "topic", "title": "편의점 가는 길", "start": 0.0, "end": 252.0, "summary": "편의점으로 출발하는 장면",
+      "children": [
+        {
+          "id": "k1", "level": "task", "title": "출발 준비", "start": 0.0, "end": 252.0,
+          "children": [
+            {
+              "id": "s1", "level": "situation", "title": "친구 집 앞 집합", "start": 0.0, "end": 120.0,
+              "children": [
+                { "id": "sc1", "level": "scene", "title": "친구 기다리기", "start": 10.0, "end": 38.0, "clip_id": "c1", "place": "친구 집 앞", "activity": "기다리기", "people": ["경우"], "sentence_ids": ["l1"], "children": [] },
+                { "id": "sc2", "level": "scene", "title": "길거리 대화", "start": 38.0, "end": 120.0, "clip_id": "c1", "place": "길거리", "activity": "이동", "people": ["민수", "경우"], "sentence_ids": ["l2", "l3"], "children": [] }
+              ]
+            },
+            {
+              "id": "s2", "level": "situation", "title": "편의점 도착", "start": 120.0, "end": 252.0,
+              "children": [
+                { "id": "sc3", "level": "scene", "title": "편의점 앞 도착", "start": 230.0, "end": 252.0, "clip_id": "c1", "place": "편의점 앞", "activity": "도착", "people": ["민수", "경우"], "sentence_ids": [], "children": [] }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "t2", "level": "topic", "title": "편의점", "start": 252.0, "end": 762.0, "summary": "편의점 내부 장면",
+      "children": [
+        {
+          "id": "k2", "level": "task", "title": "입장·둘러보기", "start": 252.0, "end": 352.0,
+          "children": [
+            {
+              "id": "s3", "level": "situation", "title": "가게 입장", "start": 252.0, "end": 310.0,
+              "children": [
+                { "id": "sc4", "level": "scene", "title": "문 열고 들어가기", "start": 252.0, "end": 271.0, "clip_id": "c2", "place": "편의점", "activity": "입장", "people": ["민수", "경우"], "sentence_ids": [], "children": [] }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "k3", "level": "task", "title": "과자 고르기", "start": 352.0, "end": 650.0,
+          "children": [
+            {
+              "id": "s4", "level": "situation", "title": "어떤 과자 살지 고민", "start": 352.0, "end": 450.0,
+              "children": [
+                { "id": "sc5", "level": "scene", "title": "칼로리 확인", "start": 352.0, "end": 371.0, "clip_id": "c2", "place": "편의점", "activity": "과자 고르기", "people": ["민수", "경우"], "sentence_ids": ["l88", "l89", "l90"], "children": [] },
+                { "id": "sc6", "level": "scene", "title": "맛 고민", "start": 371.0, "end": 412.0, "clip_id": "c2", "place": "편의점", "activity": "과자 고르기", "people": ["민수", "경우"], "sentence_ids": ["l91"], "children": [] }
+              ]
+            },
+            {
+              "id": "s5", "level": "situation", "title": "신상 발견", "start": 450.0, "end": 570.0,
+              "children": [
+                { "id": "sc7", "level": "scene", "title": "신상 과자 발견", "start": 450.0, "end": 485.0, "clip_id": "c2", "place": "편의점", "activity": "과자 고르기", "people": ["민수"], "sentence_ids": ["l92"], "children": [] },
+                { "id": "sc8", "level": "scene", "title": "가격 비교", "start": 490.0, "end": 540.0, "clip_id": "c2", "place": "편의점", "activity": "과자 고르기", "people": ["민수", "경우"], "sentence_ids": [], "children": [] }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "k4", "level": "task", "title": "계산", "start": 650.0, "end": 762.0,
+          "children": [
+            {
+              "id": "s6", "level": "situation", "title": "계산대", "start": 650.0, "end": 762.0,
+              "children": [
+                { "id": "sc9", "level": "scene", "title": "계산하기", "start": 650.0, "end": 700.0, "clip_id": "c2", "place": "편의점 계산대", "activity": "계산", "people": ["민수", "경우"], "sentence_ids": ["l93"], "children": [] }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "t3", "level": "topic", "title": "귀가길", "start": 762.0, "end": 947.0, "summary": "집으로 돌아가는 길",
+      "children": [
+        {
+          "id": "k5", "level": "task", "title": "걸어서 귀가", "start": 762.0, "end": 947.0,
+          "children": [
+            {
+              "id": "s7", "level": "situation", "title": "귀가 이동", "start": 762.0, "end": 947.0,
+              "children": [
+                { "id": "sc10", "level": "scene", "title": "길 걸으며 대화", "start": 762.0, "end": 830.0, "clip_id": "c3", "place": "길거리", "activity": "이동", "people": ["민수", "경우"], "sentence_ids": ["l94"], "children": [] },
+                { "id": "sc11", "level": "scene", "title": "편의점 얘기", "start": 830.0, "end": 947.0, "clip_id": "c3", "place": "길거리", "activity": "대화", "people": ["민수", "경우"], "sentence_ids": [], "children": [] }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "t4", "level": "topic", "title": "집 먹방", "start": 947.0, "end": 3427.0, "summary": "집에서 과자 먹방",
+      "children": [
+        {
+          "id": "k6", "level": "task", "title": "언박싱", "start": 947.0, "end": 1200.0,
+          "children": [
+            {
+              "id": "s8", "level": "situation", "title": "과자 꺼내기", "start": 947.0, "end": 1100.0,
+              "children": [
+                { "id": "sc12", "level": "scene", "title": "과자 언박싱", "start": 947.0, "end": 1021.0, "clip_id": "c4", "place": "집", "activity": "언박싱", "people": ["민수", "경우"], "sentence_ids": ["l95", "l96"], "children": [] }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "k7", "level": "task", "title": "먹방 진행", "start": 1200.0, "end": 3000.0,
+          "children": [
+            {
+              "id": "s9", "level": "situation", "title": "첫 번째 과자", "start": 1200.0, "end": 1800.0,
+              "children": [
+                { "id": "sc13", "level": "scene", "title": "칩 먹기", "start": 1200.0, "end": 1450.0, "clip_id": "c4", "place": "집", "activity": "먹방", "people": ["민수", "경우"], "sentence_ids": ["l97"], "children": [] },
+                { "id": "sc14", "level": "scene", "title": "맛 평가", "start": 1530.0, "end": 1600.0, "clip_id": "c4", "place": "집", "activity": "먹방", "people": ["민수", "경우"], "sentence_ids": ["l98", "l99"], "children": [] }
+              ]
+            },
+            {
+              "id": "s10", "level": "situation", "title": "두 번째 과자", "start": 1800.0, "end": 2400.0,
+              "children": [
+                { "id": "sc15", "level": "scene", "title": "새 과자 개봉", "start": 1800.0, "end": 1870.0, "clip_id": "c4", "place": "집", "activity": "먹방", "people": ["민수", "경우"], "sentence_ids": [], "children": [] }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "t5", "level": "topic", "title": "마무리", "start": 3427.0, "end": 3600.0, "summary": "마무리 인사",
+      "children": [
+        {
+          "id": "k8", "level": "task", "title": "마무리 인사", "start": 3427.0, "end": 3600.0,
+          "children": [
+            {
+              "id": "s11", "level": "situation", "title": "마무리 멘트", "start": 3427.0, "end": 3600.0,
+              "children": [
+                { "id": "sc16", "level": "scene", "title": "인사", "start": 3427.0, "end": 3500.0, "clip_id": "c5", "place": "집", "activity": "마무리", "people": ["민수", "경우"], "sentence_ids": ["l100"], "children": [] }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "sentences": [
+    { "id": "l1",  "speaker": "S1", "text": "야 빨리 와",                 "start": 10.0,   "end": 11.2  },
+    { "id": "l2",  "speaker": "S2", "text": "오늘 뭐 살 거야?",           "start": 38.5,   "end": 40.1  },
+    { "id": "l3",  "speaker": "S1", "text": "그냥 과자 보고 결정하자",     "start": 40.5,   "end": 42.8  },
+    { "id": "l88", "speaker": "S1", "text": "칼로리 보소",                "start": 355.2,  "end": 356.4 },
+    { "id": "l89", "speaker": "S2", "text": "이거 하나에 600이야?",        "start": 358.0,  "end": 360.1 },
+    { "id": "l90", "speaker": "S1", "text": "그냥 먹어 오늘은",            "start": 363.0,  "end": 364.5 },
+    { "id": "l91", "speaker": "S2", "text": "이게 맛있나 저게 맛있나",     "start": 375.0,  "end": 377.3 },
+    { "id": "l92", "speaker": "S1", "text": "어 이거 신상이다",            "start": 455.0,  "end": 456.8 },
+    { "id": "l93", "speaker": "S2", "text": "카드 돼요?",                 "start": 655.0,  "end": 656.0 },
+    { "id": "l94", "speaker": "S1", "text": "집 빨리 가자 배고파",         "start": 770.0,  "end": 772.0 },
+    { "id": "l95", "speaker": "S1", "text": "일단 다 꺼내자",              "start": 950.0,  "end": 951.5 },
+    { "id": "l96", "speaker": "S2", "text": "와 이게 다야?",               "start": 952.0,  "end": 953.5 },
+    { "id": "l97", "speaker": "S1", "text": "먹어봐 진짜 맛있어",          "start": 1205.0, "end": 1207.0},
+    { "id": "l98", "speaker": "S2", "text": "어 이거 생각보다 괜찮다",     "start": 1535.0, "end": 1537.5},
+    { "id": "l99", "speaker": "S1", "text": "그치? 자꾸 손이 가",          "start": 1538.0, "end": 1540.0},
+    { "id": "l100","speaker": "S1", "text": "오늘 영상 재밌었지?",         "start": 3430.0, "end": 3432.0}
+  ],
+  "speakers": [
+    { "id": "S1", "name": "민수" },
+    { "id": "S2", "name": "경우" }
+  ]
+}

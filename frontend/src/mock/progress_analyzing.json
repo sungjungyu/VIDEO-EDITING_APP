@@ -1,0 +1,28 @@
+{
+  "stage": "analyzing",
+  "percent": 35,
+  "eta_sec": 240,
+  "elapsed_sec": 402,
+  "steps": [
+    { "key": "stt",    "label": "받아쓰기",      "status": "done" },
+    { "key": "vision", "label": "영상 분석",      "status": "running", "detail": "클립 4/5" },
+    { "key": "align",  "label": "말·장면 맞추기", "status": "waiting" },
+    { "key": "tree",   "label": "4단 구조화",     "status": "waiting" }
+  ],
+  "current": { "clip_id": "c4", "label": "집_먹방" },
+  "clips": [
+    { "id": "c1", "stt": "done", "vision": "done" },
+    { "id": "c2", "stt": "done", "vision": "done" },
+    { "id": "c3", "stt": "done", "vision": "failed", "error": "업로드 시간 초과" },
+    { "id": "c4", "stt": "done", "vision": "running", "vision_percent": 62 },
+    { "id": "c5", "stt": "done", "vision": "waiting" }
+  ],
+  "logs": [
+    { "t": 2822.0, "type": "boundary", "text": "먹방 → 설거지 · 활동이 바뀜" },
+    { "t": 1900.0, "type": "merge",    "text": "셀카↔후면 전환, 같은 장소라 한 장면 유지" },
+    { "t": 1335.0, "type": "person",   "text": "빨간 후드 = 민수 (요청에서 받은 정보)" },
+    { "t": 963.0,  "type": "boundary", "text": "편의점 → 계산대 · 장소 안 위치 변화" },
+    { "t": 581.0,  "type": "merge",    "text": "8초 장면, 너무 짧아 다음 장면에 붙임" }
+  ],
+  "stats": { "scenes": 38, "sentences": 412, "speakers": 3, "cost_krw": 210 }
+}

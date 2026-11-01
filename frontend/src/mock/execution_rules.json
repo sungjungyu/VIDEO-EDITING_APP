@@ -1,0 +1,17 @@
+{
+  "subtitle": {
+    "enabled": true,
+    "speakers_only": true,
+    "speakers": ["S1", "S2"],
+    "font": "Pretendard",
+    "size": 48,
+    "color": "#FFFFFF",
+    "outline": { "enabled": true, "width": 3, "color": "#000000" },
+    "box": { "enabled": false },
+    "position": "bottom"
+  },
+  "intro": null,
+  "outro": { "file": "outro.mp4" },
+  "output": { "aspect": "9:16", "fit": "crop" },
+  "save_profile": false
+}
