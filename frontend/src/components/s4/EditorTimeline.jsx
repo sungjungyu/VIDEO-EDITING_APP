@@ -2,7 +2,7 @@ import { fmtDuration } from '../../utils/format.js';
 
 const TOPIC_COLORS = ['--topic-1', '--topic-2', '--topic-3', '--topic-4', '--topic-1'];
 
-export default function EditorTimeline({ treeData, selectionNodes, selectedScene, totalSec }) {
+export default function EditorTimeline({ treeData, selectionNodes, selection, selectedScene, totalSec }) {
   if (!treeData) return null;
 
   const topics = treeData.tree ?? [];
@@ -23,6 +23,10 @@ export default function EditorTimeline({ treeData, selectionNodes, selectedScene
     .filter(sc => selectionNodes?.[sc.id]?.state === 'on')
     .reduce((s, sc) => s + (sc.end - sc.start), 0);
 
+  const targetSec = selection?.target_sec;
+  if (targetSec == null) console.warn('[EditorTimeline] selection.target_sec missing');
+  const targetLabel = targetSec != null ? fmtDuration(targetSec) : '—';
+
   return (
     <div style={{ borderTop: '1px solid var(--color-border)', padding: '10px 16px' }}>
       <div className="row lb" style={{ justifyContent: 'space-between', marginBottom: 4 }}>
@@ -35,7 +39,7 @@ export default function EditorTimeline({ treeData, selectionNodes, selectedScene
           ))}
           <span className="legend"><i style={{ background: 'var(--color-off)' }} />꺼짐</span>
         </div>
-        <span>선택 합계 {fmtDuration(selectedTotal)} / 목표 {fmtDuration(selectionNodes?.target_sec ?? 600)}</span>
+        <span>선택 합계 {fmtDuration(selectedTotal)} / 목표 {targetLabel}</span>
       </div>
 
       <div style={{ display: 'flex', height: 30, borderRadius: 6, overflow: 'hidden', border: '1px solid var(--color-border)', background: 'var(--color-off)' }}>

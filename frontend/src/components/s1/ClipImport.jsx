@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useProject } from '../../state/ProjectContext.jsx';
 import { getClips } from '../../api/index.js';
 import { fmtDuration, fmtAspect } from '../../utils/format.js';
@@ -7,14 +7,15 @@ import BottomBar from '../common/BottomBar.jsx';
 import ClipCard from './ClipCard.jsx';
 
 export default function ClipImport() {
-  const { clips, setClips, setCurrentScreen } = useProject();
+  const { status, clips, setClips, transition, navigate } = useProject();
+  const [pendingClips, setPendingClips] = useState(null); // awaiting CHANGE_CLIPS confirm
 
   useEffect(() => {
     getClips().then(setClips);
   }, []);
 
-  const totalSec  = clips.reduce((s, c) => s + c.duration, 0);
-  const canNext   = clips.length > 0;
+  const totalSec = clips.reduce((s, c) => s + c.duration, 0);
+  const canNext  = clips.length > 0;
 
   const aspectSummary = () => {
     const counts = {};
@@ -25,7 +26,22 @@ export default function ClipImport() {
     return Object.entries(counts).map(([a, n]) => `${a} ×${n}`).join(', ');
   };
 
-  const handleRemove = (id) => setClips(prev => prev.filter(c => c.id !== id));
+  const handleRemove = (id) => {
+    const next = clips.filter(c => c.id !== id);
+    if (status === 'analyzed' || status === 'rendered') {
+      setPendingClips(next);
+    } else {
+      setClips(next);
+    }
+  };
+
+  const handleNext = () => {
+    if (status === 'analyzed' || status === 'rendered') {
+      navigate('s2');
+    } else {
+      transition('ADD_CLIPS', clips);
+    }
+  };
 
   return (
     <div className="app-shell">
@@ -53,15 +69,29 @@ export default function ClipImport() {
       <BottomBar
         left={<span className="lb">클립 {clips.length}개 · 총 {fmtDuration(totalSec)} · {aspectSummary()}</span>}
         right={
-          <button
-            className="btn-primary"
-            disabled={!canNext}
-            onClick={() => setCurrentScreen('s2')}
-          >
-            다음: 요청 →
+          <button className="btn-primary" disabled={!canNext} onClick={handleNext}>
+            {status === 'analyzed' || status === 'rendered' ? '요청 화면으로 →' : '다음: 요청 →'}
           </button>
         }
       />
+
+      {pendingClips && (
+        <>
+          <div className="modal-dim" />
+          <div className="modal">
+            <div style={{ padding: '16px 16px 12px', fontWeight: 600 }}>분석을 다시 해야 해요</div>
+            <div className="lb" style={{ padding: '0 16px 16px' }}>
+              클립을 바꾸면 분석 결과와 편집 선택이 초기화돼요. 계속할까요?
+            </div>
+            <div className="bottom-bar">
+              <button onClick={() => setPendingClips(null)}>취소</button>
+              <button className="btn-primary" onClick={() => { transition('CHANGE_CLIPS', pendingClips); setPendingClips(null); }}>
+                초기화하고 계속
+              </button>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

@@ -1,7 +1,3 @@
-/**
- * API 레이어 — 지금은 mock JSON을 돌려준다.
- * 나중에 이 파일만 fetch로 교체하면 된다.
- */
 import clipsData           from '../mock/clips.json';
 import judgmentRulesData   from '../mock/judgment_rules.json';
 import executionRulesData  from '../mock/execution_rules.json';
@@ -23,4 +19,23 @@ export async function getResult()         { await delay(50); return resultData; 
 export async function getProgress(stage = 'analyzing') {
   await delay(50);
   return stage === 'rendering' ? progressRendering : progressAnalyzing;
+}
+
+const PROJECT_KEY = 'vibecut_project';
+
+export function getProjectSync() {
+  try {
+    const raw = localStorage.getItem(PROJECT_KEY);
+    return raw ? JSON.parse(raw) : { status: 'created' };
+  } catch {
+    return { status: 'created' };
+  }
+}
+
+export async function saveProject(data) {
+  try {
+    localStorage.setItem(PROJECT_KEY, JSON.stringify(data));
+  } catch (e) {
+    console.warn('[saveProject] localStorage write failed', e);
+  }
 }

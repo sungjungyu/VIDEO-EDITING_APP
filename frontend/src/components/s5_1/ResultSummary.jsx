@@ -4,9 +4,18 @@ const TOPIC_COLORS_CSS = ['var(--topic-1)', 'var(--topic-2)', 'var(--topic-3)', 
 
 export default function ResultSummary({ result }) {
   const { duration, source_duration, target_sec, topic_ratio, requests, fixes, timing } = result;
-  const diff     = duration - target_sec;
-  const diffStr  = diff >= 0 ? `+${diff}초` : `${diff}초`;
-  const totalTime = (timing?.analyze ?? 0) + (timing?.edit ?? 0) + (timing?.render ?? 0);
+  if (target_sec == null) console.warn('[ResultSummary] result.target_sec missing');
+  const diffStr = target_sec != null
+    ? (() => { const d = duration - target_sec; return d >= 0 ? `+${d}초` : `${d}초`; })()
+    : '—';
+
+  if (!timing) console.warn('[ResultSummary] result.timing missing');
+  const tAnalyze = timing?.analyze;
+  const tEdit    = timing?.edit;
+  const tRender  = timing?.render;
+  const totalTime = (tAnalyze != null && tEdit != null && tRender != null)
+    ? tAnalyze + tEdit + tRender
+    : null;
 
   return (
     <div className="pane" style={{ display: 'flex', flexDirection: 'column', gap: 12, overflowY: 'auto' }}>
@@ -61,7 +70,7 @@ export default function ResultSummary({ result }) {
       <div className="card">
         <div className="lb">작업 시간</div>
         <div style={{ marginTop: 2 }}>
-          분석 {fmtMinSec(timing?.analyze ?? 0)} · 구조 편집 {fmtMinSec(timing?.edit ?? 0)} · 렌더 {fmtMinSec(timing?.render ?? 0)} = <b>{fmtMinSec(totalTime)}</b>
+          분석 {tAnalyze != null ? fmtMinSec(tAnalyze) : '—'} · 구조 편집 {tEdit != null ? fmtMinSec(tEdit) : '—'} · 렌더 {tRender != null ? fmtMinSec(tRender) : '—'} = <b>{totalTime != null ? fmtMinSec(totalTime) : '—'}</b>
         </div>
       </div>
     </div>

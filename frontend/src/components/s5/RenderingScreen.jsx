@@ -28,10 +28,11 @@ function stepStatus(percent, idx) {
 const REVIEW_BADGE = { fix: 'success', warn: 'warning', ok: 'success' };
 
 export default function RenderingScreen() {
-  const { setCurrentScreen } = useProject();
-  const [percent,  setPercent]  = useState(0);
-  const [elapsed,  setElapsed]  = useState(0);
-  const [mockData, setMockData] = useState(null);
+  const { status, renderError, transition } = useProject();
+  const [percent,     setPercent]     = useState(0);
+  const [elapsed,     setElapsed]     = useState(0);
+  const [mockData,    setMockData]    = useState(null);
+  const [showCancel,  setShowCancel]  = useState(false);
   const startTime = useRef(Date.now());
 
   useEffect(() => {
@@ -39,17 +40,38 @@ export default function RenderingScreen() {
   }, []);
 
   useEffect(() => {
+    if (status === 'render_failed') return;
     if (percent >= 100) return;
     const id = setInterval(() => {
       setElapsed(Math.floor((Date.now() - startTime.current) / 1000));
       setPercent(p => Math.min(p + 2, 100));
     }, 100);
     return () => clearInterval(id);
-  }, [percent]);
+  }, [percent, status]);
 
   const done = percent >= 100;
   const cur  = mockData?.current;
   const currentLabel = cur ? `${cur.label} (${cur.clip_label})` : '';
+
+  if (status === 'render_failed') {
+    return (
+      <div className="app-shell">
+        <TopBar />
+        <div className="progress-wrap" style={{ flex: 1, overflowY: 'auto' }}>
+          <div className="progress-title" style={{ color: 'var(--color-danger)' }}>렌더 실패</div>
+          <div className="lb">{renderError?.message ?? '렌더 중 오류가 발생했어요.'}</div>
+        </div>
+        <BottomBar
+          left={null}
+          right={
+            <button className="btn-primary" onClick={() => transition('BACK_TO_EDITOR')}>
+              구조 편집으로 →
+            </button>
+          }
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="app-shell">
@@ -62,11 +84,11 @@ export default function RenderingScreen() {
 
         <div className="row" style={{ justifyContent: 'center', flexWrap: 'wrap' }}>
           {STEP_LABELS.map(({ key, label }, i) => {
-            const status = stepStatus(percent, i);
+            const st     = stepStatus(percent, i);
             const detail = key === 'cut' && mockData?.current ? ` · ${mockData.current.label}` : '';
             return (
-              <Chip key={key} variant={status === 'done' ? 'done' : status === 'running' ? 'on' : 'default'}>
-                {status === 'done' ? '✔ ' : ''}{label}{detail}
+              <Chip key={key} variant={st === 'done' ? 'done' : st === 'running' ? 'on' : 'default'}>
+                {st === 'done' ? '✔ ' : ''}{label}{detail}
               </Chip>
             );
           })}
@@ -117,13 +139,39 @@ export default function RenderingScreen() {
       </div>
 
       <BottomBar
-        left={<button onClick={() => setCurrentScreen('s4')}>취소하고 구조 편집으로</button>}
+        left={
+          <button onClick={() => setShowCancel(true)} disabled={done}>
+            취소하고 구조 편집으로
+          </button>
+        }
         right={
-          <button className="btn-primary" disabled={!done} onClick={() => setCurrentScreen('s51')}>
+          <button
+            className="btn-primary"
+            disabled={!done}
+            onClick={() => transition('RENDER_SUCCESS')}
+          >
             결과 보기 →
           </button>
         }
       />
+
+      {showCancel && (
+        <>
+          <div className="modal-dim" />
+          <div className="modal">
+            <div style={{ padding: '16px 16px 12px', fontWeight: 600 }}>렌더를 취소할까요?</div>
+            <div className="lb" style={{ padding: '0 16px 16px' }}>
+              지금까지의 렌더 진행이 취소되고 구조 편집으로 돌아가요.
+            </div>
+            <div className="bottom-bar">
+              <button onClick={() => setShowCancel(false)}>계속 렌더</button>
+              <button className="btn-primary" onClick={() => { transition('CANCEL_RENDER'); setShowCancel(false); }}>
+                취소하고 구조 편집으로
+              </button>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

@@ -4,8 +4,10 @@ import { fmtDuration } from '../../utils/format.js';
 function StatusBar({ status, percent }) {
   if (status === 'done')
     return <div className="bar" style={{ height: 7 }}><i style={{ width: '100%', background: 'var(--color-success)' }} /></div>;
-  if (status === 'running')
-    return <div className="bar" style={{ height: 7 }}><i style={{ width: `${percent ?? 50}%` }} /></div>;
+  if (status === 'running') {
+    if (percent == null) return <span className="lb">대기</span>;
+    return <div className="bar" style={{ height: 7 }}><i style={{ width: `${percent}%` }} /></div>;
+  }
   if (status === 'failed')
     return <span style={{ color: 'var(--color-danger)' }}>실패</span>;
   return <span className="lb">대기</span>;

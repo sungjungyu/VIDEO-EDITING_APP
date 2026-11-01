@@ -15,8 +15,10 @@ export default function ConfirmModal({ rules, onBack, onConfirm }) {
     }));
   };
 
-  const totalMin = Math.floor((local.target_sec ?? 0) / 60);
-  const totalSec = (local.target_sec ?? 0) % 60;
+  const targetSecVal = local.target_sec;
+  if (targetSecVal == null) console.warn('[ConfirmModal] judgment_rules.target_sec missing');
+  const totalMin = targetSecVal != null ? Math.floor(targetSecVal / 60) : null;
+  const totalSec = targetSecVal != null ? targetSecVal % 60 : null;
 
   return (
     <>
@@ -31,7 +33,9 @@ export default function ConfirmModal({ rules, onBack, onConfirm }) {
           <div className="row">
             <span className="lb" style={{ width: 64 }}>영상 성격</span>
             <Chip>{local.purpose} ✎</Chip>
-            <span className="lb" style={{ marginLeft: 'auto' }}>목표 {totalMin}:{String(totalSec).padStart(2,'0')}</span>
+            <span className="lb" style={{ marginLeft: 'auto' }}>
+              목표 {totalMin != null ? `${totalMin}:${String(totalSec).padStart(2,'0')}` : '—'}
+            </span>
           </div>
 
           <RuleBox

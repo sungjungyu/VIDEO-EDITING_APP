@@ -9,7 +9,7 @@ import DetailPanel from './DetailPanel.jsx';
 import EditorTimeline from './EditorTimeline.jsx';
 
 export default function StructureEditor() {
-  const { selection, setSelection, setCurrentScreen } = useProject();
+  const { selection, setSelection, transition } = useProject();
   const [treeData,     setTreeData]     = useState(null);
   const [selectedPath, setSelectedPath] = useState([null, null, null, null]);
   const [selectedScene, setSelectedScene] = useState(null);
@@ -47,11 +47,15 @@ export default function StructureEditor() {
 
   const breadcrumb = selectedPath.filter(Boolean);
 
+  const targetSec = selection?.target_sec;
+  if (targetSec == null && selection != null) console.warn('[StructureEditor] selection.target_sec missing');
+  const targetLabel = targetSec != null ? fmtDuration(targetSec) : '—';
+
   return (
     <div className="app-shell" style={{ height: '100vh', maxHeight: '100vh' }}>
       <TopBar
         rightContent={
-          <span>선택 <b>{fmtDuration(onTotal)}</b> / 목표 {fmtDuration(selection?.target_sec ?? 600)}</span>
+          <span>선택 <b>{fmtDuration(onTotal)}</b> / 목표 {targetLabel}</span>
         }
       />
 
@@ -72,6 +76,7 @@ export default function StructureEditor() {
         <EditorTimeline
           treeData={treeData}
           selectionNodes={selNodes}
+          selection={selection}
           selectedScene={selectedScene}
           totalSec={3600}
         />
@@ -86,7 +91,7 @@ export default function StructureEditor() {
         right={
           <div className="row">
             <button>AI로 목표 분량 채우기</button>
-            <button className="btn-primary" onClick={() => setCurrentScreen('s5')}>렌더 →</button>
+            <button className="btn-primary" onClick={() => transition('START_RENDER')}>렌더 →</button>
           </div>
         }
       />

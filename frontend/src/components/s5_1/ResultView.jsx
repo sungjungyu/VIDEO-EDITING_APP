@@ -7,7 +7,7 @@ import ResultPlayer from './ResultPlayer.jsx';
 import ResultSummary from './ResultSummary.jsx';
 
 export default function ResultView() {
-  const { setCurrentScreen } = useProject();
+  const { navigate } = useProject();
   const [result,      setResult]      = useState(null);
   const [selectedSeg, setSelectedSeg] = useState(null);
 
@@ -32,8 +32,8 @@ export default function ResultView() {
       <BottomBar
         left={
           <div className="row">
-            <button onClick={() => setCurrentScreen('s4')}>← 구조 편집으로 돌아가기</button>
-            <button>스타일만 바꾸기</button>
+            <button onClick={() => navigate('s4')}>← 구조 편집으로 돌아가기</button>
+            <button onClick={() => navigate('s2')}>스타일만 바꾸기</button>
           </div>
         }
         right={

@@ -8,7 +8,7 @@ import StylePanel from './StylePanel.jsx';
 import ConfirmModal from '../s2_1/ConfirmModal.jsx';
 
 export default function RequestScreen() {
-  const { clips, judgmentRules, setJudgmentRules, executionRules, setExecutionRules, setCurrentScreen } = useProject();
+  const { status, clips, judgmentRules, setJudgmentRules, executionRules, setExecutionRules, transition, navigate } = useProject();
 
   const [oneLine,    setOneLine]    = useState('친구랑 편의점 갔다가 집에서 먹방하는 밤 브이로그');
   const [targetMin,  setTargetMin]  = useState(10);
@@ -26,9 +26,13 @@ export default function RequestScreen() {
   const totalSec = clips.reduce((s, c) => s + c.duration, 0);
 
   const handleConfirm = (confirmedRules) => {
-    setJudgmentRules(confirmedRules);
     setShowModal(false);
-    setCurrentScreen('s3');
+    if (status === 'analyzed' || status === 'rendered') {
+      transition('CHANGE_REQUEST', confirmedRules);
+      navigate('s4');
+    } else {
+      transition('CONFIRM_REQUEST', confirmedRules);
+    }
   };
 
   return (
@@ -110,7 +114,7 @@ export default function RequestScreen() {
       )}
 
       <BottomBar
-        left={<button onClick={() => setCurrentScreen('s1')}>← 가져오기</button>}
+        left={<button onClick={() => navigate('s1')}>← 가져오기</button>}
         right={
           <button
             className="btn-primary"
