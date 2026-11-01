@@ -6,9 +6,12 @@ import TopBar from '../common/TopBar.jsx';
 import BottomBar from '../common/BottomBar.jsx';
 import ClipCard from './ClipCard.jsx';
 
+const NEEDS_CONFIRM = (status) => status === 'analyzed' || status === 'rendered';
+
 export default function ClipImport() {
   const { status, clips, setClips, transition, navigate } = useProject();
-  const [pendingClips, setPendingClips] = useState(null); // awaiting CHANGE_CLIPS confirm
+  // pendingClips: new clip list waiting for user confirm before CHANGE_CLIPS
+  const [pendingClips, setPendingClips] = useState(null);
 
   useEffect(() => {
     getClips().then(setClips);
@@ -26,21 +29,41 @@ export default function ClipImport() {
     return Object.entries(counts).map(([a, n]) => `${a} ×${n}`).join(', ');
   };
 
-  const handleRemove = (id) => {
-    const next = clips.filter(c => c.id !== id);
-    if (status === 'analyzed' || status === 'rendered') {
-      setPendingClips(next);
+  // Any clip-list change while analyzed/rendered: show confirm first
+  const applyOrConfirm = (newClips) => {
+    if (NEEDS_CONFIRM(status)) {
+      setPendingClips(newClips);
     } else {
-      setClips(next);
+      setClips(newClips);
     }
   };
 
+  const handleRemove = (id) => applyOrConfirm(clips.filter(c => c.id !== id));
+
+  const handleSort = () => {
+    const sorted = [...clips].sort((a, b) => (a.recorded_at ?? a.file) < (b.recorded_at ?? b.file) ? -1 : 1);
+    applyOrConfirm(sorted);
+  };
+
+  const handleAddClick = () => {
+    if (NEEDS_CONFIRM(status)) {
+      // In mock mode we can't add real files; show confirm so analysis is reset first
+      setPendingClips(clips);
+    }
+    // else: no-op in mock (file picker not implemented)
+  };
+
   const handleNext = () => {
-    if (status === 'analyzed' || status === 'rendered') {
+    if (NEEDS_CONFIRM(status)) {
       navigate('s2');
     } else {
       transition('ADD_CLIPS', clips);
     }
+  };
+
+  const confirmChange = () => {
+    transition('CHANGE_CLIPS', pendingClips);
+    setPendingClips(null);
   };
 
   return (
@@ -52,7 +75,7 @@ export default function ClipImport() {
           <div className="sec" style={{ margin: 0 }}>촬영 클립</div>
           <div className="row">
             <span className="lb">드래그해서 순서를 바꿀 수 있어요</span>
-            <button>촬영 시각순 정렬</button>
+            <button onClick={handleSort}>촬영 시각순 정렬</button>
           </div>
         </div>
 
@@ -60,7 +83,7 @@ export default function ClipImport() {
           {clips.map(clip => (
             <ClipCard key={clip.id} clip={clip} onRemove={handleRemove} />
           ))}
-          <div className="clip-card add-card">
+          <div className="clip-card add-card" onClick={handleAddClick}>
             + 영상 추가 (클릭 또는 끌어다 놓기)
           </div>
         </div>
@@ -70,7 +93,7 @@ export default function ClipImport() {
         left={<span className="lb">클립 {clips.length}개 · 총 {fmtDuration(totalSec)} · {aspectSummary()}</span>}
         right={
           <button className="btn-primary" disabled={!canNext} onClick={handleNext}>
-            {status === 'analyzed' || status === 'rendered' ? '요청 화면으로 →' : '다음: 요청 →'}
+            {NEEDS_CONFIRM(status) ? '요청 화면으로 →' : '다음: 요청 →'}
           </button>
         }
       />
@@ -85,9 +108,7 @@ export default function ClipImport() {
             </div>
             <div className="bottom-bar">
               <button onClick={() => setPendingClips(null)}>취소</button>
-              <button className="btn-primary" onClick={() => { transition('CHANGE_CLIPS', pendingClips); setPendingClips(null); }}>
-                초기화하고 계속
-              </button>
+              <button className="btn-primary" onClick={confirmChange}>초기화하고 계속</button>
             </div>
           </div>
         </>

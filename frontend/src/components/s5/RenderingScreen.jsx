@@ -28,19 +28,21 @@ function stepStatus(percent, idx) {
 const REVIEW_BADGE = { fix: 'success', warn: 'warning', ok: 'success' };
 
 export default function RenderingScreen() {
-  const { status, renderError, transition } = useProject();
-  const [percent,     setPercent]     = useState(0);
-  const [elapsed,     setElapsed]     = useState(0);
-  const [mockData,    setMockData]    = useState(null);
-  const [showCancel,  setShowCancel]  = useState(false);
-  const startTime = useRef(Date.now());
+  const { status, renderError, transition, navigate } = useProject();
+  const [percent,    setPercent]   = useState(0);
+  const [elapsed,    setElapsed]   = useState(0);
+  const [mockData,   setMockData]  = useState(null);
+  const [showCancel, setShowCancel] = useState(false);
+  const startTime     = useRef(Date.now());
+  const didTransition = useRef(false);
 
   useEffect(() => {
     getProgress('rendering').then(setMockData);
   }, []);
 
+  // Animate only while rendering
   useEffect(() => {
-    if (status === 'render_failed') return;
+    if (status !== 'rendering') return;
     if (percent >= 100) return;
     const id = setInterval(() => {
       setElapsed(Math.floor((Date.now() - startTime.current) / 1000));
@@ -49,9 +51,19 @@ export default function RenderingScreen() {
     return () => clearInterval(id);
   }, [percent, status]);
 
-  const done = percent >= 100;
-  const cur  = mockData?.current;
+  // Auto-transition on completion
+  useEffect(() => {
+    if (status !== 'rendering') return;
+    if (percent < 100) return;
+    if (didTransition.current) return;
+    didTransition.current = true;
+    transition('RENDER_SUCCESS');
+  }, [percent, status, transition]);
+
+  const displayPercent = status === 'rendered' ? 100 : percent;
+  const cur = mockData?.current;
   const currentLabel = cur ? `${cur.label} (${cur.clip_label})` : '';
+  const done = status === 'rendered';
 
   if (status === 'render_failed') {
     return (
@@ -84,7 +96,7 @@ export default function RenderingScreen() {
 
         <div className="row" style={{ justifyContent: 'center', flexWrap: 'wrap' }}>
           {STEP_LABELS.map(({ key, label }, i) => {
-            const st     = stepStatus(percent, i);
+            const st     = stepStatus(displayPercent, i);
             const detail = key === 'cut' && mockData?.current ? ` · ${mockData.current.label}` : '';
             return (
               <Chip key={key} variant={st === 'done' ? 'done' : st === 'running' ? 'on' : 'default'}>
@@ -97,17 +109,17 @@ export default function RenderingScreen() {
         <RenderTimeline
           segments={mockData?.segments}
           currentLabel={currentLabel}
-          renderPercent={percent}
+          renderPercent={displayPercent}
         />
 
         <div style={{ width: 'min(580px, 100%)' }}>
           <div className="row lb" style={{ justifyContent: 'space-between' }}>
             <span>전체 진행</span>
-            <b style={{ color: 'var(--color-text)' }}>{percent}%</b>
+            <b style={{ color: 'var(--color-text)' }}>{displayPercent}%</b>
           </div>
-          <ProgressBar percent={percent} height={10} />
+          <ProgressBar percent={displayPercent} height={10} />
           <div className="lb" style={{ marginTop: 6, textAlign: 'center' }}>
-            {done ? '렌더가 완료됐어요!' : `예상 남은 시간 약 ${fmtMinSec(Math.round((100 - percent) * 0.05))}`}
+            {done ? '렌더가 완료됐어요!' : `예상 남은 시간 약 ${fmtMinSec(Math.round((100 - displayPercent) * 0.05))}`}
           </div>
         </div>
 
@@ -148,7 +160,7 @@ export default function RenderingScreen() {
           <button
             className="btn-primary"
             disabled={!done}
-            onClick={() => transition('RENDER_SUCCESS')}
+            onClick={() => navigate('s51')}
           >
             결과 보기 →
           </button>

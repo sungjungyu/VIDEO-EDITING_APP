@@ -22,33 +22,39 @@ function stepStatus(percent, idx) {
 const STEP_LABELS = ['1. 받아쓰기', '2. 영상 분석', '3. 말·장면 맞추기', '4. 4단 구조화'];
 
 export default function AnalyzingScreen() {
-  const { status, analyzeError, transition } = useProject();
+  const { status, analyzeError, transition, navigate } = useProject();
   const [percent,  setPercent]  = useState(0);
   const [elapsed,  setElapsed]  = useState(0);
   const [mockData, setMockData] = useState(null);
-  const startTime = useRef(Date.now());
+  const startTime    = useRef(Date.now());
+  const didTransition = useRef(false);
+
   useEffect(() => {
     getProgress('analyzing').then(setMockData);
   }, []);
 
+  // Animate progress only while still analyzing
   useEffect(() => {
-    if (status === 'analyze_failed') return;
+    if (status !== 'analyzing') return;
     if (percent >= 100) return;
     const id = setInterval(() => {
-      const secs = Math.floor((Date.now() - startTime.current) / 1000);
-      setElapsed(secs);
+      setElapsed(Math.floor((Date.now() - startTime.current) / 1000));
       setPercent(p => Math.min(p + 1, 100));
     }, 150);
     return () => clearInterval(id);
   }, [percent, status]);
 
-  const handleDone = async () => {
-    const sel = await getSelection();
-    transition('ANALYZE_SUCCESS', { selection: sel });
-  };
+  // Auto-transition when animation reaches 100 — screen just reads, status decides
+  useEffect(() => {
+    if (status !== 'analyzing') return;
+    if (percent < 100) return;
+    if (didTransition.current) return;
+    didTransition.current = true;
+    getSelection().then(sel => transition('ANALYZE_SUCCESS', { selection: sel }));
+  }, [percent, status, transition]);
 
-  const done    = percent >= 100;
-  const eta     = done ? 0 : Math.round((100 - percent) * 0.15);
+  // When status is already 'analyzed' (e.g., after refresh on this screen), show 100%
+  const displayPercent = status === 'analyzed' ? 100 : percent;
   const curClip = mockData?.current?.label ?? '';
 
   if (status === 'analyze_failed') {
@@ -61,7 +67,7 @@ export default function AnalyzingScreen() {
           <div className="lb" style={{ marginBottom: 8 }}>
             {analyzeError?.message ?? '일부 클립 분석 중 오류가 발생했어요.'}
           </div>
-          {failedClips.map(c => (
+          {failedClips.length > 0 ? failedClips.map(c => (
             <div key={c.id} className="warn row" style={{ justifyContent: 'space-between', marginBottom: 6 }}>
               <span>{c.file}</span>
               <div className="row" style={{ gap: 6 }}>
@@ -69,8 +75,7 @@ export default function AnalyzingScreen() {
                 <button className="btn-primary" onClick={() => transition('RETRY_ANALYZE')}>다시 시도</button>
               </div>
             </div>
-          ))}
-          {failedClips.length === 0 && (
+          )) : (
             <button className="btn-primary" onClick={() => transition('RETRY_ANALYZE')}>다시 시도</button>
           )}
         </div>
@@ -85,16 +90,17 @@ export default function AnalyzingScreen() {
 
       <div className="progress-wrap" style={{ flex: 1, overflowY: 'auto' }}>
         <div className="progress-title">
-          ③ 분석 중{!done && <span className="dots">…</span>}
+          ③ 분석 중{status !== 'analyzed' && <span className="dots">…</span>}
         </div>
 
         <div className="row" style={{ justifyContent: 'center', flexWrap: 'wrap' }}>
           {STEP_LABELS.map((label, i) => {
-            const st = stepStatus(percent, i);
+            const st = stepStatus(displayPercent, i);
             return (
               <Chip key={i} variant={st === 'done' ? 'done' : st === 'running' ? 'on' : 'default'}>
                 {st === 'done' ? '✔ ' : ''}{label}
-                {i === 1 && st === 'running' && mockData?.clips && ` · 클립 ${mockData.clips.filter(c => c.vision === 'done').length + 1}/${mockData.clips.length}`}
+                {i === 1 && st === 'running' && mockData?.clips &&
+                  ` · 클립 ${mockData.clips.filter(c => c.vision === 'done').length + 1}/${mockData.clips.length}`}
               </Chip>
             );
           })}
@@ -110,11 +116,13 @@ export default function AnalyzingScreen() {
         <div style={{ width: 'min(540px, 100%)' }}>
           <div className="row lb" style={{ justifyContent: 'space-between' }}>
             <span>전체 진행</span>
-            <b style={{ color: 'var(--color-text)' }}>{percent}%</b>
+            <b style={{ color: 'var(--color-text)' }}>{displayPercent}%</b>
           </div>
-          <ProgressBar percent={percent} height={10} />
+          <ProgressBar percent={displayPercent} height={10} />
           <div className="lb" style={{ marginTop: 6, textAlign: 'center' }}>
-            {done ? '분석이 완료됐어요!' : `예상 남은 시간 약 ${fmtMinSec(eta)} · 창을 닫아도 분석은 계속돼요`}
+            {status === 'analyzed'
+              ? '분석이 완료됐어요!'
+              : `예상 남은 시간 약 ${fmtMinSec(Math.round((100 - displayPercent) * 0.15))} · 창을 닫아도 분석은 계속돼요`}
           </div>
         </div>
 
@@ -142,8 +150,8 @@ export default function AnalyzingScreen() {
         right={
           <button
             className="btn-primary"
-            disabled={!done}
-            onClick={handleDone}
+            disabled={status !== 'analyzed'}
+            onClick={() => navigate('s4')}
           >
             구조 편집 시작 →
           </button>

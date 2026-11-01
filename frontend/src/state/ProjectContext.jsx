@@ -19,10 +19,10 @@ const ALLOWED_SCREENS = {
   clips_ready:    ['s1', 's2'],
   analyzing:      ['s3'],
   analyze_failed: ['s3'],
-  analyzed:       ['s1', 's2', 's4'],
+  analyzed:       ['s1', 's2', 's3', 's4'],  // s3: 분석 완료 후 화면에 머물 수 있음
   rendering:      ['s5'],
   render_failed:  ['s5'],
-  rendered:       ['s1', 's2', 's4', 's51'],
+  rendered:       ['s1', 's2', 's4', 's5', 's51'],  // s5: 렌더 완료 후 화면에 머물 수 있음
 };
 
 // state × action → next state
@@ -53,18 +53,18 @@ const VALID_TRANSITIONS = {
   },
 };
 
-// which screen to navigate to after each action (undefined = stay on current screen)
+// screen to navigate to after each action; omitted = screen stays as-is
+// ANALYZE_SUCCESS / RENDER_SUCCESS intentionally omitted:
+// status changes but the progress screen stays visible until the user clicks the button.
 const ACTION_SCREEN = {
   ADD_CLIPS:        's2',
   CLEAR_CLIPS:      's1',
   CONFIRM_REQUEST:  's3',
-  ANALYZE_SUCCESS:  's4',
   ANALYZE_FAIL:     's3',
   RETRY_ANALYZE:    's3',
   SKIP_CLIP:        's3',
   CHANGE_CLIPS:     's1',
   START_RENDER:     's5',
-  RENDER_SUCCESS:   's51',
   RENDER_FAIL:      's5',
   CANCEL_RENDER:    's4',
   BACK_TO_EDITOR:   's4',
@@ -98,19 +98,20 @@ export function ProjectProvider({ children }) {
     }
   }, [currentScreen]);
 
-  // Handle browser back/forward
+  // Handle hash changes: browser back/forward AND manual URL-bar edits
   useEffect(() => {
-    const onPop = () => {
+    const onHash = () => {
       const hash    = window.location.hash.slice(1);
       const allowed = ALLOWED_SCREENS[statusRef.current] ?? ['s1'];
       if (allowed.includes(hash)) {
         setCurrentScreen(hash);
       } else {
+        // redirect to the canonical screen for this status
         window.location.hash = STATUS_TO_SCREEN[statusRef.current] ?? 's1';
       }
     };
-    window.addEventListener('popstate', onPop);
-    return () => window.removeEventListener('popstate', onPop);
+    window.addEventListener('hashchange', onHash);
+    return () => window.removeEventListener('hashchange', onHash);
   }, []);
 
   // Persist status (+ clips for restart continuity) on every change
