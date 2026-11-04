@@ -64,7 +64,7 @@ audio.mp3
 
 # VIBE CUT 실험 산출물 (scene_analyzer 캐시, 촬영 원본, 장면/트리 결과)
 /.vibecut_cache/
-/raw_clips/
+/raw_clips*/
 /scenes*.json
 /scenes*.md
 /transcript*.json
@@ -73,3 +73,6 @@ audio.mp3
 /shots*.md
 /tree*.json
 /tree*.md
+/grouped_scenes*
+/test_scenes*
+.claude/

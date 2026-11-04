@@ -3,15 +3,15 @@ VIBE CUT 1-3: 4단 트리 (장소·세션 → 행동 흐름 → 세부 행동 �
 
 받아쓰기(transcriber.py)와 L4 장면 분석(shot_analyzer.py) 결과를 합쳐 4단 트리를 만든다.
 
-    L1 장소·세션   카페 (1차 방문)        같은 장소라도 다른 곳에 다녀왔거나 촬영이 끊기면 새 세션
+    L1 장소·세션   카페 (1차 방문)        집·카페처럼 큰 장소 단위. 방 이동·실내외 왕복은 같은 세션. 촬영 끊김은 무조건 새 세션
     L2 행동 흐름   주문 흐름              연속으로 이어지는 큰 행동 덩어리 (화면에서 보이는 것만)
     L3 세부 행동   메뉴판 보기 / 결제     흐름 안에서 맥락이 바뀌는 단계 (대사도 참고)
-    L4 장면        카운터 앞에서 메뉴판을 올려다본다 (3~7초)  ← 그 시간의 대사(받아쓰기 문장)가 붙는다
+    L4 장면        카운터 앞에서 메뉴판을 올려다본다 (10~30초)  ← 그 시간의 대사(받아쓰기 문장)가 붙는다
 
 앱 흐름의 2~4단계:
     2. 정형화        normalize_clips / normalize_lines / normalize_shots
                      두 결과를 같은 모양, 같은 시간축(전체 타임라인 초)으로 맞춘다
-    3. 합치기·보정   build_units (코드)       장면 경계를 문장 사이 쉼으로 옮기고, 3~7초로 나누고, 대사를 붙인다
+    3. 합치기·보정   build_units (코드)       장면 경계를 문장 사이 쉼으로 옮기고, 10~30초로 나누고, 대사를 붙인다
                      ask_tree (AI)            앞뒤 대사·화면 설명·화면 글자로 잘못 들은 단어를 고치고(보정),
                                               보정한 대사로 맥락을 읽어 L1~L3 경계·제목을 정한다
                      apply_corrections (코드)  AI 보정을 검사해서 적용 (발음이 비슷한 단어 바꿈만, 단어 시각 유지)
@@ -39,6 +39,7 @@ import bisect
 import difflib
 import hashlib
 import json
+import math
 import os
 import re
 import sys
@@ -54,20 +55,21 @@ TREE_FALLBACK_MODEL = os.getenv("TREE_FALLBACK_MODEL", "gemini-3.5-flash-lite")
 
 LEVEL_NAMES = ("장소·세션", "행동 흐름", "세부 행동", "장면")
 MIN_SHOT_SEC = 2.0        # 이보다 짧은 화면 장면은 이웃과 합친다
-UNIT_MIN_SEC = 3.0        # L4 장면 목표 길이 (3~7초)
-UNIT_MAX_SEC = 7.0
+UNIT_MIN_SEC = 10.0       # L4 장면 목표 최소 길이 (10~30초)
+UNIT_MAX_SEC = 30.0       # L4 장면 목표 최대 길이
 SNAP_PAD = 0.3            # 장면 경계를 문장 밖으로 옮길 때 문장에서 띄우는 최대 거리 (초)
 SESSION_GAP_SEC = 600.0   # 클립 사이 촬영 간격이 이보다 길면 무조건 새 세션 (10분)
-MAX_UNITS_PER_CALL = 240  # AI 한 번에 보내는 장면 수 (넘으면 나눠 보낸다, 약 20분)
+MAX_SEC_PER_CALL = 1200.0 # AI 한 번에 보내는 최대 시간(초, 약 20분)
+SESSION_MIN_SEC = 180.0   # 촬영 끊김 없이 이보다 짧은 세션은 이웃과 합친다 (3분)
 MIN_SOUND_SIMILARITY = 0.5  # 보정 전후 발음(자모) 유사도가 이보다 낮으면 보정을 받지 않는다
 EPS = 0.05
 
 # L4 나누기 비용 (작을수록 선호). 문장 사이 쉼 < 말 없는 곳 < 단어 사이
-# 7초를 넘는 조각은 1초당 1.0. → 말 없는 장면은 7.6초부터 나누고, 문장은 13초까지 통째로 둔다.
+# 30초를 넘는 조각은 1초당 1.0. → 말 없는 장면은 30.6초부터 나누고, 문장은 36초까지 통째로 둔다.
 CUT_COST_SENTENCE = 0.2
 CUT_COST_SILENT = 0.6
 CUT_COST_WORD = 6.0
-MAX_PIECE_SEC = 20.0      # 나누기 계산에서 보는 최대 조각 길이 (계산량 제한)
+MAX_PIECE_SEC = 60.0      # 나누기 계산에서 보는 최대 조각 길이 (계산량 제한)
 
 
 def _r(x: float) -> float:
@@ -115,8 +117,11 @@ def _clip_at(t: float, clips: list[dict]) -> dict:
     return clips[-1]
 
 
-def normalize_lines(segments: list[dict], clips: list[dict]) -> list[dict]:
+def normalize_lines(segments: list[dict], clips: list[dict],
+                    out_warnings: list | None = None) -> list[dict]:
     """받아쓰기 결과(transcript.json segments 또는 앱의 segments) → 대사 목록 (전체 타임라인 초).
+    end<=start인 세그먼트는 words 시각의 처음/끝으로 복구 시도한다.
+    words도 없거나 여전히 end<=start면 버리고 out_warnings에 기록한다.
     [{"id": "t0001", "clip_id", "start", "end", "text", "words": [{"word", "start", "end"}]}]"""
     lines = []
     for s in segments or []:
@@ -125,7 +130,7 @@ def normalize_lines(segments: list[dict], clips: list[dict]) -> list[dict]:
         except (KeyError, TypeError, ValueError):
             continue
         text = _text(s.get("text"))
-        if not text or en <= st:
+        if not text:
             continue
         words = []
         for w in s.get("words") or []:
@@ -136,9 +141,23 @@ def normalize_lines(segments: list[dict], clips: list[dict]) -> list[dict]:
                 continue
             if word:
                 words.append({"word": word, "start": ws, "end": max(ws, we)})
+        if en <= st:
+            if words:
+                st, en = words[0]["start"], words[-1]["end"]
+            if en <= st:
+                seg_id = str(s.get("seg_id") or s.get("id") or "?")
+                if out_warnings is not None:
+                    out_warnings.append(
+                        f"대사 무효(end≤start, words 복구 불가): id={seg_id} "
+                        f"start={s.get('start')} text={text[:20]!r}")
+                continue
         clip_id = s.get("clip_id") or (_clip_at((st + en) / 2, clips)["id"] if clips else "c01")
-        lines.append({"id": str(s.get("seg_id") or s.get("id") or ""), "clip_id": str(clip_id),
-                      "start": st, "end": en, "text": text, "words": words})
+        speaker = s.get("speaker")
+        entry = {"id": str(s.get("seg_id") or s.get("id") or ""), "clip_id": str(clip_id),
+                 "start": st, "end": en, "text": text, "words": words}
+        if speaker:
+            entry["speaker"] = str(speaker)
+        lines.append(entry)
     lines.sort(key=lambda x: (x["start"], x["end"]))
     ids = [x["id"] for x in lines]
     if not all(ids) or len(set(ids)) != len(ids):
@@ -218,6 +237,44 @@ def snap_to_lines(pieces: list[dict], lines: list[dict]) -> list[dict]:
     return pieces
 
 
+def merge_short_units(pieces: list[dict], umin: float) -> list[dict]:
+    """umin보다 짧은 조각을 같은 place 이웃과만 합친다 (place 전체 문자열 비교).
+    같은 place 이웃이 없으면 짧아도 그대로 둔다.
+    같은 place 안에서: 같은 action 이웃 우선 > 더 짧은 이웃."""
+    pieces = list(pieces)
+    while True:
+        lengths = [p["end"] - p["start"] for p in pieces]
+        # 가장 짧고 같은 장소 이웃이 있는 조각을 찾는다
+        best_i = None
+        best_len = float("inf")
+        for i, length in enumerate(lengths):
+            if length >= umin - 1e-6:
+                continue
+            cur_place = pieces[i].get("place") or ""
+            has_same_place = cur_place and any(
+                0 <= j < len(pieces) and (pieces[j].get("place") or "") == cur_place
+                for j in (i - 1, i + 1)
+            )
+            if has_same_place and length < best_len:
+                best_i, best_len = i, length
+        if best_i is None:
+            break
+        i = best_i
+        cur = pieces[i]
+        cur_place = cur.get("place") or ""
+        same_place_nb = [j for j in (i - 1, i + 1)
+                         if 0 <= j < len(pieces) and (pieces[j].get("place") or "") == cur_place]
+
+        def neighbor_score(j: int) -> tuple:
+            same_action = bool(cur.get("action")) and cur.get("action") == pieces[j].get("action")
+            return (0 if same_action else 1, lengths[j])
+
+        j = min(same_place_nb, key=neighbor_score)
+        lo, hi = min(i, j), max(i, j)
+        pieces[lo:hi + 1] = [merge_shot(pieces[lo], pieces[hi])]
+    return pieces
+
+
 def _piece_cost(d: float, umin: float, umax: float) -> float:
     balance = 0.01 * (d - (umin + umax) / 2) ** 2      # 비용이 같으면 고른 길이(4+4초 > 5+3초)를 고른다
     if d < umin:
@@ -286,6 +343,8 @@ def attach_lines(units: list[dict], lines: list[dict]):
 
     for line in lines:
         extra = {"fixed": True, "text_raw": line["text_raw"]} if line.get("fixes") else {}
+        if line.get("speaker"):
+            extra["speaker"] = line["speaker"]
         words = line.get("words") or []
         if not words:
             unit_of((line["start"] + line["end"]) / 2)["lines"].append(
@@ -316,6 +375,7 @@ def build_units(shots: list[dict], lines: list[dict], clips: list[dict],
         if not pieces:
             continue
         pieces = merge_short(snap_to_lines(pieces, clines), MIN_SHOT_SEC)
+        pieces = merge_short_units(pieces, umin)
         for p in pieces:
             bounds = [p["start"]] + split_points(p["start"], p["end"], clines, umin, umax) + [p["end"]]
             n = len(bounds) - 1
@@ -509,7 +569,7 @@ TREE_SCHEMA = {
     },
 }
 
-TREE_PROMPT = """너는 브이로그 편집자다. 아래 [장면 목록]은 영상(여러 클립이면 촬영 순서대로 이어 붙인 것)을 3~7초 장면으로 나눈 것이다.
+TREE_PROMPT = """너는 브이로그 편집자다. 아래 [장면 목록]은 영상(여러 클립이면 촬영 순서대로 이어 붙인 것)을 10~30초 장면으로 나눈 것이다.
 장면마다 화면 설명(소리 없이 화면만 보고 쓴 것)과, 그 시간에 들린 대사(받아쓰기)가 있다. 아래 두 가지를 순서대로 한다.
 
 [1] 받아쓰기 보정 (corrections)
@@ -520,8 +580,8 @@ TREE_PROMPT = """너는 브이로그 편집자다. 아래 [장면 목록]은 영
 - 확실하지 않으면 고치지 않는다. 고칠 것이 없으면 빈 배열.
 
 [2] 4단 구조 (sessions → flows → steps). [1]에서 보정한 대사로 맥락을 읽는다.
-- L1 세션(sessions): 한 장소에 머문 한 번의 방문. 같은 장소라도 다른 곳에 다녀왔거나 [촬영 끊김]이 있으면 새 세션이다.
-  title은 "카페 (1차 방문)"처럼 장소와 몇 번째 방문인지 쓴다.
+- L1 세션(sessions): 집·카페처럼 큰 장소 단위, 또는 하나로 이어지는 사건. 같은 건물·집 안에서 방만 옮기거나 문 앞 실내외를 잠깐 왕복하는 것은 새 세션이 아니다. 같은 대화·사건이 이어지면 화면이 잠시 바뀌어도 한 세션이다. [촬영 끊김]이 있으면 무조건 새 세션.
+  title은 "카페 (1차 방문)"처럼 큰 장소와 몇 번째 방문인지 쓴다. 방문 번호는 앞 조각의 세션 목록을 이어서 매긴다.
 - L2 행동 흐름(flows): 세션 안에서 연속으로 이어지는 큰 행동 덩어리. 화면에서 관찰되는 행동만 기준으로 나눈다.
   (예: "주문 흐름", "착석·식사 흐름", "해변 산책 흐름")
 - L3 세부 행동(steps): 흐름 안에서 맥락이 바뀌는 단계. 화면과 대사를 함께 본다. (예: "메뉴판 보기", "주문 말하기", "결제")
@@ -541,6 +601,11 @@ def _fmt_mmss(sec: float) -> str:
     m, s = divmod(int(sec), 60)
     h, m = divmod(m, 60)
     return f"{h}:{m:02d}:{s:02d}" if h else f"{m}:{s:02d}"
+
+
+def _place_of(title: str) -> str:
+    """'카페 (1차 방문)' → '카페'. 제목에서 방문 번호 괄호를 제거한다."""
+    return re.sub(r"\s*\(\d+차\s*방문\)\s*$", "", title).strip()
 
 
 def format_units(units: list[dict], breaks: dict[int, dict], offset: int = 0) -> str:
@@ -564,20 +629,24 @@ def format_units(units: list[dict], breaks: dict[int, dict], offset: int = 0) ->
     return "\n".join(rows)
 
 
-def _chunks(n: int, breaks: dict[int, dict], max_units: int) -> list[tuple[int, int]]:
-    """AI에게 나눠 보낼 장면 범위. 촬영 끊김에서 먼저 자르고, 그래도 길면 고르게 자른다."""
+def _chunks(units: list[dict], breaks: dict[int, dict], max_sec: float = MAX_SEC_PER_CALL) -> list[tuple[int, int]]:
+    """AI에게 나눠 보낼 장면 범위. 촬영 끊김에서 먼저 자르고, 그래도 길면 시간 기준으로 고르게 자른다."""
+    n = len(units)
     cuts = [0] + sorted(i for i, b in breaks.items() if b["hard"]) + [n]
     out = []
     for lo, hi in zip(cuts, cuts[1:]):
-        parts = max(1, -(-(hi - lo) // max_units))
+        total_sec = sum(u["end"] - u["start"] for u in units[lo:hi])
+        parts = max(1, math.ceil(total_sec / max_sec))
         size = -(-(hi - lo) // parts)
         out += [(a, min(a + size, hi)) for a in range(lo, hi, size)]
     merged = []   # 촬영 끊김으로 생긴 작은 범위는 앞 범위에 붙인다 (호출 수 줄이기)
     for lo, hi in out:
-        if merged and (hi - merged[-1][0]) <= max_units:
-            merged[-1] = (merged[-1][0], hi)
-        else:
-            merged.append((lo, hi))
+        if merged:
+            combined_sec = sum(u["end"] - u["start"] for u in units[merged[-1][0]:hi])
+            if combined_sec <= max_sec:
+                merged[-1] = (merged[-1][0], hi)
+                continue
+        merged.append((lo, hi))
     return merged
 
 
@@ -671,21 +740,28 @@ def parse_structure(resp: dict, units: list[dict], lo: int, hi: int) -> tuple[di
     return out, warnings
 
 
-def ask_tree(units: list[dict], breaks: dict[int, dict], ask=None, max_units: int = MAX_UNITS_PER_CALL,
+def ask_tree(units: list[dict], breaks: dict[int, dict], ask=None, max_sec: float = MAX_SEC_PER_CALL,
              log=print) -> dict:
     """장면 목록을 AI에게 보내 보정 + L1~L3 경계를 받는다 (긴 영상은 나눠 보낸다).
     ask(prompt, schema) → dict 를 넘기면 그걸로 부른다 (테스트용). 반환:
     {"corrections": [...], "parts": [(lo, hi, 경계 목록 또는 None)], "warnings": [...]}"""
     corrections, parts, warnings = [], [], []
-    prev_titles = None
-    chunks = _chunks(len(units), breaks, max_units)
+    prev_context: dict | None = None   # 앞 조각에서 나온 세션 목록 + 마지막 세션·흐름 제목
+    chunks = _chunks(units, breaks, max_sec)
     for k, (lo, hi) in enumerate(chunks, 1):
         log(f"🧠 AI 보정·구조화 중 (장면 {units[lo]['id']}~{units[hi - 1]['id']}"
             + (f", {k}/{len(chunks)}번째" if len(chunks) > 1 else "") + ")")
         continuation = ""
-        if prev_titles:
-            continuation = (f"\n[앞부분 이어서] 이 목록은 앞 장면들에 이어진다. 앞부분은 세션 \"{prev_titles[0]}\", "
-                            f"흐름 \"{prev_titles[1]}\"에서 끝났다. 같은 세션·흐름이 이어지면 같은 제목을 그대로 쓴다.\n")
+        if prev_context:
+            sess_list = "\n".join(f"  - {t} (시작 {ts})" for t, ts in prev_context["all_sessions"])
+            continuation = (
+                f"\n[앞부분 이어서] 이 목록은 앞 장면들에 이어진다.\n"
+                f"지금까지 나온 세션 목록:\n{sess_list}\n"
+                f"앞부분은 세션 \"{prev_context['last_session']}\", "
+                f"흐름 \"{prev_context['last_flow']}\"에서 끝났다. "
+                f"같은 세션·흐름이 이어지면 같은 제목을 그대로 쓴다. "
+                f"새 세션의 방문 번호는 위 목록 다음 번호로 매긴다.\n"
+            )
         prompt = TREE_PROMPT.format(first=units[lo]["id"], continuation=continuation,
                                     units=format_units(units[lo:hi], breaks, lo))
         structure, why = None, []
@@ -702,7 +778,13 @@ def ask_tree(units: list[dict], breaks: dict[int, dict], ask=None, max_units: in
         warnings += [f"장면 {units[lo]['id']}~{units[hi - 1]['id']}: {w}" for w in why]
         parts.append((lo, hi, structure))
         if structure:
-            prev_titles = (structure["sessions"][-1]["title"], structure["flows"][-1]["title"])
+            new_sessions = [(s["title"], _fmt_mmss(units[s["start"]]["start"]))
+                            for s in structure["sessions"]]
+            prev_context = {
+                "all_sessions": (prev_context["all_sessions"] if prev_context else []) + new_sessions,
+                "last_session": structure["sessions"][-1]["title"],
+                "last_flow": structure["flows"][-1]["title"],
+            }
     return {"corrections": corrections, "parts": parts, "warnings": warnings}
 
 
@@ -725,8 +807,9 @@ def _smooth(labels: list[str]) -> list[str]:
 def fallback_structure(units: list[dict], breaks: dict[int, dict], lo: int = 0, hi: int | None = None,
                        visits: Counter | None = None) -> dict:
     """AI 없이 규칙으로 묶는다 (units[lo:hi] 범위).
-    세션 = 장소 라벨이 바뀌거나 촬영이 끊긴 곳, 흐름 = 세션 전체, 세부 행동 = 행동 라벨이 바뀌는 곳
-    (영상분석이 없어 행동 라벨이 없으면 장면 4개씩). visits는 범위를 넘어 'n차 방문'을 세는 데 쓴다."""
+    세션 = 장소 첫 낱말이 바뀌거나 촬영이 끊긴 곳, 흐름 = 세션 전체, 세부 행동 = 행동 라벨이 바뀌는 곳
+    (영상분석이 없어 행동 라벨이 없으면 장면 4개씩). visits는 범위를 넘어 'n차 방문'을 세는 데 쓴다.
+    3분 미만 세션은 이웃과 합친다 (SESSION_MIN_SEC)."""
     hi = len(units) if hi is None else hi
     visits = Counter() if visits is None else visits
     # 장소는 첫 낱말로 묶는다 ("해변 계단", "해변 모래사장" → 해변). 장면 분석이 같은 곳을 조금씩 다르게 부르기 때문
@@ -753,9 +836,59 @@ def fallback_structure(units: list[dict], breaks: dict[int, dict], lo: int = 0, 
     return out
 
 
+def _merge_short_sessions(merged: dict, units: list[dict], breaks: dict[int, dict],
+                           hi: int | None = None, min_sec: float = SESSION_MIN_SEC) -> None:
+    """촬영 끊김이 없는 한 min_sec 미만 세션을 이웃과 합친다 (in-place).
+    흡수 대상이 되려면 이웃이 min_sec 이상이어야 한다 (작은 조각끼리는 합치지 않음).
+    같은 큰 장소(_place_of 기준) 이웃 우선, 아니면 더 짧은 이웃."""
+    sessions = merged["sessions"]
+    n = hi if hi is not None else len(units)
+
+    def dur(i: int) -> float:
+        lo_i = sessions[i]["start"]
+        hi_i = sessions[i + 1]["start"] if i + 1 < len(sessions) else n
+        return sum((units[k].get("end") or 0) - (units[k].get("start") or 0) for k in range(lo_i, hi_i))
+
+    changed = True
+    while changed and len(sessions) > 1:
+        changed = False
+        for i in range(len(sessions)):
+            if dur(i) >= min_sec - 1e-6:
+                continue
+            cur_place = _place_of(sessions[i].get("title") or "")
+            cands = []
+            if i > 0 and not breaks.get(sessions[i]["start"], {}).get("hard"):
+                nb_dur = dur(i - 1)
+                if nb_dur >= min_sec - 1e-6:   # 건강한 이웃에만 흡수
+                    cands.append((i - 1, _place_of(sessions[i - 1].get("title") or "") == cur_place, nb_dur))
+            if i < len(sessions) - 1 and not breaks.get(sessions[i + 1]["start"], {}).get("hard"):
+                nb_dur = dur(i + 1)
+                if nb_dur >= min_sec - 1e-6:   # 건강한 이웃에만 흡수
+                    cands.append((i + 1, _place_of(sessions[i + 1].get("title") or "") == cur_place, nb_dur))
+            if not cands:
+                continue
+            j, _, _ = min(cands, key=lambda x: (0 if x[1] else 1, x[2]))
+            if j > i:
+                sessions[j]["start"] = sessions[i]["start"]
+            sessions.pop(i)
+            changed = True
+            break
+
+
+def _renumber_visits(sessions: list[dict]) -> None:
+    """세션 목록 전체를 훑어 '장소 (N차 방문)' 번호를 순서대로 다시 매긴다 (in-place)."""
+    visits: Counter = Counter()
+    for s in sessions:
+        place = _place_of(s.get("title") or "")
+        if place:
+            visits[place] += 1
+            s["title"] = f"{place} ({visits[place]}차 방문)"
+
+
 def combine_parts(units: list[dict], parts: list[tuple], breaks: dict[int, dict]) -> tuple[dict, list[str]]:
     """나눠 받은 경계 목록을 하나로 잇는다. 실패한 범위(None)는 규칙으로 채운다.
-    이음매에서 앞뒤 세션 제목이 같으면 같은 세션이 이어지는 것으로 보고 합친다 (흐름도 제목이 같으면 합침).
+    이음매에서 장소가 같으면 세션을 합친다 (방문 번호가 달라도). 흐름도 제목이 같으면 합침.
+    이후 3분 미만 세션을 이웃과 합치고 방문 번호를 전체 재매김한다.
     촬영 끊김에는 세션 경계를 강제로 넣는다."""
     merged = {"sessions": [], "flows": [], "steps": []}
     notes, visits = [], Counter()
@@ -765,8 +898,8 @@ def combine_parts(units: list[dict], parts: list[tuple], breaks: dict[int, dict]
             notes.append(f"{units[lo]['id']}~{units[hi - 1]['id']}")
         sessions, flows, steps = ([dict(x) for x in structure[k]] for k in ("sessions", "flows", "steps"))
         hard = breaks.get(lo, {}).get("hard")
-        if merged["sessions"] and not hard and sessions and sessions[0]["start"] == lo \
-                and sessions[0]["title"] == merged["sessions"][-1]["title"]:
+        if (merged["sessions"] and not hard and sessions and sessions[0]["start"] == lo
+                and _place_of(sessions[0].get("title") or "") == _place_of(merged["sessions"][-1].get("title") or "")):
             sessions = sessions[1:]
             if flows and flows[0]["start"] == lo and flows[0]["title"] == merged["flows"][-1]["title"]:
                 flows = flows[1:]
@@ -777,6 +910,8 @@ def combine_parts(units: list[dict], parts: list[tuple], breaks: dict[int, dict]
         if b["hard"]:
             for level in ("steps", "flows", "sessions"):
                 _ensure_start(merged[level], i, " (이어서)")
+    _merge_short_sessions(merged, units, breaks)
+    _renumber_visits(merged["sessions"])
     return ensure_nested(merged), notes
 
 
@@ -923,12 +1058,14 @@ def build_scene_tree(clips: list[dict], shots: list[dict], segments: list[dict],
     반환: {"tree", "units", "lines"(보정된 대사), "corrections", "rejected", "source": "ai"|"rules"|"mixed",
            "notes"(화면에 보여 줄 안내), "warnings"(AI 응답·트리 검사에서 걸린 것)}"""
     clips = normalize_clips(clips)
-    lines = normalize_lines(segments, clips)
+    norm_warnings: list = []
+    lines = normalize_lines(segments, clips, norm_warnings)
     units = build_units(normalize_shots(shots, clips), lines, clips)
     breaks = session_breaks(units, clips)
-    log(f"🌳 4단 트리: L4 장면 {len(units)}개, 대사 {len(lines)}개")
+    log(f"🌳 4단 트리: L4 장면 {len(units)}개, 대사 {len(lines)}개"
+        + (f", 대사 무효 {len(norm_warnings)}건" if norm_warnings else ""))
 
-    notes, warnings, applied, rejected = [], [], [], []
+    notes, warnings, applied, rejected = [], list(norm_warnings), [], []
     parts = [(0, len(units), None)] if units else []
     if use_ai and units:
         if ask is None:

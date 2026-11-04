@@ -1,5 +1,5 @@
 """
-VIBE CUT 1-2 화면 갈래 (세밀): 4단 트리의 L4 장면(3~7초) 분석 (Gemini API)
+VIBE CUT 1-2 화면 갈래 (세밀): 4단 트리의 L4 장면(10~30초) 분석 (Gemini API)
 
 scene_analyzer.py(조경우)는 장소·활동이 바뀔 때만 나누고 10초 미만 변화는 합쳐서 장면 하나가 L2~L3 크기다.
 4단 트리의 맨 아래 L4 장면은 "카운터 앞에서 메뉴판을 올려다본다" 같은 3~7초 화면 단위라서,
@@ -60,8 +60,7 @@ PROMPT_TEMPLATE = """당신은 브이로그 영상의 장면 기록자다. 소�
 
 [장면을 나누는 기준]
 - 화면 속 사람의 행동, 카메라가 비추는 대상, 장소 중 하나라도 바뀌면 새 장면으로 나눈다.
-- 장면 하나는 보통 3~7초다. 같은 장면이 10초 넘게 이어지면 그 안에서 달라지는 것
-  (동작, 시선, 걸음, 카메라 방향, 화면에 들어오는 사람)을 기준으로 더 나눈다.
+- 장면은 장소·행동·화면 구도가 바뀌는 곳에서 나눈다. 보통 10~30초다. 같은 장면이 30초 넘게 이어지면 그 안에서 행동이 바뀌는 곳으로 나눈다.
 - {min_sec:.0f}초보다 짧은 변화는 앞 장면에 합친다.
 
 [출력 규칙]
@@ -355,7 +354,7 @@ def main():
     from scene_analyzer import collect_inputs
     from transcriber import order_clips
 
-    ap = argparse.ArgumentParser(description="VIBE CUT L4 장면(3~7초) 분석 (Gemini)")
+    ap = argparse.ArgumentParser(description="VIBE CUT L4 장면(10~30초) 분석 (Gemini)")
     ap.add_argument("--input", nargs="+", required=True, help="클립 파일들 또는 폴더")
     ap.add_argument("--out", default="shots.json")
     ap.add_argument("--model", default=DEFAULT_MODEL, help=f"기본 {DEFAULT_MODEL}")

@@ -1,11 +1,13 @@
 import unittest
 
 from prompt_builder import calc_duration, normalize_tree
-from scene_tree import (apply_corrections, ask_tree, attach_lines, build_scene_tree, build_units, combine_parts,
+from scene_tree import (UNIT_MIN_SEC, UNIT_MAX_SEC, SESSION_MIN_SEC,
+                        _merge_short_sessions, _place_of, _renumber_visits,
+                        apply_corrections, ask_tree, attach_lines, build_scene_tree, build_units, combine_parts,
                         fallback_structure,
-                        lines_to_segments, mark_cut_suggestions, normalize_clips, normalize_lines, normalize_shots,
-                        parse_structure, scene_context, session_breaks, snap_to_lines, sound_similarity, split_points,
-                        validate_tree)
+                        lines_to_segments, mark_cut_suggestions, merge_short_units, normalize_clips, normalize_lines,
+                        normalize_shots, parse_structure, scene_context, session_breaks, snap_to_lines,
+                        sound_similarity, split_points, validate_tree)
 from shot_analyzer import merge_short
 from transcriber import validate_transcript
 
@@ -55,14 +57,15 @@ def step(start, title, summary="", tags=()):
     return {"start": start, "title": title, "summary": summary, "tags": list(tags)}
 
 
+# UNIT_MIN_SEC=10 이후 SHOTS → 3개 L4 단위로 합쳐짐:
+#   s0001(0~13s 카페 메뉴+주문), s0002(13~25s 카페 결제), s0003(25~45s 해변)
 AI_SESSIONS = [
     {"title": "카페 (1차 방문)", "summary": "카페에서 주문한다", "flows": [
         {"title": "주문 흐름", "summary": "메뉴를 보고 주문·결제", "steps": [
-            step("s0001", "메뉴판 보기", "메뉴를 고민한다", ["고민"]),
-            step("s0002", "주문 말하기", "아이스 아메리카노 두 잔"),
-            step("s0004", "결제")]}]},
+            step("s0001", "메뉴판 보기", "메뉴를 고민하고 주문한다", ["고민"]),
+            step("s0002", "결제")]}]},
     {"title": "해변 (1차 방문)", "summary": "", "flows": [
-        {"title": "해변 산책 흐름", "summary": "", "steps": [step("s0006", "바다 구경", "", ["풍경"])]}]},
+        {"title": "해변 산책 흐름", "summary": "", "steps": [step("s0003", "바다 구경", "", ["풍경"])]}]},
 ]
 
 
@@ -86,6 +89,54 @@ class NormalizeTests(unittest.TestCase):
                          [("c01", 0.0, 10.0, "다"), ("c02", 10.0, 14.0, "가"), ("c02", 14.0, 18.0, "나"),
                           ("c03", 18.0, 23.0, "(영상분석 없음)")])
 
+    def test_speaker_carried_through_normalize_and_attach(self):
+        segs = [
+            {**seg(1.0, 3.0, "안녕하세요"), "speaker": "SPEAKER_01"},
+            {**seg(4.0, 6.0, "반갑습니다"), "speaker": "SPEAKER_02"},
+            seg(7.0, 9.0, "화자 없음"),
+        ]
+        lines = normalize_lines(segs, normalize_clips(CLIP))
+        self.assertEqual(lines[0].get("speaker"), "SPEAKER_01")
+        self.assertEqual(lines[1].get("speaker"), "SPEAKER_02")
+        self.assertNotIn("speaker", lines[2])
+
+        units = [{"id": "s0001", "start": 0.0, "end": 10.0, "lines": []}]
+        attach_lines(units, lines)
+        speakers = [x.get("speaker") for x in units[0]["lines"]]
+        self.assertEqual(speakers, ["SPEAKER_01", "SPEAKER_02", None])
+
+    def test_speaker_survives_sentence_split_across_units(self):
+        segs = [{**seg(3.0, 7.0, "앞 뒤 반반"), "speaker": "SPEAKER_01"}]
+        lines = normalize_lines(segs, normalize_clips(CLIP))
+        units = [{"id": "s0001", "start": 0.0, "end": 5.0, "lines": []},
+                 {"id": "s0002", "start": 5.0, "end": 10.0, "lines": []}]
+        attach_lines(units, lines)
+        # 두 조각 모두 speaker 가짐
+        for u in units:
+            if u["lines"]:
+                self.assertEqual(u["lines"][0].get("speaker"), "SPEAKER_01")
+
+    def test_zero_duration_segment_recovered_from_words(self):
+        # end==start지만 words에 유효한 범위가 있으면 복구 → 버리지 않음
+        segs = [{"start": 5.0, "end": 5.0, "text": "안녕",
+                 "words": [{"word": "안녕", "start": 5.0, "end": 6.0}]}]
+        warns = []
+        lines = normalize_lines(segs, normalize_clips(CLIP), warns)
+        self.assertEqual(len(lines), 1)
+        self.assertAlmostEqual(lines[0]["start"], 5.0)
+        self.assertAlmostEqual(lines[0]["end"], 6.0)
+        self.assertEqual(warns, [])
+
+    def test_zero_duration_segment_no_valid_words_dropped_with_warning(self):
+        # end==start, words도 end==start → 버리고 warnings에 id 기록
+        segs = [{"id": "t0566", "start": 2850.8, "end": 2850.8, "text": "네.",
+                 "words": [{"word": "네.", "start": 2850.8, "end": 2850.8}]}]
+        warns = []
+        lines = normalize_lines(segs, normalize_clips(CLIP), warns)
+        self.assertEqual(len(lines), 0)
+        self.assertEqual(len(warns), 1)
+        self.assertIn("t0566", warns[0])
+
 
 class UnitTests(unittest.TestCase):
     def test_boundary_inside_sentence_moves_to_its_edge(self):
@@ -101,27 +152,37 @@ class UnitTests(unittest.TestCase):
         self.assertEqual([(p["start"], p["end"]) for p in merge_short(pieces, 2.0)], [(0, 10)])
 
     def test_long_talking_scene_splits_between_sentences(self):
-        lines = normalize_lines([seg(0.5, 3.5, "하나 둘"), seg(4.0, 7.0, "셋 넷"), seg(7.6, 10.5, "다섯 여섯"),
-                                 seg(11.0, 14.5, "일곱 여덟")], normalize_clips(CLIP))
-        cuts = split_points(0.0, 15.0, lines)
-        gaps = [(3.5 + 4.0) / 2, (7.0 + 7.6) / 2, (10.5 + 11.0) / 2]
+        # 60초 장면 + 4개 문장 → 문장 사이에서 나뉨, 각 조각 UNIT_MIN_SEC~UNIT_MAX_SEC
+        long_clip = normalize_clips([{"id": "c01", "duration": 100.0, "offset": 0.0}])
+        lines = normalize_lines([seg(1.0, 12.0, "하나 둘"), seg(15.0, 26.0, "셋 넷"),
+                                 seg(30.0, 41.0, "다섯 여섯"), seg(45.0, 56.0, "일곱 여덟")], long_clip)
+        cuts = split_points(0.0, 60.0, lines)
+        gaps = [(12.0 + 15.0) / 2, (26.0 + 30.0) / 2, (41.0 + 45.0) / 2]
         self.assertTrue(cuts and all(any(abs(c - g) < 1e-6 for g in gaps) for c in cuts), cuts)
-        bounds = [0.0] + cuts + [15.0]
-        self.assertTrue(all(3.0 <= b - a <= 7.0 for a, b in zip(bounds, bounds[1:])), bounds)
+        bounds = [0.0] + cuts + [60.0]
+        self.assertTrue(all(UNIT_MIN_SEC <= b - a <= UNIT_MAX_SEC for a, b in zip(bounds, bounds[1:])), bounds)
 
     def test_silent_scene_splits_evenly_and_short_ones_stay(self):
-        bounds = [0.0] + split_points(0.0, 20.0, []) + [20.0]
-        self.assertEqual(len(bounds) - 1, 3)
-        self.assertTrue(all(6.0 <= b - a <= 7.0 for a, b in zip(bounds, bounds[1:])), bounds)
-        self.assertEqual(split_points(0.0, 7.5, []), [])        # 7.5초는 그대로 (나눌 이득보다 비용이 큼)
-        self.assertEqual(split_points(0.0, 8.0, []), [4.0])     # 8초는 4+4초
+        # 70초 무음 → 각 조각이 UNIT_MIN_SEC~UNIT_MAX_SEC 범위
+        bounds = [0.0] + split_points(0.0, 70.0, []) + [70.0]
+        self.assertGreater(len(bounds) - 1, 1)
+        self.assertTrue(all(UNIT_MIN_SEC <= b - a <= UNIT_MAX_SEC for a, b in zip(bounds, bounds[1:])), bounds)
+        # UNIT_MAX_SEC - 1 초는 그대로 (범위 이내)
+        self.assertEqual(split_points(0.0, UNIT_MAX_SEC - 1, []), [])
+        # UNIT_MAX_SEC + 2 초는 나눠짐
+        cuts = split_points(0.0, UNIT_MAX_SEC + 2, [])
+        self.assertGreater(len(cuts), 0)
+        b32 = [0.0] + cuts + [UNIT_MAX_SEC + 2]
+        self.assertTrue(all(UNIT_MIN_SEC <= b - a <= UNIT_MAX_SEC for a, b in zip(b32, b32[1:])), b32)
 
     def test_long_sentence_kept_unless_very_long(self):
         clips = normalize_clips(CLIP)
-        twelve = normalize_lines([seg(0.0, 12.0, "가 나 다 라 마 바 사 아")], clips)
-        self.assertEqual(split_points(0.0, 12.0, twelve), [])   # 12초 문장은 통째로
-        sixteen = normalize_lines([seg(0.0, 16.0, "가 나 다 라 마 바 사 아")], clips)
-        self.assertEqual(len(split_points(0.0, 16.0, sixteen)), 1)   # 아주 길면 단어 사이에서
+        # UNIT_MAX_SEC 이내 → early return, 분리 없음
+        at_max = normalize_lines([seg(0.0, UNIT_MAX_SEC, "가 나 다 라 마 바 사 아")], clips)
+        self.assertEqual(split_points(0.0, UNIT_MAX_SEC, at_max), [])
+        # UNIT_MAX_SEC + 10 초 문장 → 단어 사이에서 1회 분리
+        long = normalize_lines([seg(0.0, UNIT_MAX_SEC + 10, "가 나 다 라 마 바 사 아")], clips)
+        self.assertEqual(len(split_points(0.0, UNIT_MAX_SEC + 10, long)), 1)
 
     def test_units_tile_clips_and_never_cut_sentences(self):
         clips = normalize_clips([{"id": "c01", "duration": 20, "offset": 0}, {"id": "c02", "duration": 15, "offset": 20}])
@@ -148,6 +209,68 @@ class UnitTests(unittest.TestCase):
         self.assertEqual([x["text"] for x in units[0]["lines"]], ["앞 뒤"])
         self.assertEqual([x["text"] for x in units[1]["lines"]], ["반반 문장"])
         self.assertTrue(units[0]["lines"][0]["part"])
+
+
+class ShortUnitMergeTests(unittest.TestCase):
+    """merge_short_units: UNIT_MIN_SEC 미만 조각을 이웃과 합친다."""
+
+    def test_same_place_pieces_merge_to_min_length(self):
+        """같은 장소 5초 조각 4개 → 모두 UNIT_MIN_SEC 이상으로 합쳐짐"""
+        pieces = [shot(0, 5, "a", place="카페"), shot(5, 10, "b", place="카페"),
+                  shot(10, 15, "c", place="카페"), shot(15, 20, "d", place="카페")]
+        result = merge_short_units(pieces, UNIT_MIN_SEC)
+        self.assertTrue(all(p["end"] - p["start"] >= UNIT_MIN_SEC for p in result))
+        self.assertAlmostEqual(result[0]["start"], 0.0)
+        self.assertAlmostEqual(result[-1]["end"], 20.0)
+
+    def test_different_place_short_pieces_stay_separate(self):
+        """장소가 다른 5초 조각 두 개 → 같은 장소 이웃이 없으므로 합쳐지지 않고 둘 다 남음"""
+        pieces = [shot(0, 5, "카페", place="카페"), shot(5, 10, "해변", place="해변")]
+        result = merge_short_units(pieces, UNIT_MIN_SEC)
+        self.assertEqual(len(result), 2)
+        self.assertAlmostEqual(result[0]["end"] - result[0]["start"], 5.0)
+        self.assertAlmostEqual(result[1]["end"] - result[1]["start"], 5.0)
+
+    def test_no_same_place_neighbor_stays_short(self):
+        """UNIT_MIN_SEC 미만이어도 같은 장소 이웃이 없으면 그대로 둔다 (장소 순서: 카페·해변·카페)"""
+        # 인접 이웃이 모두 다른 장소이면 해변 조각은 합쳐지지 않는다
+        pieces = [shot(0, 5, "카페A", place="카페"), shot(5, 10, "해변", place="해변"),
+                  shot(10, 15, "카페B", place="카페")]
+        result = merge_short_units(pieces, UNIT_MIN_SEC)
+        self.assertEqual(len(result), 3)
+        places = [p.get("place") for p in result]
+        self.assertIn("해변", places)
+
+    def test_already_long_pieces_untouched(self):
+        """이미 UNIT_MIN_SEC 이상인 조각은 건드리지 않음"""
+        pieces = [shot(0, UNIT_MIN_SEC, "충분히 긴 장면", place="카페"),
+                  shot(UNIT_MIN_SEC, UNIT_MIN_SEC * 2, "두 번째", place="카페")]
+        result = merge_short_units(pieces, UNIT_MIN_SEC)
+        self.assertEqual(len(result), 2)
+        self.assertAlmostEqual(result[0]["end"] - result[0]["start"], UNIT_MIN_SEC)
+
+    def test_clip_boundary_not_crossed(self):
+        """build_units를 통해: 클립 경계를 넘어 합치지 않음"""
+        clips = normalize_clips([{"id": "c01", "duration": 8, "offset": 0},
+                                 {"id": "c02", "duration": 8, "offset": 8}])
+        shots_data = [{**shot(0, 8, "가"), "clip_id": "c01"},
+                      {**shot(8, 16, "나"), "clip_id": "c02"}]
+        units = build_units(normalize_shots(shots_data, clips), [], clips)
+        c01_units = [u for u in units if u["clip_id"] == "c01"]
+        c02_units = [u for u in units if u["clip_id"] == "c02"]
+        self.assertTrue(c01_units and c02_units)
+        self.assertLessEqual(max(u["end"] for u in c01_units), 8.0 + 1e-6)
+        self.assertGreaterEqual(min(u["start"] for u in c02_units), 8.0 - 1e-6)
+
+    def test_merged_piece_over_max_gets_split_by_split_points(self):
+        """합쳐서 UNIT_MAX_SEC 넘으면 split_points가 다시 나눔"""
+        clips = normalize_clips([{"id": "c01", "duration": 200.0, "offset": 0.0}])
+        # 5초짜리 8개 같은 장소 → 합쳐서 40초 → split_points가 10~30초로 나눔
+        shots_data = [{**shot(i * 5, (i + 1) * 5, f"장면{i}", place="카페"), "clip_id": "c01"}
+                      for i in range(8)]
+        units = build_units(normalize_shots(shots_data, clips), [], clips)
+        durs = [u["end"] - u["start"] for u in units]
+        self.assertTrue(all(UNIT_MIN_SEC <= d <= UNIT_MAX_SEC for d in durs), durs)
 
 
 class CorrectionTests(unittest.TestCase):
@@ -232,6 +355,7 @@ class StructureTests(unittest.TestCase):
         self.assertIsNone(result["parts"][0][2])
 
     def test_long_video_is_sent_in_parts_and_seams_merge(self):
+        # 6유닛 × 4초 = 24초 → max_sec=12로 2회 호출
         units = [{"id": f"s{i:04d}", "start": i * 4.0, "end": i * 4.0 + 4, "lines": [], "place": "카페",
                   "action": "주문"} for i in range(1, 7)]
         answers = iter([
@@ -245,12 +369,61 @@ class StructureTests(unittest.TestCase):
         def ask(prompt, schema):
             prompts.append(prompt)
             return next(answers)
-        parts = ask_tree(units, {}, ask, max_units=3, **QUIET)["parts"]
+        parts = ask_tree(units, {}, ask, max_sec=12, **QUIET)["parts"]
         self.assertEqual([(lo, hi) for lo, hi, _ in parts], [(0, 3), (3, 6)])
         self.assertIn("[앞부분 이어서]", prompts[1])
         structure, failed = combine_parts(units, parts, {})
         self.assertEqual((len(structure["sessions"]), len(structure["flows"]), failed), (1, 1, []))
         self.assertEqual([s["start"] for s in structure["steps"]], [0, 1, 3])
+        self.assertIn("지금까지 나온 세션 목록", prompts[1])
+
+    def test_seam_merges_same_place_different_visit_number(self):
+        """이음매에서 방문 번호가 달라도 같은 장소면 합쳐짐 (1차+2차→1차로 재번호)"""
+        units = [{"id": f"s{i:04d}", "start": i * 4.0, "end": i * 4.0 + 4, "lines": [], "place": "카페"}
+                 for i in range(1, 7)]
+        parts = [
+            (0, 3, {"sessions": [{"start": 0, "title": "카페 (1차 방문)", "summary": ""}],
+                    "flows": [{"start": 0, "title": "주문 흐름", "summary": ""}],
+                    "steps": [{"start": 0, "title": "a", "summary": "", "tags": []}]}),
+            (3, 6, {"sessions": [{"start": 3, "title": "카페 (2차 방문)", "summary": ""}],
+                    "flows": [{"start": 3, "title": "착석 흐름", "summary": ""}],
+                    "steps": [{"start": 3, "title": "b", "summary": "", "tags": []}]}),
+        ]
+        structure, failed = combine_parts(units, parts, {})
+        self.assertEqual(len(structure["sessions"]), 1)
+        self.assertEqual(_place_of(structure["sessions"][0]["title"]), "카페")
+        self.assertEqual(failed, [])
+
+    def test_short_session_merges_with_neighbor(self):
+        """SESSION_MIN_SEC 미만 세션은 이웃 세션에 흡수됨 (촬영 끊김 없을 때)"""
+        # 10개 × 20s = 200s  |  3개 × 20s = 60s  |  10개 × 20s = 200s
+        units = [{"id": f"s{i:04d}", "start": i * 20.0, "end": i * 20.0 + 20, "lines": []}
+                 for i in range(23)]
+        merged = {
+            "sessions": [{"start": 0,  "title": "카페 (1차 방문)", "summary": ""},
+                          {"start": 10, "title": "거리 (1차 방문)", "summary": ""},
+                          {"start": 13, "title": "카페 (2차 방문)", "summary": ""}],
+            "flows":    [{"start": 0,  "title": "F1", "summary": ""},
+                          {"start": 10, "title": "F2", "summary": ""},
+                          {"start": 13, "title": "F3", "summary": ""}],
+            "steps":    [{"start": 0,  "title": "a", "summary": "", "tags": []},
+                          {"start": 10, "title": "b", "summary": "", "tags": []},
+                          {"start": 13, "title": "c", "summary": "", "tags": []}],
+        }
+        _merge_short_sessions(merged, units, {}, hi=23)
+        self.assertEqual(len(merged["sessions"]), 2)
+
+    def test_renumber_visits_resets_after_merge(self):
+        """_renumber_visits: 합친 뒤 방문 번호를 처음부터 다시 매김"""
+        sessions = [
+            {"title": "카페 (1차 방문)", "summary": ""},
+            {"title": "해변 (1차 방문)", "summary": ""},
+            {"title": "카페 (1차 방문)", "summary": ""},   # 중복 1차 → 2차로 재번호
+            {"title": "해변 (3차 방문)", "summary": ""},   # 잘못된 3차 → 2차로 재번호
+        ]
+        _renumber_visits(sessions)
+        self.assertEqual([s["title"] for s in sessions],
+                         ["카페 (1차 방문)", "해변 (1차 방문)", "카페 (2차 방문)", "해변 (2차 방문)"])
 
 
 class BuildTreeTests(unittest.TestCase):
@@ -270,10 +443,10 @@ class BuildTreeTests(unittest.TestCase):
     def test_titles_and_levels_follow_ai_structure(self):
         self.assertEqual([s["title"] for s in self.tree], ["카페 (1차 방문)", "해변 (1차 방문)"])
         cafe_steps = self.tree[0]["children"][0]["children"]
-        self.assertEqual([a["title"] for a in cafe_steps], ["메뉴판 보기", "주문 말하기", "결제"])
+        self.assertEqual([a["title"] for a in cafe_steps], ["메뉴판 보기", "결제"])
         self.assertEqual([n["level"] for n, _ in walk(self.tree[:1])][:4], [1, 2, 3, 4])
         self.assertEqual(self.tree[0]["children"][0]["children"][0]["id"], "p01-f01-a01")
-        self.assertIn("말 없음", cafe_steps[2]["tags"])
+        self.assertIn("말 없음", cafe_steps[1]["tags"])   # s0002(13~25s)는 대사 없음
 
     def test_prompt_shows_scenes_with_screen_text_and_lines(self):
         prompt = self.prompts[0]
@@ -314,10 +487,10 @@ class BuildTreeTests(unittest.TestCase):
         self.assertEqual(result["lines"][3]["text"], "와 바다 말라서 좋다")    # 보정 없음
 
     def test_no_video_analysis_and_no_speech_still_four_levels(self):
-        result = build_scene_tree([{"id": "c01", "duration": 20.0, "offset": 0}], [], [], use_ai=False, **QUIET)
+        result = build_scene_tree([{"id": "c01", "duration": 50.0, "offset": 0}], [], [], use_ai=False, **QUIET)
         self.assertEqual(validate_tree(result["tree"]), [])
         leaves = [n for n, d in walk(result["tree"]) if d == 4]
-        self.assertTrue(all(3.0 <= n["end"] - n["start"] <= 7.0 for n in leaves))
+        self.assertTrue(all(UNIT_MIN_SEC <= n["end"] - n["start"] <= UNIT_MAX_SEC for n in leaves))
         self.assertIn("영상분석 없음", leaves[0]["tags"])
 
 
