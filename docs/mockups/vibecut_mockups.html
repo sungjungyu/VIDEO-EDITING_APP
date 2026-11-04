@@ -1,0 +1,454 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VIBE CUT 화면 목업</title>
+<!--
+  VIBE CUT 화면 목업 (참고용)
+  - 레이아웃·비율·상태 표시 참고용. 인라인 스타일과 값을 그대로 복사하지 말 것.
+  - 색·간격은 아래 :root 변수만 사용. 실제 앱은 src/styles/tokens.css에 같은 이름으로 정의.
+  - 데이터는 예시값. 실제 앱은 mock/*.json → API로 교체.
+  - 기준 문서: docs/VIBECUT_화면설계서.md
+-->
+<style>
+:root{
+  --color-bg:#F4F3EF; --color-surface:#FFFFFF; --color-surface-2:#F7F6F2;
+  --color-border:#E3E1DA; --color-border-strong:#C9C6BC;
+  --color-text:#22211E; --color-text-muted:#6B6960; --color-text-subtle:#9A978C;
+  --color-accent:#2F6FD0; --color-accent-bg:#E6EFFB; --color-accent-border:#9CC0EE;
+  --color-success:#3B7A1E; --color-success-bg:#EAF3DE; --color-success-border:#A9CF86;
+  --color-warning:#8A5A00; --color-warning-bg:#FBF0D9; --color-warning-border:#E6C277;
+  --color-danger:#B23A2B; --color-danger-bg:#FBE7E3; --color-danger-border:#E9A79C;
+  --color-off:#D9D7CF; --color-video:#2C2C2A;
+  --topic-1:#85B7EB; --topic-2:#9FE1CB; --topic-3:#FAC775; --topic-4:#F0997B;
+  --radius:8px; --radius-lg:12px;
+  --font:"Pretendard","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--color-bg);color:var(--color-text);font-family:var(--font);font-size:13px}
+button{font-family:inherit;font-size:12px;border:1px solid var(--color-border-strong);background:var(--color-surface);color:var(--color-text);border-radius:var(--radius);padding:0 14px;height:36px;cursor:pointer}
+button.primary{background:var(--color-accent);border-color:var(--color-accent);color:#fff;font-weight:600;height:40px;padding:0 20px}
+button:disabled{opacity:.45;cursor:not-allowed}
+.tabs{position:sticky;top:0;z-index:20;display:flex;gap:4px;flex-wrap:wrap;padding:10px 16px;background:var(--color-surface);border-bottom:1px solid var(--color-border)}
+.tabs button{height:30px}
+.tabs button.on{background:var(--color-accent-bg);color:var(--color-accent);border-color:var(--color-accent-border);font-weight:600}
+.screen{display:none;max-width:1200px;margin:16px auto;padding:0 16px}
+.screen.on{display:block}
+.note{font-size:12px;color:var(--color-text-muted);margin:0 0 8px}
+.app{background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius-lg);overflow:hidden;position:relative}
+.top{display:flex;justify-content:space-between;align-items:center;padding:9px 14px;border-bottom:1px solid var(--color-border);color:var(--color-text-muted);font-size:12px;white-space:nowrap;gap:12px}
+.logo{display:inline-block;width:22px;height:22px;line-height:20px;text-align:center;border:1.5px solid var(--color-text);border-radius:5px;color:var(--color-text);font-weight:700;margin-right:10px}
+.top b{color:var(--color-text)}
+.bottom{border-top:1px solid var(--color-border);padding:10px 16px;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+.lb{font-size:11px;color:var(--color-text-muted)}
+.sec{font-weight:600;font-size:13px;margin-bottom:6px;display:flex;align-items:center;gap:6px}
+.row{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.chip{display:inline-flex;align-items:center;gap:6px;font-size:11px;padding:4px 10px;border-radius:999px;border:1px solid var(--color-border-strong);color:var(--color-text-muted);white-space:nowrap;background:var(--color-surface)}
+.chip.on{background:var(--color-accent-bg);color:var(--color-accent);border-color:var(--color-accent-border)}
+.chip.done{background:var(--color-success-bg);color:var(--color-success);border-color:var(--color-success-border)}
+.chip.add{border-style:dashed;color:var(--color-text-subtle)}
+.badge{font-size:10px;padding:1px 7px;border-radius:999px;font-weight:500}
+.b-danger{background:var(--color-danger-bg);color:var(--color-danger)}
+.b-accent{background:var(--color-accent-bg);color:var(--color-accent)}
+.b-success{background:var(--color-success-bg);color:var(--color-success)}
+.b-warning{background:var(--color-warning-bg);color:var(--color-warning)}
+.fld{border:1px solid var(--color-border-strong);border-radius:var(--radius);padding:6px 9px;font-size:12px;background:var(--color-surface-2)}
+.card{background:var(--color-surface-2);border:1px solid var(--color-border);border-radius:var(--radius);padding:9px 11px}
+.bar{height:8px;border-radius:4px;background:var(--color-surface-2);overflow:hidden;border:1px solid var(--color-border)}
+.bar > i{display:block;height:100%;background:var(--color-accent)}
+.log{font-size:11px;padding:5px 0;border-bottom:1px solid var(--color-border);line-height:1.5}
+.t{color:var(--color-text-subtle);margin-right:6px}
+.num{font-size:19px;font-weight:600}
+.split{display:grid}
+.pane{padding:14px;min-width:0}
+.pane + .pane{border-left:1px solid var(--color-border)}
+.video{background:var(--color-video);border-radius:var(--radius);position:relative;overflow:hidden}
+.video .floor{position:absolute;left:0;right:0;bottom:0;height:50%;background:#5F5E5A}
+.video .p1,.video .p2{position:absolute;border-radius:50%}
+.video .p1{background:#B4B2A9}.video .p2{background:#888780}
+.sub{position:absolute;left:0;right:0;text-align:center;color:#fff;font-weight:600;text-shadow:0 0 2px #000,0 0 2px #000,0 0 2px #000}
+details summary{cursor:pointer;font-size:12px;color:var(--color-text-muted)}
+.progress-wrap{padding:28px 24px 20px;display:flex;flex-direction:column;align-items:center;gap:14px}
+.ptitle{font-size:19px;font-weight:600}
+@keyframes blink{50%{opacity:.35}} .dots{animation:blink 1.4s infinite}
+@keyframes pulse{50%{opacity:.45}} .now{animation:pulse 1.2s infinite}
+.seg{height:100%;border-right:1px solid var(--color-surface)}
+.legend i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:4px;vertical-align:-1px}
+/* S1 */
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.clip{display:flex;gap:10px;align-items:center;border:1px solid var(--color-border);border-radius:var(--radius);padding:8px;background:var(--color-surface);cursor:grab}
+.thumb{width:120px;height:68px;border-radius:6px;background:var(--color-video);flex:none;position:relative}
+.num-badge{position:absolute;left:5px;top:5px;width:20px;height:20px;border-radius:50%;background:var(--color-accent);color:#fff;font-size:11px;font-weight:600;display:flex;align-items:center;justify-content:center}
+/* S4 */
+.miller{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));height:100%}
+.col{border-right:1px solid var(--color-border);overflow:auto;min-width:0}
+.col:last-child{border-right:none}
+.colh{font-size:11px;color:var(--color-text-muted);padding:7px 9px;border-bottom:1px solid var(--color-border);background:var(--color-surface-2);position:sticky;top:0}
+.item{display:flex;align-items:center;gap:6px;padding:7px 9px;font-size:12px;border-bottom:1px solid var(--color-border);cursor:pointer}
+.item .d{margin-left:auto;font-size:11px;color:var(--color-text-subtle)}
+.item.sel{background:var(--color-accent-bg)}
+.item.focus{outline:2px solid var(--color-accent);outline-offset:-2px}
+.item.off{color:var(--color-text-subtle);background:repeating-linear-gradient(0deg,transparent,transparent 0)}
+.item.off .st{background:var(--color-off)}
+.st{width:10px;height:10px;border-radius:3px;flex:none;background:var(--color-accent)}
+.st.part{background:repeating-linear-gradient(45deg,var(--color-accent) 0 2px,transparent 2px 4px);border:1px solid var(--color-accent)}
+.st.ai{background:var(--color-success)}
+.ic{font-size:10px}
+.ctx{position:absolute;background:var(--color-surface);border:1px solid var(--color-border-strong);border-radius:var(--radius);box-shadow:0 4px 14px rgba(0,0,0,.12);font-size:12px;padding:4px 0;z-index:5}
+.ctx div{padding:6px 14px}
+.ctx div:hover{background:var(--color-surface-2)}
+/* modal */
+.dim{position:absolute;inset:38px 0 0 0;background:rgba(0,0,0,.35)}
+.modal{position:absolute;left:50%;top:56px;transform:translateX(-50%);width:min(580px,92%);background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius-lg);box-shadow:0 10px 30px rgba(0,0,0,.18)}
+.box{border:1px solid var(--color-border);border-radius:var(--radius);padding:10px 12px}
+.warn{background:var(--color-warning-bg);border:1px solid var(--color-warning-border);border-radius:var(--radius);padding:9px 11px;font-size:11px;line-height:1.55}
+table{width:100%;border-collapse:collapse;font-size:11px}
+td,th{padding:5px 4px;border-bottom:1px solid var(--color-border);text-align:left;font-weight:400}
+th{color:var(--color-text-muted)}
+@media (max-width:760px){.split,.grid2{grid-template-columns:1fr!important}.pane + .pane{border-left:none;border-top:1px solid var(--color-border)}.miller{grid-template-columns:repeat(2,1fr)}}
+</style>
+</head>
+<body>
+
+<nav class="tabs" id="tabs">
+  <button data-s="s1" class="on">S1 가져오기</button>
+  <button data-s="s2">S2 요청</button>
+  <button data-s="s21">S2-1 확인 창</button>
+  <button data-s="s3">S3 분석 중</button>
+  <button data-s="s4">S4 구조 편집</button>
+  <button data-s="s5">S5 편집 중</button>
+  <button data-s="s51">S5-1 결과 확인</button>
+</nav>
+
+<!-- ============================ S1 가져오기 ============================ -->
+<section class="screen on" id="s1">
+<p class="note">클립 업로드와 순서 정하기. 카드 드래그 순서 = 타임라인 순서.</p>
+<div class="app">
+  <div class="top"><span><span class="logo">V</span><b>① 가져오기</b> ─ ② 요청 ─ ③ 분석 ─ ④ 구조 편집 ─ ⑤ 결과</span><span>프로젝트: 밤 브이로그</span></div>
+  <div style="padding:16px">
+    <div class="row" style="justify-content:space-between;margin-bottom:12px">
+      <div class="sec" style="margin:0">촬영 클립</div>
+      <div class="row"><span class="lb">드래그해서 순서를 바꿀 수 있어요</span><button>촬영 시각순 정렬</button></div>
+    </div>
+    <div class="grid2">
+      <div class="clip"><div class="thumb"><span class="num-badge">1</span></div><div><div style="font-weight:600">편의점_출발.mp4</div><div class="lb">04:12 · 20:01 촬영 · 1920×1080 · 16:9</div></div><span style="margin-left:auto" class="lb">×</span></div>
+      <div class="clip"><div class="thumb"><span class="num-badge">2</span></div><div><div style="font-weight:600">편의점_안.mp4</div><div class="lb">08:30 · 20:07 촬영 · 1920×1080 · 16:9</div></div><span style="margin-left:auto" class="lb">×</span></div>
+      <div class="clip"><div class="thumb"><span class="num-badge">3</span></div><div><div style="font-weight:600">귀가길.mp4</div><div class="lb">03:05 · 20:19 촬영 · 1080×1920 · 9:16</div></div><span style="margin-left:auto" class="lb">×</span></div>
+      <div class="clip"><div class="thumb"><span class="num-badge">4</span></div><div><div style="font-weight:600">집_먹방.mp4</div><div class="lb">41:20 · 20:30 촬영 · 1920×1080 · 16:9</div></div><span style="margin-left:auto" class="lb">×</span></div>
+      <div class="clip"><div class="thumb"><span class="num-badge">5</span></div><div><div style="font-weight:600">마무리.mp4</div><div class="lb">02:53 · 21:15 촬영 · 1920×1080 · 16:9</div></div><span style="margin-left:auto" class="lb">×</span></div>
+      <div class="clip" style="border-style:dashed;justify-content:center;color:var(--color-text-subtle);min-height:86px;cursor:pointer">+ 영상 추가 (클릭 또는 끌어다 놓기)</div>
+    </div>
+  </div>
+  <div class="bottom"><span class="lb">클립 5개 · 총 60:00 · 비율 16:9 ×4, 9:16 ×1</span><button class="primary">다음: 요청 →</button></div>
+</div>
+</section>
+
+<!-- ============================ S2 요청 ============================ -->
+<section class="screen" id="s2">
+<p class="note">왼쪽 = AI 판단의 기준(기획), 오른쪽 = 코드가 그대로 실행(스타일). 영상 목적은 고르지 않고 AI가 추론.</p>
+<div class="app">
+  <div class="top"><span><span class="logo">V</span>① 가져오기 ✔ ─ <b>② 요청</b> ─ ③ 분석 ─ ④ 구조 편집 ─ ⑤ 결과</span><span>클립 5개 · 60:00</span></div>
+  <div class="split" style="grid-template-columns:52% 48%">
+    <div class="pane" style="display:flex;flex-direction:column;gap:12px">
+      <div><div class="sec">기획</div><div class="lb">AI가 무엇을 남길지 고를 때 기준이 돼요</div></div>
+      <div style="display:grid;grid-template-columns:130px minmax(0,1fr);gap:8px">
+        <div><div class="lb">목표 분량 *</div><div class="fld">10 분 00 초</div></div>
+        <div><div class="lb">영상 한 줄 설명 *</div><div class="fld">친구랑 편의점 갔다가 집에서 먹방하는 밤 브이로그</div></div>
+      </div>
+      <div><div class="lb">편집 의도 (자유롭게, 선택)</div>
+        <div class="fld" style="min-height:120px;line-height:1.6">과자 고르는 장면이랑 먹방 위주로 해줘. 걸어서 이동하는 건 짧게. 빨간 후드 입은 애가 민수야. 한강 도착하는 장면은 꼭 넣고.</div>
+        <div class="lb" style="margin-top:4px">예: 강조할 장면, 줄일 장면, 꼭 넣을·뺄 장면, 등장인물</div></div>
+      <div class="card lb" style="margin-top:auto">다음을 누르면 AI가 이해한 내용을 항목으로 보여드려요. 거기서 고친 뒤 확정하면 분석이 시작돼요.</div>
+    </div>
+    <div class="pane" style="display:flex;flex-direction:column;gap:12px">
+      <div><div class="sec">스타일</div><div class="row"><span class="chip on">기본</span><span class="chip">강조</span><span class="chip">깔끔</span><span class="lb">프리셋은 시작값</span></div></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div><div class="lb">화면 비율</div><div class="row"><span class="chip">16:9</span><span class="chip on">9:16</span><span class="chip">1:1</span></div></div>
+        <div><div class="lb">비율 다른 영상</div><div class="row"><span class="chip on">가운데 자르기</span><span class="chip">여백 채우기</span></div></div>
+      </div>
+      <div style="display:grid;grid-template-columns:100px minmax(0,1fr);gap:12px;align-items:start">
+        <div class="video" style="height:170px"><span class="sub" style="bottom:22px;font-size:11px">칼로리 보소</span></div>
+        <div style="display:flex;flex-direction:column;gap:7px">
+          <div class="row"><span class="lb" style="width:44px">자막</span><span class="chip on">켜기</span><span class="chip on">등장인물 말만</span></div>
+          <div class="lb" style="margin-left:50px">누구 말인지는 ④ 구조 편집에서 골라요</div>
+          <div class="row"><span class="lb" style="width:44px">글꼴</span><span class="fld">Pretendard ▾</span><span class="fld">48</span><span class="lb">pt</span></div>
+          <div class="row"><span class="lb" style="width:44px">색</span><span style="width:16px;height:16px;border-radius:4px;border:1px solid var(--color-border-strong);background:#fff"></span><span class="fld">#FFFFFF</span></div>
+          <div class="row"><span class="lb" style="width:44px">외곽선</span><span class="chip on">켜기</span><span class="fld">3</span><span style="width:16px;height:16px;border-radius:4px;background:#000"></span></div>
+          <div class="row"><span class="lb" style="width:44px">배경</span><span class="chip">박스</span><span class="lb">위치</span><span class="chip on">아래</span><span class="chip">위</span></div>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div><div class="lb">인트로 (선택)</div><div class="card lb" style="text-align:center;border-style:dashed">+ 영상 올리기</div></div>
+        <div><div class="lb">아웃트로 (선택)</div><div class="card lb" style="text-align:center;border-style:dashed">+ 영상 올리기</div></div>
+      </div>
+      <label class="lb"><input type="checkbox"> 이 스타일을 내 프로필로 저장</label>
+    </div>
+  </div>
+  <div class="bottom"><button>← 가져오기</button><button class="primary">다음: AI가 이해한 내용 확인 →</button></div>
+</div>
+</section>
+
+<!-- ============================ S2-1 확인 창 ============================ -->
+<section class="screen" id="s21">
+<p class="note">S2 위에 뜨는 팝업. 칩 수정은 JSON 직접 수정(LLM 재호출 없음). ⚠ 경고는 영상 보기 전 텍스트 비교 결과.</p>
+<div class="app" style="min-height:720px">
+  <div class="top"><span><span class="logo">V</span>① 가져오기 ✔ ─ <b>② 요청</b> ─ ③ 분석 ─ ④ 구조 편집 ─ ⑤ 결과</span><span></span></div>
+  <div class="dim"></div>
+  <div class="modal">
+    <div style="padding:12px 16px;border-bottom:1px solid var(--color-border);display:flex;justify-content:space-between;align-items:center">
+      <span style="font-weight:600;font-size:15px">이렇게 이해했어요</span><span class="lb">칩을 눌러 고치거나 ×로 지울 수 있어요</span></div>
+    <div style="padding:12px 16px;display:flex;flex-direction:column;gap:10px">
+      <div class="row"><span class="lb" style="width:64px">영상 성격</span><span class="chip">일상 기록 · 먹방 중심 ✎</span><span class="lb" style="margin-left:auto">목표 10:00</span></div>
+      <div class="box">
+        <div class="sec">꼭 지킬 것 <span class="badge b-danger">코드가 반드시 지킴</span></div>
+        <div class="row"><span class="lb" style="width:52px">꼭 넣기</span><span class="chip">한강 도착 장면 ×</span><span class="chip add">+ 추가</span></div>
+        <div class="row" style="margin-top:6px"><span class="lb" style="width:52px">꼭 빼기</span><span class="chip add">+ 추가</span></div>
+      </div>
+      <div class="box">
+        <div class="sec">참고할 것 <span class="badge b-accent">AI가 고를 때 참고</span></div>
+        <div class="row"><span class="lb" style="width:52px">강조</span><span class="chip">편의점 과자 고르기 ×</span><span class="chip">먹방 ×</span><span class="chip add">+ 추가</span></div>
+        <div class="row" style="margin-top:6px"><span class="lb" style="width:52px">줄일 것</span><span class="chip">걸어서 이동 ×</span><span class="chip add">+ 추가</span></div>
+      </div>
+      <div class="row"><span class="lb" style="width:64px">등장인물</span><span class="chip">빨간 후드 = 민수 ×</span><span class="chip add">+ 추가</span></div>
+      <div class="warn">
+        <b>⚠ 확인이 필요해요 (2)</b>
+        <div style="margin-top:4px">1. "한강 도착"이 한 줄 설명(편의점 → 집)에 없어요. 영상에서 못 찾으면 꼭 넣기를 지킬 수 없어요.</div>
+        <div class="row" style="margin-top:4px"><span class="chip on">그대로 두기</span><span class="chip">꼭 넣기에서 빼기</span></div>
+        <div style="margin-top:6px">2. "먹방 위주"를 결과의 절반 정도로 이해했어요.</div>
+        <div class="row" style="margin-top:4px"><span class="chip">30%</span><span class="chip on">50%</span><span class="chip">70%</span><span class="chip">AI에게 맡기기</span></div>
+      </div>
+      <details><summary>AI가 만든 판단 규칙 보기 (JSON)</summary>
+<pre style="font-size:10px;background:var(--color-surface-2);border-radius:6px;padding:8px;margin:6px 0 0;overflow:auto;max-height:120px">{ "target_sec": 600, "purpose": "일상 기록 · 먹방 중심",
+  "must_include": ["한강 도착 장면"], "must_exclude": [],
+  "focus": ["편의점 과자 고르기", "먹방"], "minimize": ["걸어서 이동"],
+  "topic_ratio": { "먹방": 0.5 },
+  "characters": [{ "label": "빨간 후드", "name": "민수" }] }</pre></details>
+    </div>
+    <div class="bottom"><button>← 프롬프트 다시 쓰기</button><button class="primary">확정하고 분석 시작 →</button></div>
+  </div>
+</div>
+</section>
+
+<!-- ============================ S3 분석 중 ============================ -->
+<section class="screen" id="s3">
+<p class="note">진행률은 클립(또는 10분 조각)이 끝날 때 갱신. 가운데 그림은 분석 중인 클립의 저해상도 프레임 슬라이드(AI가 지금 보는 위치가 아님).</p>
+<div class="app">
+  <div class="top"><span><span class="logo">V</span>① 가져오기 ✔ ─ ② 요청 ✔ ─ <b>③ 분석</b> ─ ④ 구조 편집 ─ ⑤ 결과</span><span>경과 06:42</span></div>
+  <div class="progress-wrap">
+    <div class="ptitle">③ 분석 중<span class="dots">…</span></div>
+    <div class="row" style="justify-content:center"><span class="chip done">✔ 1. 받아쓰기</span><span class="chip on">2. 영상 분석 · 클립 4/5</span><span class="chip">3. 말·장면 맞추기</span><span class="chip">4. 4단 구조화</span></div>
+    <div class="video" style="width:260px;height:146px;margin-top:4px"><div class="floor"></div><div class="p1" style="left:66px;top:40px;width:40px;height:40px"></div><div class="p2" style="left:150px;top:46px;width:36px;height:36px"></div></div>
+    <div class="lb">분석 중인 클립: 집_먹방</div>
+    <div style="width:min(540px,100%)">
+      <div class="row lb" style="justify-content:space-between"><span>전체 진행</span><b style="color:var(--color-text)">35%</b></div>
+      <div class="bar" style="height:10px;margin-top:4px"><i style="width:35%"></i></div>
+      <div class="lb" style="margin-top:6px;text-align:center">예상 남은 시간 약 4분 · 창을 닫아도 분석은 계속돼요</div>
+    </div>
+  </div>
+  <details style="border-top:1px solid var(--color-border);padding:10px 16px" open>
+    <summary>자세히 보기 (클립별 진행 · AI가 발견한 것)</summary>
+    <div class="split" style="grid-template-columns:1fr 1fr;gap:16px;margin-top:10px">
+      <div>
+        <table>
+          <tr><th>#</th><th>클립</th><th>길이</th><th style="width:26%">받아쓰기</th><th style="width:30%">영상 분석</th></tr>
+          <tr><td>1</td><td>편의점_출발</td><td>04:12</td><td><div class="bar"><i style="width:100%;background:var(--color-success)"></i></div></td><td><div class="bar"><i style="width:100%;background:var(--color-success)"></i></div></td></tr>
+          <tr><td>2</td><td>편의점_안</td><td>08:30</td><td><div class="bar"><i style="width:100%;background:var(--color-success)"></i></div></td><td><div class="bar"><i style="width:100%;background:var(--color-success)"></i></div></td></tr>
+          <tr><td>3</td><td>귀가길</td><td>03:05</td><td><div class="bar"><i style="width:100%;background:var(--color-success)"></i></div></td><td><span style="color:var(--color-danger)">실패</span> <button style="height:22px;font-size:10px;padding:0 6px">다시 시도</button></td></tr>
+          <tr><td>4</td><td>집_먹방</td><td>41:20</td><td><div class="bar"><i style="width:100%;background:var(--color-success)"></i></div></td><td><div class="bar"><i style="width:62%"></i></div></td></tr>
+          <tr><td>5</td><td>마무리</td><td>02:53</td><td><div class="bar"><i style="width:100%;background:var(--color-success)"></i></div></td><td class="lb">대기</td></tr>
+        </table>
+        <div class="lb" style="margin-top:6px">클립 3 실패 사유: 업로드 시간 초과 · 나머지는 계속 진행돼요</div>
+        <div class="row" style="margin-top:10px"><span class="chip">편의점 가는 길 · 04:12</span><span class="chip">편의점 과자 고르기 · 08:30</span><span class="chip add">귀가길 · 분석 대기</span><span class="chip">집 먹방 · 진행 중</span></div>
+      </div>
+      <div>
+        <div class="log"><span class="t">47:02</span><span class="badge b-accent">장면 경계</span> 먹방 → 설거지 · 활동이 바뀜</div>
+        <div class="log"><span class="t">31:40</span><span class="badge b-warning">합침</span> 셀카↔후면 전환, 같은 장소라 한 장면 유지</div>
+        <div class="log"><span class="t">22:15</span><span class="badge b-accent">인물</span> 빨간 후드 = 민수 (요청에서 받은 정보)</div>
+        <div class="log"><span class="t">16:03</span><span class="badge b-accent">장면 경계</span> 편의점 → 계산대 · 장소 안 위치 변화</div>
+        <div class="log"><span class="t">09:41</span><span class="badge b-warning">합침</span> 8초 장면, 너무 짧아 다음 장면에 붙임</div>
+        <div class="log"><span class="t">—</span><span class="badge b-success">받아쓰기</span> 문장 412개 · 화자 3명 구분</div>
+        <div class="lb" style="margin-top:6px">시각은 전체 타임라인 기준 · scene_analyzer 실제 처리 기록만 표시</div>
+      </div>
+    </div>
+  </details>
+  <div class="bottom" style="display:grid;grid-template-columns:repeat(5,minmax(0,1fr)) auto">
+    <div><div class="lb">전체 길이</div><div class="num">60:00</div></div>
+    <div><div class="lb">장면</div><div class="num">38</div></div>
+    <div><div class="lb">문장</div><div class="num">412</div></div>
+    <div><div class="lb">화자</div><div class="num">3</div></div>
+    <div><div class="lb">API 비용</div><div class="num">₩210</div></div>
+    <button class="primary" disabled>구조 편집 시작 →</button>
+  </div>
+</div>
+</section>
+
+<!-- ============================ S4 구조 편집 ============================ -->
+<section class="screen" id="s4">
+<p class="note">위 = 트리 60% + 상세 40%, 아래 = 타임라인. Space 켜기/끄기, 방향키 이동, 우클릭 꼭 넣기/빼기. 선택은 장면 단위로 저장, 상위 상태는 계산.</p>
+<div class="app">
+  <div class="top"><span><span class="logo">V</span>① 가져오기 ✔ ─ ② 요청 ✔ ─ ③ 분석 ✔ ─ <b>④ 구조 편집</b> ─ ⑤ 결과</span><span>선택 <b>10:04</b> / 목표 10:00</span></div>
+  <div class="split" style="grid-template-columns:60% 40%;height:440px">
+    <div style="min-width:0;position:relative">
+      <div class="miller">
+        <div class="col"><div class="colh">장소·사건</div>
+          <div class="item"><span class="st part"></span>편의점 가는 길<span class="d">4:12</span></div>
+          <div class="item sel"><span class="st part"></span>편의점<span class="d">8:30</span></div>
+          <div class="item"><span class="st"></span>귀가길<span class="d">3:05</span></div>
+          <div class="item"><span class="st part"></span>집 먹방<span class="d">41:20</span></div>
+          <div class="item off"><span class="st"></span>마무리<span class="d">2:53</span></div>
+        </div>
+        <div class="col"><div class="colh">일</div>
+          <div class="item off"><span class="st"></span>입장·둘러보기<span class="d">1:40</span></div>
+          <div class="item sel"><span class="st part"></span>과자 고르기<span class="d">5:10</span></div>
+          <div class="item"><span class="st ai"></span>계산<span class="d">1:40</span></div>
+        </div>
+        <div class="col"><div class="colh">상황</div>
+          <div class="item sel"><span class="st part"></span>어떤 과자 살지 고민<span class="d">1:50</span></div>
+          <div class="item"><span class="st ai"></span>신상 발견<span class="d">1:30</span></div>
+          <div class="item off"><span class="st"></span>장바구니 정리<span class="d">1:50</span></div>
+        </div>
+        <div class="col"><div class="colh">장면</div>
+          <div class="item focus"><span class="st ai"></span>칼로리 확인<span class="d">0:19</span></div>
+          <div class="item off"><span class="st"></span>맛 고민<span class="d">0:41</span></div>
+          <div class="item"><span class="st"></span>가격 비교 <span class="ic" title="꼭 넣기">📌</span><span class="d">0:50</span></div>
+        </div>
+      </div>
+      <div class="ctx" style="left:calc(75% + 30px);top:150px">
+        <div>켜기 / 끄기 (Space)</div><div>📌 꼭 넣기</div><div>⛔ 꼭 빼기</div><div style="color:var(--color-text-subtle)">잠금 해제</div>
+      </div>
+    </div>
+    <div class="pane" style="display:flex;flex-direction:column;gap:10px;overflow:auto">
+      <div class="row" style="justify-content:space-between"><div class="sec" style="margin:0">칼로리 확인</div><button style="height:28px">자막 대상 화자 ⚙</button></div>
+      <div class="video" style="height:150px"><div class="floor"></div><div class="p1" style="left:90px;top:42px;width:40px;height:40px"></div><div class="p2" style="left:170px;top:48px;width:34px;height:34px"></div><span class="sub" style="bottom:12px;font-size:12px">칼로리 보소</span></div>
+      <div class="lb">편의점_안 01:40~01:59 (전체 05:52~06:11) · 편의점 · 과자 고르기 · 민수, 경우</div>
+      <div>
+        <div class="log"><span class="t">05:55</span><b>민수</b> 칼로리 보소</div>
+        <div class="log"><span class="t">05:58</span><b>경우</b> 이거 하나에 600이야?</div>
+        <div class="log"><span class="t">06:03</span><b>민수</b> 그냥 먹어 오늘은</div>
+      </div>
+      <div class="card"><div class="lb">AI 선택 이유</div><div style="font-size:12px;margin-top:2px">요청의 "과자 고르기" 강조 · 두 사람 반응이 뚜렷한 구간</div></div>
+    </div>
+  </div>
+  <div style="border-top:1px solid var(--color-border);padding:10px 16px">
+    <div class="row lb" style="justify-content:space-between"><span>편의점 › 과자 고르기 › 어떤 과자 살지 고민 › <b style="color:var(--color-text)">칼로리 확인</b></span><span class="legend"><i style="background:var(--color-accent)"></i>켜짐 <i style="background:var(--color-success)"></i>AI가 고름 <i style="background:repeating-linear-gradient(45deg,var(--color-accent) 0 2px,transparent 2px 4px);border:1px solid var(--color-accent)"></i>일부 <i style="background:var(--color-off)"></i>꺼짐</span></div>
+    <div style="display:flex;height:30px;border-radius:6px;overflow:hidden;margin-top:6px;border:1px solid var(--color-border);background:var(--color-off)">
+      <div class="seg" style="width:4%;background:var(--topic-1)"></div><div class="seg" style="width:3%"></div>
+      <div class="seg" style="width:5%;background:var(--topic-1)"></div><div class="seg" style="width:1%;background:var(--topic-1);outline:2px solid var(--color-text);outline-offset:-2px"></div><div class="seg" style="width:4%"></div>
+      <div class="seg" style="width:4%;background:var(--topic-2)"></div><div class="seg" style="width:9%"></div>
+      <div class="seg" style="width:8%;background:var(--topic-3)"></div><div class="seg" style="width:14%"></div><div class="seg" style="width:10%;background:var(--topic-3)"></div><div class="seg" style="width:33%"></div>
+      <div class="seg" style="width:5%;background:var(--topic-4)"></div>
+    </div>
+    <div class="row lb" style="justify-content:space-between;margin-top:4px"><span>00:00</span><span>원본 60:00 기준 · 회색 = 꺼진 구간</span><span>60:00</span></div>
+  </div>
+  <div class="bottom">
+    <span class="lb">Space 켜기/끄기 · ↑↓←→ 이동 · 우클릭 꼭 넣기/빼기</span>
+    <div class="row"><button>AI로 목표 분량 채우기</button><button class="primary">렌더 →</button></div>
+  </div>
+</div>
+</section>
+
+<!-- ============================ S5 편집 중 ============================ -->
+<section class="screen" id="s5">
+<p class="note">진행률은 FFmpeg -progress의 out_time으로 실제 계산. 검수 로그는 구현된 검사만 표시.</p>
+<div class="app">
+  <div class="top"><span><span class="logo">V</span>① 가져오기 ✔ ─ ② 요청 ✔ ─ ③ 분석 ✔ ─ ④ 구조 편집 ✔ ─ <b>⑤ 결과</b></span><span>경과 01:18</span></div>
+  <div class="progress-wrap">
+    <div class="ptitle">⑤ 편집 중<span class="dots">…</span></div>
+    <div class="row" style="justify-content:center"><span class="chip done">✔ 1. 편집 지시서</span><span class="chip done">✔ 2. 렌더 전 검수</span><span class="chip on">3. 자르기·이어붙이기 · 14/23</span><span class="chip">4. 자막 입히기</span><span class="chip">5. 인트로·아웃트로</span></div>
+    <div style="width:min(580px,100%);margin-top:6px">
+      <div class="row lb" style="justify-content:space-between"><span>결과 영상 타임라인 (선택한 구간 23개)</span><span>10:04 / 목표 10:00</span></div>
+      <div style="display:flex;height:34px;border-radius:6px;overflow:hidden;margin-top:4px;border:1px solid var(--color-border);background:var(--color-surface-2)">
+        <div class="seg" style="width:9%;background:var(--topic-1)"></div><div class="seg" style="width:14%;background:var(--topic-1)"></div><div class="seg" style="width:6%;background:var(--topic-1)"></div>
+        <div class="seg" style="width:11%;background:var(--topic-2)"></div><div class="seg" style="width:8%;background:var(--topic-2)"></div>
+        <div class="seg" style="width:10%;background:var(--topic-3)"></div><div class="seg now" style="width:7%;background:var(--color-accent)"></div>
+        <div class="seg" style="width:12%"></div><div class="seg" style="width:9%"></div><div class="seg" style="width:14%"></div>
+      </div>
+      <div class="row lb legend" style="margin-top:5px"><span><i style="background:var(--topic-1)"></i>편의점</span><span><i style="background:var(--topic-2)"></i>귀가길</span><span><i style="background:var(--topic-3)"></i>집 먹방</span><span style="margin-left:auto">지금: 과자 언박싱 (집_먹방 12:30~13:41)</span></div>
+    </div>
+    <div style="width:min(580px,100%);margin-top:6px">
+      <div class="row lb" style="justify-content:space-between"><span>전체 진행</span><b style="color:var(--color-text)">48%</b></div>
+      <div class="bar" style="height:10px;margin-top:4px"><i style="width:48%"></i></div>
+      <div class="lb" style="margin-top:6px;text-align:center">예상 남은 시간 약 1분 30초</div>
+    </div>
+  </div>
+  <details style="border-top:1px solid var(--color-border);padding:10px 16px" open>
+    <summary>자세히 보기 (검수 결과 · 적용 설정)</summary>
+    <div class="split" style="grid-template-columns:1fr 1fr;gap:16px;margin-top:10px">
+      <div><div class="lb" style="margin-bottom:4px">렌더 전 검수</div>
+        <div class="log"><span class="badge b-success">보정</span> 단어 중간에 걸린 컷 3곳 → 단어 경계로 이동</div>
+        <div class="log"><span class="badge b-success">보정</span> 구간 연결부 오디오 페이드 22곳</div>
+        <div class="log"><span class="badge b-warning">확인</span> "이거 잘라줘" 지시 발언 1곳 → 결과에서 제외</div>
+        <div class="log"><span class="badge b-success">통과</span> 꼭 넣기 2개 모두 포함 · 꼭 빼기 1개 제외</div></div>
+      <div><div class="lb" style="margin-bottom:4px">적용 설정</div>
+        <div class="log">화면 9:16 · 가운데 자르기 (16:9 클립 4개)</div>
+        <div class="log">자막 Pretendard 48pt · #FFFFFF · 외곽선 3 · 아래</div>
+        <div class="log">자막 대상: 민수, 경우 (화자 2명)</div>
+        <div class="log">인트로 없음 · 아웃트로 outro.mp4 (5초)</div></div>
+    </div>
+  </details>
+  <div class="bottom"><button>취소하고 구조 편집으로</button><button class="primary" disabled>결과 보기 →</button></div>
+</div>
+</section>
+
+<!-- ============================ S5-1 결과 확인 ============================ -->
+<section class="screen" id="s51">
+<p class="note">편집 불가. 확인 → 돌아가기 또는 내보내기만. "스타일만 바꾸기"는 S2 스타일 패널을 팝업으로 열고 다시 렌더.</p>
+<div class="app">
+  <div class="top"><span><span class="logo">V</span>① 가져오기 ✔ ─ ② 요청 ✔ ─ ③ 분석 ✔ ─ ④ 구조 편집 ✔ ─ <b>⑤ 결과</b></span><span style="color:var(--color-success)">편집 완료</span></div>
+  <div class="split" style="grid-template-columns:58% 42%">
+    <div class="pane" style="display:flex;flex-direction:column;align-items:center;gap:10px">
+      <div class="video" style="width:176px;height:313px"><div class="floor"></div><div class="p1" style="left:46px;top:100px;width:42px;height:42px"></div><div class="p2" style="left:100px;top:108px;width:36px;height:36px"></div><span class="sub" style="bottom:48px;font-size:12px">칼로리 보소</span>
+        <div style="position:absolute;left:8px;right:8px;bottom:10px;display:flex;align-items:center;gap:6px;color:#fff;font-size:10px"><span>▶</span><div style="flex:1;height:3px;background:rgba(255,255,255,.3);border-radius:2px"><div style="width:42%;height:100%;background:#fff"></div></div><span>04:15</span></div></div>
+      <div style="width:100%">
+        <div class="row lb" style="justify-content:space-between"><span>구간 23개 · 누르면 그 위치로 이동</span><span>04:15 / 10:04</span></div>
+        <div style="display:flex;height:28px;border-radius:6px;overflow:hidden;margin-top:4px;border:1px solid var(--color-border);position:relative">
+          <div class="seg" style="width:9%;background:var(--topic-1)"></div><div class="seg" style="width:14%;background:var(--topic-1)"></div><div class="seg" style="width:6%;background:var(--topic-1)"></div>
+          <div class="seg" style="width:11%;background:var(--topic-2)"></div><div class="seg" style="width:8%;background:var(--topic-2)"></div>
+          <div class="seg" style="width:10%;background:var(--topic-3);outline:2px solid var(--color-text);outline-offset:-2px"></div><div class="seg" style="width:7%;background:var(--topic-3)"></div><div class="seg" style="width:12%;background:var(--topic-3)"></div><div class="seg" style="width:9%;background:var(--topic-3)"></div><div class="seg" style="width:14%;background:var(--topic-4)"></div>
+          <div style="position:absolute;left:42%;top:-2px;bottom:-2px;width:2px;background:var(--color-text)"></div>
+        </div>
+        <div class="card" style="margin-top:8px">
+          <div class="row" style="justify-content:space-between"><b>과자 언박싱</b><span class="lb">원본 집_먹방 12:30~13:41</span></div>
+          <div class="lb" style="margin-top:3px;line-height:1.5">AI가 남긴 이유: 요청의 "먹방 위주" · 세 명 반응이 겹치는 구간이라 압축 시 유지</div>
+        </div>
+      </div>
+    </div>
+    <div class="pane" style="display:flex;flex-direction:column;gap:12px">
+      <div><div class="sec">결과 요약</div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
+          <div><div class="lb">원본</div><div class="num">60:00</div></div>
+          <div><div class="lb">결과</div><div class="num">10:04</div></div>
+          <div><div class="lb">목표 대비</div><div class="num">+4초</div></div>
+        </div></div>
+      <div><div class="lb" style="margin-bottom:2px">장소·사건별 비율</div>
+        <div class="row lb" style="justify-content:space-between"><span>편의점</span><span>29%</span></div><div class="bar"><i style="width:29%;background:var(--topic-1)"></i></div>
+        <div class="row lb" style="justify-content:space-between;margin-top:4px"><span>귀가길</span><span>19%</span></div><div class="bar"><i style="width:19%;background:var(--topic-2)"></i></div>
+        <div class="row lb" style="justify-content:space-between;margin-top:4px"><span>집 먹방</span><span>38%</span></div><div class="bar"><i style="width:38%;background:var(--topic-3)"></i></div>
+        <div class="row lb" style="justify-content:space-between;margin-top:4px"><span>마무리</span><span>14%</span></div><div class="bar"><i style="width:14%;background:var(--topic-4)"></i></div></div>
+      <div><div class="lb" style="margin-bottom:2px">요청 반영</div>
+        <div class="log row" style="justify-content:space-between"><span>꼭 넣기: 한강 도착</span><span style="color:var(--color-success)">✔ 포함</span></div>
+        <div class="log row" style="justify-content:space-between"><span>줄일 것: 걸어서 이동</span><span>6:40 → 1:52</span></div>
+        <div class="log row" style="justify-content:space-between"><span>검수 보정</span><span>컷 3곳 · 페이드 22곳</span></div></div>
+      <div class="card"><div class="lb">작업 시간</div><div style="margin-top:2px">분석 10:12 · 구조 편집 6:20 · 렌더 2:48 = <b>19분 20초</b></div></div>
+    </div>
+  </div>
+  <div class="bottom">
+    <div class="row"><button>← 구조 편집으로 돌아가기</button><button>스타일만 바꾸기</button></div>
+    <div class="row"><span class="lb">MP4 · 자막 SRT · 편집 지시서 JSON</span><button class="primary">내보내기 ↓</button></div>
+  </div>
+</div>
+</section>
+
+<script>
+const tabs=document.querySelectorAll('#tabs button');
+function show(id){
+  tabs.forEach(b=>b.classList.toggle('on',b.dataset.s===id));
+  document.querySelectorAll('.screen').forEach(s=>s.classList.toggle('on',s.id===id));
+  try{history.replaceState(null,'','#'+id)}catch(e){}
+}
+tabs.forEach(b=>b.addEventListener('click',()=>show(b.dataset.s)));
+if(location.hash && document.getElementById(location.hash.slice(1))) show(location.hash.slice(1));
+</script>
+</body>
+</html>

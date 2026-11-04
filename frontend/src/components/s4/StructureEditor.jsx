@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useProject } from '../../state/ProjectContext.jsx';
-import { getTree, getSelection } from '../../api/index.js';
+import { getTree, getSelection, autoCompress, saveSelection } from '../../api/index.js';
+import { toggle, setLock, getTotalSec, applyAISelection, findNodePath } from '../../logic/selection.js';
 import { fmtDuration } from '../../utils/format.js';
 import TopBar from '../common/TopBar.jsx';
 import BottomBar from '../common/BottomBar.jsx';
@@ -9,15 +10,61 @@ import DetailPanel from './DetailPanel.jsx';
 import EditorTimeline from './EditorTimeline.jsx';
 
 export default function StructureEditor() {
-  const { selection, setSelection, transition } = useProject();
+  const { status, selection, setSelection, transition } = useProject();
   const [treeData,     setTreeData]     = useState(null);
   const [selectedPath, setSelectedPath] = useState([null, null, null, null]);
   const [selectedScene, setSelectedScene] = useState(null);
+  const [blockedMsg,   setBlockedMsg]   = useState('');
+  const [aiLoading,    setAiLoading]    = useState(false);
 
   useEffect(() => {
     getTree().then(setTreeData);
-    getSelection().then(setSelection);
+    if (selection == null) {
+      getSelection().then(setSelection);
+    }
   }, []);
+
+  const sentences  = treeData?.sentences ?? [];
+  const selNodes   = selection?.nodes ?? {};
+  const targetSec  = selection?.target_sec;
+  const targetLabel = targetSec != null ? fmtDuration(targetSec) : '—';
+  const onTotal    = getTotalSec(selNodes, treeData ?? { tree: [] });
+
+  const warningColor = targetSec != null && onTotal > 0 && Math.abs(onTotal - targetSec) / targetSec > 0.1
+    ? 'var(--color-warning)'
+    : undefined;
+
+  const updateNodes = useCallback((newNodes) => {
+    const newSel = { ...selection, nodes: newNodes };
+    if (status === 'rendered') {
+      transition('CHANGE_SELECTION', newSel);
+    } else {
+      setSelection(newSel);
+    }
+    saveSelection(newSel);
+  }, [selection, status, transition, setSelection]);
+
+  const handleToggle = (nodeId) => {
+    const { nodes: newNodes, blocked, lock } = toggle(selNodes, nodeId, treeData ?? { tree: [] });
+    if (blocked) {
+      // Determine lock type from the current node's state
+      const existingLock = selNodes[nodeId]?.lock;
+      const msg = existingLock === 'must_include'
+        ? '꼭 넣기로 잠긴 장면이에요'
+        : existingLock === 'must_exclude'
+          ? '꼭 빼기로 잠긴 장면이에요'
+          : '잠긴 장면이에요';
+      setBlockedMsg(msg);
+      setTimeout(() => setBlockedMsg(''), 2000);
+      return;
+    }
+    updateNodes(newNodes);
+  };
+
+  const handleLock = (nodeId, lockType) => {
+    const newNodes = setLock(selNodes, nodeId, lockType, treeData ?? { tree: [] });
+    updateNodes(newNodes);
+  };
 
   const handleSelectAt = (colIdx, node) => {
     const newPath = [...selectedPath];
@@ -28,34 +75,47 @@ export default function StructureEditor() {
     else setSelectedScene(null);
   };
 
-  const sentences = treeData?.sentences ?? [];
-  const selNodes  = selection?.nodes ?? {};
-  const onTotal   = Object.entries(selNodes)
-    .filter(([, v]) => v.state === 'on')
-    .reduce((sum, [id]) => {
-      function findSec(list) {
-        for (const n of list) {
-          if (n.id === id) return n.end - n.start;
-          const r = findSec(n.children ?? []);
-          if (r != null) return r;
-        }
-        return null;
+  const handleTimelineSceneClick = (sceneId) => {
+    if (!treeData) return;
+    const path = findNodePath(sceneId, treeData);
+    if (!path) return;
+    // path is [topicId, taskId?, situationId?, sceneId] (up to 4 levels)
+    const newPath = [null, null, null, null];
+    path.forEach((id, i) => { if (i < 4) newPath[i] = id; });
+    setSelectedPath(newPath);
+    // Find the scene node
+    function findNode(arr, id) {
+      for (const n of arr) {
+        if (n.id === id) return n;
+        const found = findNode(n.children ?? [], id);
+        if (found) return found;
       }
-      const s = findSec(treeData?.tree ?? []);
-      return sum + (s ?? 0);
-    }, 0);
+      return null;
+    }
+    const sceneNode = findNode(treeData.tree ?? [], sceneId);
+    setSelectedScene(sceneNode ?? null);
+  };
+
+  const handleAICompress = async () => {
+    setAiLoading(true);
+    try {
+      const result = await autoCompress(selection, treeData);
+      const newNodes = applyAISelection(selNodes, result);
+      updateNodes(newNodes);
+    } finally {
+      setAiLoading(false);
+    }
+  };
 
   const breadcrumb = selectedPath.filter(Boolean);
-
-  const targetSec = selection?.target_sec;
-  if (targetSec == null && selection != null) console.warn('[StructureEditor] selection.target_sec missing');
-  const targetLabel = targetSec != null ? fmtDuration(targetSec) : '—';
 
   return (
     <div className="app-shell" style={{ height: '100vh', maxHeight: '100vh' }}>
       <TopBar
         rightContent={
-          <span>선택 <b>{fmtDuration(onTotal)}</b> / 목표 {targetLabel}</span>
+          <span style={{ color: warningColor }}>
+            선택 <b>{fmtDuration(onTotal)}</b> / 목표 {targetLabel}
+          </span>
         }
       />
 
@@ -66,6 +126,8 @@ export default function StructureEditor() {
             selectedPath={selectedPath}
             selectionNodes={selNodes}
             onSelectAt={handleSelectAt}
+            onToggle={handleToggle}
+            onLock={handleLock}
           />
           <DetailPanel
             scene={selectedScene}
@@ -79,6 +141,7 @@ export default function StructureEditor() {
           selection={selection}
           selectedScene={selectedScene}
           totalSec={3600}
+          onSceneClick={handleTimelineSceneClick}
         />
       </div>
 
@@ -90,11 +153,31 @@ export default function StructureEditor() {
         }
         right={
           <div className="row">
-            <button>AI로 목표 분량 채우기</button>
+            <button onClick={handleAICompress} disabled={aiLoading}>
+              {aiLoading ? 'AI 분석 중…' : 'AI로 목표 분량 채우기'}
+            </button>
             <button className="btn-primary" onClick={() => transition('START_RENDER')}>렌더 →</button>
           </div>
         }
       />
+
+      {blockedMsg && (
+        <div style={{
+          position: 'fixed',
+          bottom: 64,
+          left: '50%',
+          transform: 'translateX(-50%)',
+          background: 'var(--color-warning-bg)',
+          border: '1px solid var(--color-warning-border)',
+          color: 'var(--color-warning)',
+          padding: '6px 16px',
+          borderRadius: 6,
+          fontSize: 13,
+          zIndex: 100,
+        }}>
+          {blockedMsg}
+        </div>
+      )}
     </div>
   );
 }

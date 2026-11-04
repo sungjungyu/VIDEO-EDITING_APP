@@ -2,7 +2,7 @@ import { fmtDuration } from '../../utils/format.js';
 
 const TOPIC_COLORS = ['--topic-1', '--topic-2', '--topic-3', '--topic-4', '--topic-1'];
 
-export default function EditorTimeline({ treeData, selectionNodes, selection, selectedScene, totalSec }) {
+export default function EditorTimeline({ treeData, selectionNodes, selection, selectedScene, totalSec, onSceneClick }) {
   if (!treeData) return null;
 
   const topics = treeData.tree ?? [];
@@ -27,6 +27,11 @@ export default function EditorTimeline({ treeData, selectionNodes, selection, se
   if (targetSec == null) console.warn('[EditorTimeline] selection.target_sec missing');
   const targetLabel = targetSec != null ? fmtDuration(targetSec) : '—';
 
+  const ratio = targetSec != null && selectedTotal > 0
+    ? Math.abs(selectedTotal - targetSec) / targetSec
+    : 0;
+  const totalColor = ratio > 0.1 ? 'var(--color-warning)' : undefined;
+
   return (
     <div style={{ borderTop: '1px solid var(--color-border)', padding: '10px 16px' }}>
       <div className="row lb" style={{ justifyContent: 'space-between', marginBottom: 4 }}>
@@ -39,7 +44,9 @@ export default function EditorTimeline({ treeData, selectionNodes, selection, se
           ))}
           <span className="legend"><i style={{ background: 'var(--color-off)' }} />꺼짐</span>
         </div>
-        <span>선택 합계 {fmtDuration(selectedTotal)} / 목표 {targetLabel}</span>
+        <span style={{ color: totalColor }}>
+          선택 합계 {fmtDuration(selectedTotal)} / 목표 {targetLabel}
+        </span>
       </div>
 
       <div style={{ display: 'flex', height: 30, borderRadius: 6, overflow: 'hidden', border: '1px solid var(--color-border)', background: 'var(--color-off)' }}>
@@ -58,8 +65,10 @@ export default function EditorTimeline({ treeData, selectionNodes, selection, se
                 background: color,
                 outline: isSelected ? '2px solid var(--color-text)' : undefined,
                 outlineOffset: isSelected ? -2 : undefined,
+                cursor: on ? 'pointer' : undefined,
               }}
               title={sc.title}
+              onClick={() => onSceneClick?.(sc.id)}
             />
           );
         })}

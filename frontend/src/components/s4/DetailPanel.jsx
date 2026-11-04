@@ -22,6 +22,17 @@ export default function DetailPanel({ scene, sentences, selectionNodes }) {
         <button style={{ height: 28, fontSize: 11 }}>자막 대상 화자 ⚙</button>
       </div>
 
+      {selState?.lock && (
+        <div className="card" style={{
+          background: selState.lock === 'must_include' ? 'var(--color-success-bg)' : 'var(--color-danger-bg)',
+          color: selState.lock === 'must_include' ? 'var(--color-success)' : 'var(--color-danger)',
+          fontSize: 12,
+          marginBottom: 4,
+        }}>
+          {selState.lock === 'must_include' ? '📌 꼭 넣기 잠금' : '🚫 꼭 빼기 잠금'}
+        </div>
+      )}
+
       <div className="video" style={{ height: 150 }}>
         <div className="floor" />
         <div className="p1" style={{ left: 90, top: 42, width: 40, height: 40 }} />
@@ -49,7 +60,7 @@ export default function DetailPanel({ scene, sentences, selectionNodes }) {
         </div>
       )}
 
-      {selState?.reason && (
+      {selState?.by === 'ai' && selState?.reason && (
         <div className="card">
           <div className="lb">AI 선택 이유</div>
           <div style={{ fontSize: 12, marginTop: 2 }}>{selState.reason}</div>
