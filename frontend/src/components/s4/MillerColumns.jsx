@@ -19,6 +19,17 @@ export default function MillerColumns({ treeData, selectedPath, selectionNodes, 
   const [ctxMenu, setCtxMenu] = useState(null);
   const ctxRef = useRef(null);
 
+  // 훅은 조기 return 전에 모두 호출해야 한다 (Rules of Hooks)
+  useEffect(() => {
+    const handleMouseDown = (e) => {
+      if (ctxRef.current && !ctxRef.current.contains(e.target)) {
+        setCtxMenu(null);
+      }
+    };
+    window.addEventListener('mousedown', handleMouseDown);
+    return () => window.removeEventListener('mousedown', handleMouseDown);
+  }, []);
+
   if (!treeData) return null;
   const roots = treeData.tree ?? [];
 
@@ -32,17 +43,6 @@ export default function MillerColumns({ treeData, selectedPath, selectionNodes, 
     }
     return { level, nodes };
   });
-
-  // Close context menu when clicking outside
-  useEffect(() => {
-    const handleMouseDown = (e) => {
-      if (ctxRef.current && !ctxRef.current.contains(e.target)) {
-        setCtxMenu(null);
-      }
-    };
-    window.addEventListener('mousedown', handleMouseDown);
-    return () => window.removeEventListener('mousedown', handleMouseDown);
-  }, []);
 
   const handleContextMenu = (e, nodeId) => {
     e.preventDefault();

@@ -5,6 +5,7 @@ import AnalyzingScreen  from './components/s3/AnalyzingScreen.jsx';
 import StructureEditor  from './components/s4/StructureEditor.jsx';
 import RenderingScreen  from './components/s5/RenderingScreen.jsx';
 import ResultView       from './components/s5_1/ResultView.jsx';
+import ErrorBoundary    from './components/common/ErrorBoundary.jsx';
 
 const SCREENS = {
   s1:  ClipImport,
@@ -19,8 +20,10 @@ export default function App() {
   const { currentScreen } = useProject();
   const Screen = SCREENS[currentScreen];
   return (
-    <div style={{ padding: '0 16px' }}>
-      {Screen ? <Screen /> : <div>알 수 없는 화면: {currentScreen}</div>}
-    </div>
+    <ErrorBoundary key={currentScreen}>
+      <div style={{ padding: '0 16px' }}>
+        {Screen ? <Screen /> : <div>알 수 없는 화면: {currentScreen}</div>}
+      </div>
+    </ErrorBoundary>
   );
 }

@@ -8,4 +8,7 @@ export default defineConfig({
       '/api': 'http://localhost:8000',
     },
   },
+  test: {
+    exclude: ['e2e/**', 'node_modules/**'],
+  },
 });
