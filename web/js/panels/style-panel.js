@@ -31,10 +31,11 @@ export function effectiveStyle(key) {
 
 const save = debounce(async () => {
   if (!state.plan || !Object.keys(drafts).length) return;
-  const styles = { ...state.plan.styles, ...drafts };
+  const sent = { ...drafts };
   try {
-    await mutatePlan(() => api.putPlan(pid(), { styles }));
-    drafts = {};
+    await mutatePlan(() => api.putPlan(pid(), { styles: { ...state.plan.styles, ...sent } }));
+    // 응답을 기다리는 사이 또 바꾼 값은 남겨 둔다 (그 값은 이미 예약된 다음 save가 보낸다)
+    for (const key of Object.keys(sent)) if (drafts[key] === sent[key]) delete drafts[key];
   } catch (err) {
     toast(`스타일 저장 실패: ${err.message}`, "error");
   }
