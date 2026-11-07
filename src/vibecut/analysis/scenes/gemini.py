@@ -8,6 +8,7 @@ LLM 출력을 믿지 않고 코드로 정리한다 (clean_scenes). 이전 클립
 from __future__ import annotations
 
 import re
+import threading
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -141,10 +142,11 @@ def clean_scenes(raw: list, duration: float, min_sec: float) -> list:
 
 
 def describe_scenes(client: GeminiClient, video: Path, lowres: Path, duration: float, options: SceneOptions,
-                    prev_summary: str = "", known_people: str = "") -> tuple[list[dict], dict]:
+                    prev_summary: str = "", known_people: str = "",
+                    cancel: threading.Event | None = None) -> tuple[list[dict], dict]:
     """(정리된 장면 목록(클립 초), 사용량). lowres: 압축본을 둘 경로 (이미 있으면 다시 만들지 않는다)."""
     make_lowres(video, lowres, options.height)
     raw, usage = client.analyze_video(lowres, scene_prompt(duration, options.min_sec, prev_summary, known_people),
                                       SCENE_SCHEMA, model=options.model, resolution=options.resolution,
-                                      mode=options.mode)
+                                      mode=options.mode, cancel=cancel)
     return clean_scenes(raw, duration, options.min_sec), usage

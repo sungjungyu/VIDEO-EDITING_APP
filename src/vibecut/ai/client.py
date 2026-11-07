@@ -20,6 +20,7 @@ import hashlib
 import json
 import logging
 import random
+import re
 import threading
 import time
 from collections.abc import Callable
@@ -29,7 +30,7 @@ from typing import Any, TypeVar
 
 from pydantic import BaseModel
 
-from ..errors import AIError, AIUnavailable
+from ..errors import AIError, AIUnavailable, Canceled
 from ..settings import Settings
 from ..storage.cache import JsonCache
 
@@ -38,6 +39,10 @@ log = logging.getLogger("vibecut.ai")
 T = TypeVar("T")
 REST_URL = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
 _SETTINGS_TIMEOUT = -1.0
+VIDEO_POLL_SEC = 3.0          # 올린 영상의 처리 상태를 묻는 간격
+VIDEO_WAIT_SEC = 600.0        # 처리(PROCESSING)가 이보다 오래 걸리면 포기 → 화면 변화 감지로 대신
+VIDEO_CALL_TIMEOUT = 600.0    # 장면 분석 호출 한 번의 HTTP 제한
+_HTTP_5XX = re.compile(r"\b(500|502|503|504)\b")
 
 
 @dataclass
@@ -68,12 +73,18 @@ class Usage:
 
 def classify_error(error: BaseException) -> str:
     """quota(한도 초과: 다른 모델로) | transient(잠시 후 재시도) | fatal(재시도해도 소용없음)."""
-    text = f"{type(error).__name__} {error}"
-    if "429" in text or "RESOURCE_EXHAUSTED" in text or "quota" in text.lower():
+    code = getattr(error, "code", None) or getattr(error, "status_code", None)
+    if code == 429:
         return "quota"
-    transient = ("500", "502", "503", "504", "UNAVAILABLE", "INTERNAL", "DEADLINE", "Timeout", "timed out",
+    if code in (500, 502, 503, 504):
+        return "transient"
+    text = f"{type(error).__name__} {error}"
+    if re.search(r"\b429\b", text) or "RESOURCE_EXHAUSTED" in text or "quota" in text.lower():
+        return "quota"
+    transient = ("UNAVAILABLE", "INTERNAL", "DEADLINE", "Timeout", "timed out",
                  "ConnectError", "RemoteProtocolError", "ReadError", "Connection", "JSONDecodeError", "empty")
-    if isinstance(error, (TimeoutError, json.JSONDecodeError, ConnectionError)) or any(t in text for t in transient):
+    if isinstance(error, (TimeoutError, json.JSONDecodeError, ConnectionError)) or _HTTP_5XX.search(text) \
+            or any(t in text for t in transient):
         return "transient"
     return "fatal"
 
@@ -261,21 +272,32 @@ class GeminiClient:
     # ------------------------------------------------------------ 영상 장면 이해
 
     def analyze_video(self, video: Path, prompt: str, schema: dict, *, model: str, resolution: str = "low",
-                      mode: str = "static") -> tuple[list, dict]:
+                      mode: str = "static", cancel: threading.Event | None = None) -> tuple[list, dict]:
         """영상을 올려 처리가 끝나기를 기다린 뒤 장면 목록(JSON 배열)을 받는다. 올린 파일은 끝나면 지운다.
-        resolution: low|medium|high|ultra_high, mode(processing): static|agentic"""
+        resolution: low|medium|high|ultra_high, mode(processing): static|agentic
+        처리 대기는 VIDEO_WAIT_SEC까지, 분석 호출은 VIDEO_CALL_TIMEOUT까지 (예전에는 둘 다 끝없이 기다렸다).
+        cancel이 서면 처리 대기 중에 멈춘다."""
         self._require()
-        client = self._sdk(timeout=None)
+        client = self._sdk(timeout=None)                  # 업로드는 크기에 따라 오래 걸려 제한하지 않는다
         uploaded = client.files.upload(file=str(video))
         try:
+            waited = 0.0
             while not uploaded.state or uploaded.state.name != "ACTIVE":
                 if uploaded.state and uploaded.state.name == "FAILED":
                     raise AIError("Gemini 파일 처리 실패")
-                self._sleep(3)
+                if cancel is not None and cancel.is_set():
+                    raise Canceled()
+                if waited >= VIDEO_WAIT_SEC:
+                    raise AIError(f"Gemini 파일 처리가 {VIDEO_WAIT_SEC:.0f}초 안에 끝나지 않았습니다 (Timeout).")
+                self._sleep(VIDEO_POLL_SEC)
+                waited += VIDEO_POLL_SEC
                 uploaded = client.files.get(name=uploaded.name)
+            generator = self._sdk(timeout=VIDEO_CALL_TIMEOUT)
 
             def call() -> tuple[list, dict]:
-                inter = client.interactions.create(
+                if cancel is not None and cancel.is_set():
+                    raise Canceled()
+                inter = generator.interactions.create(
                     model=model,
                     input=[{"type": "video", "uri": uploaded.uri, "mime_type": uploaded.mime_type,
                             "resolution": resolution, "processing": mode},
@@ -293,6 +315,8 @@ class GeminiClient:
 
             try:
                 return self._attempts(call, "장면 분석", model)
+            except Canceled:
+                raise
             except Exception as error:
                 raise self._failure(error) from error
         finally:

@@ -12,6 +12,7 @@ import threading
 from pathlib import Path
 
 from ...ai.client import GeminiClient
+from ...errors import Canceled
 from ...settings import Settings
 from ...storage.cache import JsonCache
 from .gemini import SceneOptions, describe_scenes
@@ -44,9 +45,11 @@ def analyze_clip_scenes(video: Path, sha1: str, duration: float, settings: Setti
             work_dir.mkdir(parents=True, exist_ok=True)
             options = SceneOptions(model=model)
             scenes, usage = describe_scenes(client, video, work_dir / f"{video.stem}_{options.height}p.mp4",
-                                            duration, options, prev_summary, known_people)
+                                            duration, options, prev_summary, known_people, cancel)
             cache.put(name, scenes)
             return {"scenes": scenes, "engine": f"gemini:{model}", "warnings": [], "usage": usage}
+        except Canceled:
+            raise
         except Exception as error:
             log.warning("Gemini 장면 분석 실패: %s", str(error)[:300])
             warnings.append(f"Gemini 영상 분석 실패 → 화면 변화 감지로 대신합니다: {str(error)[:150]}")

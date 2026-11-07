@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import json
+import threading
+from types import SimpleNamespace
 
 import pytest
 
 from vibecut.ai.client import GeminiClient, classify_error, parse_json
-from vibecut.errors import AIError, AIUnavailable
+from vibecut.errors import AIError, AIUnavailable, Canceled
 
 
 def test_parse_json_variants():
@@ -25,6 +27,7 @@ def test_classify_error():
     assert classify_error(RuntimeError("503 UNAVAILABLE")) == "transient"
     assert classify_error(TimeoutError("timed out")) == "transient"
     assert classify_error(RuntimeError("400 INVALID_ARGUMENT")) == "fatal"
+    assert classify_error(RuntimeError("400 max tokens 8500 exceeded")) == "fatal"
 
 
 class FakeClient(GeminiClient):
@@ -78,3 +81,60 @@ def test_with_usage_shares_connection_but_counts_separately(make_settings, tmp_p
     job_client = client.with_usage(usage)
     assert job_client.usage is usage and client.usage is not usage
     assert job_client.cache.directory == client.cache.directory and job_client._clients is client._clients
+
+
+# ---------------------------------------------------------------- 영상 장면 분석 (처리 대기·취소)
+
+class FakeVideoSdk:
+    """files.upload/get/delete + interactions.create만 흉내. states: get이 차례로 돌려줄 처리 상태."""
+
+    def __init__(self, states):
+        self.states = list(states)
+        self.deleted = []
+        self.files = self
+        self.interactions = self
+
+    def _file(self, state):
+        return SimpleNamespace(name="files/v1", uri="gs://v1", mime_type="video/mp4",
+                               state=SimpleNamespace(name=state))
+
+    def upload(self, file):
+        return self._file("PROCESSING")
+
+    def get(self, name):
+        return self._file(self.states.pop(0) if self.states else "PROCESSING")
+
+    def delete(self, name):
+        self.deleted.append(name)
+
+    def create(self, **kwargs):
+        return SimpleNamespace(output_text='[{"start": 0, "end": 5}]', usage=None)
+
+
+def video_client(make_settings, tmp_path, states):
+    sdk = FakeVideoSdk(states)
+    client = GeminiClient(make_settings(tmp_path), sleep=lambda s: None)
+    client._sdk = lambda timeout=None: sdk
+    return client, sdk
+
+
+def test_analyze_video_waits_for_processing(make_settings, tmp_path):
+    client, sdk = video_client(make_settings, tmp_path, ["PROCESSING", "ACTIVE"])
+    scenes, _ = client.analyze_video(tmp_path / "v.mp4", "p", {}, model="m")
+    assert scenes == [{"start": 0, "end": 5}] and sdk.deleted == ["files/v1"]
+
+
+def test_analyze_video_gives_up_when_processing_never_ends(make_settings, tmp_path):
+    client, sdk = video_client(make_settings, tmp_path, [])              # 계속 PROCESSING
+    with pytest.raises(AIError, match="끝나지 않았습니다"):
+        client.analyze_video(tmp_path / "v.mp4", "p", {}, model="m")
+    assert sdk.deleted == ["files/v1"]                                   # 올린 파일은 지운다
+
+
+def test_analyze_video_stops_on_cancel(make_settings, tmp_path):
+    client, sdk = video_client(make_settings, tmp_path, [])
+    cancel = threading.Event()
+    cancel.set()
+    with pytest.raises(Canceled):                                        # AIError로 감싸지 않는다
+        client.analyze_video(tmp_path / "v.mp4", "p", {}, model="m", cancel=cancel)
+    assert sdk.deleted == ["files/v1"]
