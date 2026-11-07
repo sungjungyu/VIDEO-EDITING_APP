@@ -7,7 +7,7 @@ import { analysisReady, canRedo, canUndo, clearHistory, clipById, mutatePlan, on
          timelineClips, undo } from "./core/store.js";
 import { initAnalysis, loadAnalysisAndPlan, setAiStage, trackAnalysis, updateAnalyzeButton } from "./panels/analysis.js";
 import { initExport, trackRender } from "./panels/export.js";
-import { initMedia } from "./panels/media.js";
+import { initMedia, resetMedia } from "./panels/media.js";
 import { initPreview, togglePlay } from "./panels/preview.js";
 import { initProfile, loadProfile } from "./panels/profile.js";
 import { closeEditSetup, initSetup } from "./panels/setup.js";
@@ -20,6 +20,7 @@ const PROJECT_KEY = "vibecut_project_id";
 
 async function openProject(project) {
   try { localStorage.setItem(PROJECT_KEY, project.project_id); } catch (err) { /* 무시 */ }
+  if (project.project_id !== pid()) resetMedia();
   clearHistory();
   state.analysis = null;
   setProject(project);

@@ -15,6 +15,15 @@ export function mediaUrl(clip) {
 /* ---------------------------------------------------------------- 썸네일 */
 
 const thumbJobs = new Map();
+let generation = 0;
+
+/* 다른 프로젝트를 열 때: clip_id(c01…)는 프로젝트마다 다시 시작하므로 이전 프로젝트의 blob·썸네일을 버린다 */
+export function resetMedia() {
+  for (const info of state.media.values()) if (info.blobUrl) URL.revokeObjectURL(info.blobUrl);
+  state.media.clear();
+  thumbJobs.clear();
+  generation += 1;
+}
 
 function ensureThumbnails(clip) {
   if (!clip || thumbJobs.has(clip.clip_id)) return thumbJobs.get(clip?.clip_id);
@@ -24,6 +33,7 @@ function ensureThumbnails(clip) {
 }
 
 async function makeThumbnails(clip) {
+  const started = generation;
   const info = state.media.get(clip.clip_id) || {};
   const url = info.blobUrl || clip.proxy_url || clip.file_url;
   const THUMB_H = 48, THUMB_W = Math.round(THUMB_H * 16 / 9), MAX = 30;
@@ -47,6 +57,7 @@ async function makeThumbnails(clip) {
     catch (e) { break; }
   }
   video.removeAttribute("src"); video.load();
+  if (started !== generation) return thumbs;        // 만드는 사이 다른 프로젝트를 열었다
   state.media.set(clip.clip_id, { ...(state.media.get(clip.clip_id) || {}), thumbnails: thumbs, thumbInterval: interval,
                                    thumbW: THUMB_W });
   emit("thumbnails", clip.clip_id);
