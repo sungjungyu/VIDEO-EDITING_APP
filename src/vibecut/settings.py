@@ -23,6 +23,7 @@
 
 from __future__ import annotations
 
+import logging
 import os
 from dataclasses import dataclass
 from functools import lru_cache
@@ -150,13 +151,16 @@ def load_settings(**overrides) -> Settings:
     api_key = overrides.pop("api_key", load_api_key(root))
     dotenv = read_dotenv(root)
     mode = _env("VIBECUT_AI_MODE", "live" if api_key else "offline", dotenv).lower()
+    if mode not in ("live", "offline"):        # 오타면 한도를 쓰는 쪽(live)이 아니라 안전한 쪽으로
+        logging.getLogger("vibecut.settings").warning("VIBECUT_AI_MODE=%r을 알 수 없어 offline으로 씁니다.", mode)
+        mode = "offline"
     values = dict(
         root_dir=root,
         data_dir=Path(_env("VIBECUT_DATA_DIR", str(root / "data"), dotenv)),
         host=_env("VIBECUT_HOST", "127.0.0.1", dotenv),
         port=_env_int("VIBECUT_PORT", 8000, dotenv),
         api_key=api_key,
-        ai_mode=mode if mode in ("live", "offline") else "live",
+        ai_mode=mode,
         stt_engine=_env("STT_ENGINE", "auto", dotenv).lower(),
         scene_engine=_env("SCENE_ENGINE", "auto", dotenv).lower(),
         models=Models(
