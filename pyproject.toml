@@ -7,7 +7,7 @@ name = "vibecut"
 version = "3.0.0"
 description = "VIBE CUT — 여러 클립을 받아 받아쓰기·장면 분석·AI 판단으로 편집 계획을 만들고 FFmpeg로 렌더하는 영상 편집 도구"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.12"              # numpy 2.5가 3.12 이상만 지원한다
 # 버전 고정 — 팀원 PC마다 같은 동작을 보장 (ffmpeg는 imageio-ffmpeg에 들어 있다)
 dependencies = [
     "fastapi==0.162.0",
@@ -54,7 +54,7 @@ filterwarnings = [
 
 [tool.ruff]
 line-length = 120
-target-version = "py310"
+target-version = "py312"
 extend-exclude = [".venv", "data"]
 
 [tool.ruff.lint]

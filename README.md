@@ -9,7 +9,7 @@
 
 ## 빠른 시작
 
-Python 3.10 이상이 필요합니다. ffmpeg는 `imageio-ffmpeg`에 들어 있어 따로 설치하지 않아도 됩니다.
+Python 3.12 이상이 필요합니다. ffmpeg는 `imageio-ffmpeg`에 들어 있어 따로 설치하지 않아도 됩니다.
 
 ```powershell
 python -m venv .venv
