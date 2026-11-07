@@ -40,6 +40,7 @@ class ProjectStore:
         self._locks: dict[str, threading.RLock] = {}
         self._guard = threading.Lock()
         self._analysis_cache: dict[str, tuple[tuple[int, int], Analysis]] = {}
+        self._plan_cache: dict[str, tuple[tuple[int, int], EditPlan]] = {}
 
     def lock(self, project_id: str) -> threading.RLock:
         with self._guard:
@@ -93,6 +94,7 @@ class ProjectStore:
         with self.lock(project_id):
             shutil.rmtree(path, ignore_errors=True)
             self._analysis_cache.pop(project_id, None)
+            self._plan_cache.pop(project_id, None)
 
     # ------------------------------------------------------------ 파일 경로
 
@@ -145,11 +147,24 @@ class ProjectStore:
 
     def load_plan(self, project_id: str) -> EditPlan:
         path = self.project_dir(project_id) / "plan.json"
-        return EditPlan.model_validate(read_json(path)) if path.exists() else EditPlan()
+        if not path.exists():
+            self._plan_cache.pop(project_id, None)
+            return EditPlan()
+        stat = path.stat()
+        key = (stat.st_mtime_ns, stat.st_size)
+        cached = self._plan_cache.get(project_id)
+        if cached and cached[0] == key:
+            return cached[1].model_copy(deep=True)
+        plan = EditPlan.model_validate(read_json(path))
+        self._plan_cache[project_id] = (key, plan)
+        return plan.model_copy(deep=True)
 
     def save_plan(self, project_id: str, plan: EditPlan) -> None:
         with self.lock(project_id):
-            write_json(self.project_dir(project_id) / "plan.json", plan.model_dump())
+            path = self.project_dir(project_id) / "plan.json"
+            write_json(path, plan.model_dump())
+            stat = path.stat()
+            self._plan_cache[project_id] = ((stat.st_mtime_ns, stat.st_size), plan.model_copy(deep=True))
 
     # ------------------------------------------------------------ 정리
 

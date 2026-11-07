@@ -14,6 +14,7 @@ validate_plan: 렌더 전 규칙 검사 (계획서 3-2). error가 있으면 렌�
 
 from __future__ import annotations
 
+from bisect import bisect_left, bisect_right
 from pathlib import Path
 
 from ..domain.intervals import Interval, clamp, merge, subtract
@@ -60,8 +61,12 @@ def selected_ranges(plan: EditPlan, analysis: Analysis | None) -> list[Interval]
 def _fix_boundaries(base: list[Interval], lines: list[Line], flags: list[bool], opts: PlanOptions) -> list[Interval]:
     """장면 경계가 문장 중간에 걸리면: 문장 가운데가 구간 안이면 문장 끝까지 넓히고, 아니면 문장을 뺀다."""
     out = []
+    starts = [line.start for line in lines]
     for s, e in base:
-        for line, keep in zip(lines, flags):
+        idx = max(0, bisect_right(starts, e) - 1)
+        lo_idx = max(0, bisect_left(starts, s) - 1)
+        for i in range(lo_idx, min(len(lines), idx + 2)):
+            line, keep = lines[i], flags[i]
             mid = (line.start + line.end) / 2
             if line.start < s < line.end:
                 s = line.start - opts.pad_start if keep and mid >= s else line.end + 0.02
@@ -114,8 +119,12 @@ def _snap_end(e: float, silences: list[tuple[float, float]], reach: float = 0.15
 def _snap(intervals: list[Interval], words: list[tuple[float, float, bool]],
           silences: list[tuple[float, float]], opts: PlanOptions) -> list[Interval]:
     out = []
+    w_starts = [w[0] for w in words]
     for s, e in intervals:
-        for ws, we, keep in words:      # 단어 안에서 시작·끝나지 않게
+        lo_idx = max(0, bisect_left(w_starts, s) - 2)
+        hi_idx = min(len(words), bisect_right(w_starts, e) + 2)
+        for i in range(lo_idx, hi_idx):      # 단어 안에서 시작·끝나지 않게
+            ws, we, keep = words[i]
             if ws < s < we:
                 s = ws - 0.02 if keep else we + 0.01
             if ws < e < we:
@@ -245,13 +254,23 @@ def compile_plan(plan: EditPlan, clips: list[ClipInfo], analysis: Analysis | Non
 def count_word_cuts(keep: list[KeepRange], lines_by_clip: dict[str, list[Line]]) -> int:
     """남길 구간 경계가 단어 중간에 걸린 곳의 수 (0이 정상)."""
     count = 0
+    words_by_clip: dict[str, tuple[list[float], list]] = {}
+    for cid, c_lines in lines_by_clip.items():
+        ws = sorted((w for line in c_lines for w in line.words), key=lambda w: w.start)
+        words_by_clip[cid] = ([w.start for w in ws], ws)
     for k in keep:
-        for line in lines_by_clip.get(k.clip_id, []):
-            for w in line.words:
-                if w.start + 0.005 < k.start < w.end - 0.005 or w.start + 0.005 < k.end < w.end - 0.005:
+        entry = words_by_clip.get(k.clip_id)
+        if not entry:
+            continue
+        starts, ws = entry
+        for boundary in (k.start, k.end):
+            lo = max(0, bisect_left(starts, boundary) - 2)
+            hi = min(len(ws), bisect_right(starts, boundary) + 1)
+            for i in range(lo, hi):
+                w = ws[i]
+                if w.start + 0.005 < boundary < w.end - 0.005:
                     count += 1
     return count
-
 
 
 def validate_plan(plan: EditPlan, clips: list[ClipInfo], analysis: Analysis | None,
