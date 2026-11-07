@@ -78,6 +78,8 @@ def test_full_flow(settings, media):
         assert put["plan"]["styles"]["subtitle"]["size"] == 60
 
         started = client.post(f"/api/projects/{pid}/render", json={"quality": "preview"}).json()
+        again = client.post(f"/api/projects/{pid}/render", json={"quality": "preview"}).json()
+        assert again["job_id"] == started["job_id"]                  # 도는 중이면 렌더를 또 걸지 않는다
         render_job = wait_job(client, started["job_id"])
         assert render_job["status"] == "done", render_job
         info = render_job["result"]["render"]

@@ -71,10 +71,20 @@ export const api = {
   },
 };
 
-/* 작업이 끝날 때까지 상태를 묻는다. onUpdate(job)는 매번 호출. 끝난 작업을 돌려준다. */
-export async function pollJob(jobId, onUpdate, interval = 700) {
+/* 작업이 끝날 때까지 상태를 묻는다. onUpdate(job)는 매번 호출. 끝난 작업을 돌려준다.
+   서버 연결이 잠깐 끊기면 몇 번 더 묻는다 (한 번 끊겼다고 '실패'로 보이면 도는 작업을 또 시작하게 된다). */
+export async function pollJob(jobId, onUpdate, interval = 700, maxFailures = 5) {
+  let failures = 0;
   for (;;) {
-    const job = await api.job(jobId);
+    let job;
+    try {
+      job = await api.job(jobId);
+      failures = 0;
+    } catch (err) {
+      if (err.status !== 0 || ++failures >= maxFailures) throw err;
+      await new Promise(r => setTimeout(r, interval * 2 ** failures));
+      continue;
+    }
     if (onUpdate) onUpdate(job);
     if (["done", "failed", "canceled"].includes(job.status)) return job;
     await new Promise(r => setTimeout(r, interval));

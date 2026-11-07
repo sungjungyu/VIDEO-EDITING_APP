@@ -22,12 +22,13 @@ def analyze(request: Request, project_id: str, body: AnalyzeRequest) -> dict:
     app = state(request)
     if not app.store.get(project_id).timeline:
         raise BadRequest("타임라인에 클립이 없습니다. 클립을 타임라인에 올린 뒤 분석하세요.")
-    running = app.jobs.active(project_id, "analyze")
-    if running is not None:
-        return running.model_dump()
-    job = app.jobs.submit("analyze", project_id, run_analysis, app.store, app.settings, project_id, body.profile,
-                          app.ai)
-    return job.model_dump()
+    with app.store.lock(project_id):
+        running = app.jobs.active(project_id, "analyze")
+        if running is not None:
+            return running.model_dump()
+        job = app.jobs.submit("analyze", project_id, run_analysis, app.store, app.settings, project_id, body.profile,
+                              app.ai)
+        return job.model_dump()
 
 
 @router.get("/projects/{project_id}/analysis")

@@ -28,7 +28,11 @@ def render(request: Request, project_id: str, body: RenderRequest) -> dict:
                                        app.store.clip_files(project)) if i["level"] == "error"]
     if errors:
         raise BadRequest(" / ".join(e["message"] for e in errors[:3]))
-    return app.jobs.submit("render", project_id, run_render, app.store, project_id, body.quality).model_dump()
+    with app.store.lock(project_id):          # 두 번 눌러도 렌더는 하나만 (도는 중이면 그 작업을 돌려준다)
+        running = app.jobs.active(project_id, "render")
+        if running is not None:
+            return running.model_dump()
+        return app.jobs.submit("render", project_id, run_render, app.store, project_id, body.quality).model_dump()
 
 
 @router.get("/projects/{project_id}/renders/{file_name}")

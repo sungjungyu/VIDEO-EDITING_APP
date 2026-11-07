@@ -141,10 +141,12 @@ export async function trackRender(job) {
 }
 
 async function startRender(quality) {
+  $("btn-render").disabled = $("btn-render-preview").disabled = true;     // 응답 전 두 번 누르기 방지
   try {
     trackRender(await api.render(pid(), quality));
   } catch (err) {
     toast(err.message, "error");
+    renderSummary();
   }
 }
 
