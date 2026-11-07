@@ -49,17 +49,7 @@ function setMode(next) {
   mode = next;
   $("btn-mode-source").classList.toggle("active", mode === "source");
   $("btn-mode-plan").classList.toggle("active", mode === "plan");
-  const badge = $("preview-badge");
-  badge.style.display = "";
-  badge.className = "preview-badge" + (mode === "plan" ? " plan" : "");
   if (mode === "source") video().style.transform = "none";
-  updateBadge();
-}
-
-function updateBadge() {
-  const badge = $("preview-badge");
-  if (mode === "plan") badge.textContent = `편집본 미리보기 · ${keep().length}구간`;
-  else badge.textContent = `원본 · ${clipById(clipId)?.filename || ""}`;
 }
 
 export async function showSource(id, time = null, play = false) {
@@ -72,7 +62,6 @@ export async function showSource(id, time = null, play = false) {
   await load(mediaUrl(clip));
   if (time !== null) video().currentTime = clamp(time, 0, Math.max(0, clip.duration - 0.05));
   if (play) video().play().catch(() => {});
-  updateBadge();
 }
 
 async function seekRange(index, offset = 0) {
@@ -250,7 +239,6 @@ export function initPreview() {
     fitBox();
     $("btn-mode-plan").disabled = !keep().length;
     if (mode === "plan" && planIndex >= keep().length) planIndex = keep().length - 1;
-    updateBadge();
   });
   on("preview-clip", ({ clipId: id, time }) => showSource(id, time, false));
   const restyle = () => { styleVersion += 1; };        // 스타일이 바뀌면 자막을 다시 그린다

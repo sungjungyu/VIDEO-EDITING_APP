@@ -43,9 +43,6 @@
   color:var(--muted);border-radius:5px;cursor:pointer}
 .preview-mode button.active{border-color:var(--accent);color:var(--accent);background:rgba(139,92,246,.1)}
 .preview-mode button:disabled{opacity:.35;cursor:not-allowed}
-.preview-badge{position:absolute;top:8px;left:8px;z-index:6;font-size:10px;font-weight:700;padding:2px 8px;border-radius:4px;
-  background:rgba(0,0,0,.6);color:#fff;pointer-events:none}
-.preview-badge.plan{background:rgba(139,92,246,.75)}
 
 /* 자막 오버레이 (렌더와 같은 규칙으로 그린다: web/js/subtitle/draw.js) */
 .sub-overlay{position:absolute;inset:0;padding:0;text-align:initial;pointer-events:none;z-index:5}
