@@ -40,7 +40,7 @@ class GeminiSttOptions:
     language: str = "ko"
     diarize: bool = False
     vocab: tuple[str, ...] = ()
-    chunk_sec: float = 600
+    chunk_sec: float = 300
 
 
 @dataclass(frozen=True)

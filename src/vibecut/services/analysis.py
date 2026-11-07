@@ -43,8 +43,8 @@ log = logging.getLogger("vibecut.services.analysis")
 
 def apply_profile(options: PlanOptions, profile: dict | None) -> PlanOptions:
     """제작자 프로필의 '컷 템포' → 남기는 문장 사이 쉼을 얼마나 줄일지."""
-    tempo = str((profile or {}).get("cut_tempo") or "")
-    pauses = {"느림": 1.5, "보통": 0.8, "빠름": 0.4}
+    tempo = str((profile or {}).get("cut_tempo") or "").lower()
+    pauses = {"느림": 1.5, "slow": 1.5, "보통": 0.8, "normal": 0.8, "빠름": 0.4, "fast": 0.4}
     for key, value in pauses.items():
         if tempo.startswith(key):
             return options.model_copy(update={"max_pause": value})
