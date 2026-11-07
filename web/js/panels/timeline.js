@@ -25,9 +25,30 @@ function totalDuration() {
 
 const renderDuringDrag = perFrame(() => renderTimeline());
 
+/* 눈금·썸네일은 보이는 범위(앞뒤로 화면 한 폭씩 여유)만 만든다.
+   긴 영상을 크게 확대하면 전체 폭이 수십만 px이라 다시 그릴 때마다 요소 수만 개를 만들었다. */
+let drawn = { from: 0, to: Infinity };
+
+function visibleWindow() {
+  const scroll = $("tl-scroll");
+  const width = scroll.clientWidth || 1200;
+  const left = scroll.scrollLeft - OFFSET;
+  return { from: Math.max(0, (left - width) / px()), to: (left + 2 * width) / px() };
+}
+
+const redrawOnScroll = perFrame(() => {
+  const scroll = $("tl-scroll");
+  const viewFrom = (scroll.scrollLeft - OFFSET) / px(), viewTo = viewFrom + scroll.clientWidth / px();
+  if (viewFrom >= drawn.from && viewTo <= drawn.to) return;      // 아직 그려 둔 범위 안
+  drawn = visibleWindow();
+  renderRuler(Math.max(totalDuration(), 10));
+  renderVideoTrack();
+});
+
 function renderTimeline() {
   const total = Math.max(totalDuration(), 10);
   $("tl-content").style.minWidth = `${OFFSET + total * px() + 160}px`;
+  drawn = visibleWindow();
   renderRuler(total);
   renderVideoTrack();
   renderSubtitleTrack();
@@ -41,8 +62,10 @@ function renderRuler(total) {
   const nice = [1, 2, 5, 10, 15, 30, 60, 120, 300, 600];
   const label = nice.find(n => n >= 80 / px()) || 600;
   const minor = label / 5;
-  for (let t = 0; t <= Math.ceil(total) + label; t += minor) {
-    const major = Math.abs(t % label) < minor * 0.5;
+  const first = Math.floor(drawn.from / label) * label;          // 큰 눈금에서 시작해야 major 판정이 맞는다
+  const last = Math.min(Math.ceil(total) + label, drawn.to);
+  for (let i = 0, t = first; t <= last; i += 1, t = first + i * minor) {
+    const major = i % 5 === 0;
     body.appendChild(el("div", { class: `ruler-tick ${major ? "major" : "minor"}`, style: { left: `${t * px()}px` } }));
     if (major) body.appendChild(el("div", { class: "ruler-label", style: { left: `${t * px()}px` } }, fmt(t)));
   }
@@ -72,7 +95,10 @@ function renderVideoTrack() {
     if (info?.thumbnails?.length) {
       const strip = el("div", { class: "tl-clip-filmstrip" });
       const fw = info.thumbW || 85, iv = info.thumbInterval || 1;
-      for (let x = 0; x < width + fw; x += fw) {
+      const x0 = Math.max(0, Math.floor((drawn.from - start) * px() / fw) * fw);    // 블록 안 보이는 범위
+      const x1 = Math.min(width + fw, (drawn.to - start) * px());
+      strip.style.paddingLeft = `${x0}px`;
+      for (let x = x0; x < x1; x += fw) {
         const idx = clamp(Math.floor((clip.in_point + x / px()) / iv), 0, info.thumbnails.length - 1);
         strip.appendChild(el("img", { src: info.thumbnails[idx], draggable: "false", style: { width: `${fw}px`, height: "100%" } }));
       }
@@ -280,6 +306,8 @@ export function initTimeline() {
   });
 
   let zoomTimer = null;
+  $("tl-scroll").addEventListener("scroll", redrawOnScroll, { passive: true });
+  new ResizeObserver(redrawOnScroll).observe($("tl-scroll"));
   $("tl-scroll").addEventListener("wheel", e => {
     const scroll = e.currentTarget;
     e.preventDefault();
