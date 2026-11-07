@@ -28,6 +28,15 @@ from .planner import plan_clip
 log = logging.getLogger("vibecut.editing.select")
 _STOP = {"장면", "위주", "위주로", "영상", "부분", "해줘", "빼줘", "만들어", "만들어줘", "주세요", "그리고", "쇼츠",
          "쇼츠용", "재밌는", "재미있는", "좋은", "편집", "편집해줘", "분량", "정도", "넣어줘", "나오는"}
+_JOSA = ("에서", "으로", "부터", "까지", "은", "는", "이", "가", "을", "를", "도", "만", "의", "로", "요")
+
+
+def _strip_josa(word: str) -> str:
+    word = word.strip()
+    for j in _JOSA:
+        if word.endswith(j) and len(word) - len(j) >= 2:
+            return word[:-len(j)]
+    return word
 
 
 def candidate_nodes(tree: list[TreeNode]) -> list[TreeNode]:
@@ -61,7 +70,7 @@ def _keywords(prompt: str) -> tuple[list[str], list[str]]:
     """사용자 요청 → (넣고 싶은 말, 빼고 싶은 말). '…는 빼줘', '…없이' 앞의 낱말은 빼고 싶은 말."""
     want, avoid = [], []
     for clause in re.split(r"[,.\n]| 그리고 ", prompt or ""):
-        words = [w.strip("은는이가을를도만의에서로요 ") for w in clause.split()]
+        words = [_strip_josa(w) for w in clause.split()]
         words = [w for w in words if len(w) >= 2 and w not in _STOP]
         negative = re.search(r"(빼|제외|없이|말고|싫)", clause)
         (avoid if negative else want).extend(w for w in words if not re.search(r"(빼|제외|없이|말고|싫)", w))
@@ -176,15 +185,23 @@ def fit_duration(nodes: list[TreeNode], seconds: dict[str, float], scores: dict[
                 break
     # 그래도 범위 밖이면(남은 조각이 모두 커서) 목표에 더 가까워지는 조각을 하나씩 더한다
     while total < lo:
-        options = [(seconds.get(n.id, 0.0), n.id) for n in rest if n.id not in chosen]
-        options += [(line_seconds[c.seg_id], c.id) for n in rest if n.id not in chosen
-                    for c in flatten_tree([n]).values() if c.seg_id in line_seconds and c.id not in chosen]
-        options = [(sec, nid) for sec, nid in options if sec > 0]
+        options: list[tuple[float, str, list[str]]] = []     # (늘어나는 길이, 넣을 id, 대신 뺄 id)
+        for n in rest:
+            if n.id in chosen:
+                continue
+            inside = [c for c in flatten_tree([n]).values() if c.id in chosen and c.seg_id in line_seconds]
+            # 대사를 이미 넣은 장면은 그 대사 길이를 빼고 센다 (두 번 세면 실제 결과가 계산보다 짧아진다)
+            options.append((seconds.get(n.id, 0.0) - sum(line_seconds[c.seg_id] for c in inside), n.id,
+                            [c.id for c in inside]))
+            options += [(line_seconds[c.seg_id], c.id, []) for c in flatten_tree([n]).values()
+                        if c.seg_id in line_seconds and c.id not in chosen]
+        options = [o for o in options if o[0] > 0]
         if not options:
             break
-        sec, nid = min(options, key=lambda o: abs(total + o[0] - target))
+        sec, nid, replaced = min(options, key=lambda o: abs(total + o[0] - target))
         if abs(total + sec - target) >= abs(total - target):
             break
+        chosen = [i for i in chosen if i not in replaced]
         chosen.append(nid)
         total += sec
     return chosen
