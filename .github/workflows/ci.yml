@@ -7,7 +7,11 @@ on:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
@@ -23,6 +27,7 @@ jobs:
           node-version: "22"
 
       - name: 한글 글꼴 (자막 렌더 테스트용)
+        if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y fonts-nanum
 
       - name: 패키지 설치
