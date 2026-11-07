@@ -1,10 +1,13 @@
 """편집 계획 고치기: 계산 결과 읽기, 사용자 값 바꾸기, 문장별 남김/자름·자막 수정, 장면 선택(AI 가편집), 수정 요청.
 
 편집 계획은 언제나 '사용자 값 → compile_plan → 저장' 순서로 바뀐다 (계산 결과를 손으로 고치지 않는다).
+저장된 계획을 바꾸는 곳은 모두 edit_plan을 거친다: 프로젝트 잠금 안에서 읽고·바꾸고·계산하고·저장한다.
+AI처럼 오래 걸리는 일은 잠금 밖에서 끝내고 결과만 edit_plan으로 넣는다 (그 사이 사용자가 고친 내용이 사라지지 않게).
 """
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import Literal
 
 from pydantic import BaseModel
@@ -40,20 +43,30 @@ def recompile_and_save(store: ProjectStore, project: Project, plan: EditPlan) ->
     return compiled
 
 
+def edit_plan(store: ProjectStore, project_id: str,
+              change: Callable[[EditPlan], None] | None = None) -> tuple[Project, EditPlan]:
+    """저장된 계획을 잠금 안에서 읽어 change로 바꾸고 다시 계산해 저장한다 (change가 없으면 다시 계산만)."""
+    with store.lock(project_id):
+        project = store.get(project_id)
+        plan = store.load_plan(project_id)
+        if change is not None:
+            change(plan)
+        return project, recompile_and_save(store, project, plan)
+
+
 def update_plan(store: ProjectStore, project_id: str, selection: Selection | None = None,
                 lines: dict[str, LineDecision] | None = None, styles: dict[str, StyleSpec] | None = None,
                 output: OutputSpec | None = None, options: PlanOptions | None = None) -> tuple[Project, EditPlan]:
     """주어진 사용자 값만 바꾼다 (실행취소·다시실행도 이 함수로 이전 값을 통째로 되돌린다)."""
-    project = store.get(project_id)
-    with store.lock(project_id):
-        plan = store.load_plan(project_id)
+    def change(plan: EditPlan):
         for name, value in (("selection", selection), ("lines", lines), ("styles", styles), ("output", output),
                             ("options", options)):
             if value is not None:
                 setattr(plan, name, value)
         if "subtitle" not in plan.styles:
             plan.styles["subtitle"] = StyleSpec()
-        return project, recompile_and_save(store, project, plan)
+
+    return edit_plan(store, project_id, change)
 
 
 def apply_line_changes(plan: EditPlan, base: dict[str, LineDecision], changes: list[LineChange]) -> None:
@@ -71,15 +84,13 @@ def apply_line_changes(plan: EditPlan, base: dict[str, LineDecision], changes: l
 
 
 def patch_lines(store: ProjectStore, project_id: str, changes: list[LineChange]) -> tuple[Project, EditPlan]:
-    project = store.get(project_id)
+    store.get(project_id)
     analysis = store.load_analysis(project_id)
     if analysis is None:
         raise Conflict("먼저 분석하세요.")
     known = {line.seg_id for line in analysis.lines}
-    with store.lock(project_id):
-        plan = store.load_plan(project_id)
-        apply_line_changes(plan, analysis.judgments, [c for c in changes if c.seg_id in known])
-        return project, recompile_and_save(store, project, plan)
+    return edit_plan(store, project_id, lambda plan: apply_line_changes(
+        plan, analysis.judgments, [c for c in changes if c.seg_id in known]))
 
 
 def select(store: ProjectStore, client: GeminiClient | None, project_id: str,
@@ -92,25 +103,33 @@ def select(store: ProjectStore, client: GeminiClient | None, project_id: str,
     analysis = store.load_analysis(project_id)
     if mode != "all" and analysis is None:
         raise Conflict("장면을 고르려면 먼저 분석하세요.")
-    plan = store.load_plan(project_id)
-    engine, warnings = "user", []
-    if mode == "all":
-        plan.selection = Selection(mode="all")
-    elif mode == "manual":
-        known = flatten_tree(analysis.tree)
-        plan.selection = plan.selection.model_copy(update={
-            "mode": "manual", "node_ids": [i for i in node_ids if i in known],
-            "locked_ids": [i for i in locked_ids if i in known], "target_sec": target_sec,
-            "user_prompt": user_prompt})
-    else:
+    engine, warnings, chosen = "user", [], None
+    if mode == "auto":
         if not target_sec or target_sec <= 0:
             raise BadRequest("목표 분량(초)을 입력하세요.")
-        decisions = effective_decisions(plan, analysis)
+        # AI 점수는 오래 걸리므로 잠금 밖에서 지금 계획의 사본으로 계산하고, 고른 결과만 아래에서 넣는다
+        snapshot = store.load_plan(project_id)
+        snapshot.options = apply_profile(snapshot.options, profile)
+        decisions = effective_decisions(snapshot, analysis)
         clips = {c.clip_id: c for c in project.timeline_clips()}
-        plan.options = apply_profile(plan.options, profile)
-        plan.selection, engine, warnings = select_scenes(analysis, clips, plan, decisions, target_sec, user_prompt,
-                                                         locked_ids, profile, client)
-    return project, recompile_and_save(store, project, plan), engine, warnings
+        chosen, engine, warnings = select_scenes(analysis, clips, snapshot, decisions, target_sec, user_prompt,
+                                                 locked_ids, profile, client)
+
+    def change(plan: EditPlan):
+        if mode == "all":
+            plan.selection = Selection(mode="all")
+        elif mode == "manual":
+            known = flatten_tree(analysis.tree)
+            plan.selection = plan.selection.model_copy(update={
+                "mode": "manual", "node_ids": [i for i in node_ids if i in known],
+                "locked_ids": [i for i in locked_ids if i in known], "target_sec": target_sec,
+                "user_prompt": user_prompt})
+        else:
+            plan.options = apply_profile(plan.options, profile)
+            plan.selection = chosen
+
+    project, plan = edit_plan(store, project_id, change)
+    return project, plan, engine, warnings
 
 
 def revise(store: ProjectStore, client: GeminiClient | None, project_id: str, instruction: str,
@@ -122,9 +141,7 @@ def revise(store: ProjectStore, client: GeminiClient | None, project_id: str, in
         raise Conflict("먼저 분석하세요.")
     decisions = effective_decisions(store.load_plan(project_id), analysis)
     changes, message, engine = revise_lines(instruction, analysis.lines, decisions, profile or {}, client)
-    with store.lock(project_id):
-        plan = store.load_plan(project_id)
-        line_changes = [LineChange(seg_id=sid, keep=c.get("keep"), text=c.get("text")) for sid, c in changes.items()]
-        apply_line_changes(plan, analysis.judgments, line_changes)
-        compiled = recompile_and_save(store, project, plan)
+    line_changes = [LineChange(seg_id=sid, keep=c.get("keep"), text=c.get("text")) for sid, c in changes.items()]
+    project, compiled = edit_plan(store, project_id,
+                                  lambda plan: apply_line_changes(plan, analysis.judgments, line_changes))
     return project, compiled, message, len(changes), engine

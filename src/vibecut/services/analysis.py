@@ -196,14 +196,14 @@ def _analyze(ctx: RunContext, store: ProjectStore, settings: Settings, project_i
 
     analysis = Analysis(clips=spans, lines=lines, scenes=scenes, tree=tree, silences=silences, judgments=judgments,
                         engines=engines, warnings=list(dict.fromkeys(warnings)))
-    old = store.load_analysis(project_id)
-    store.save_analysis(project_id, analysis)
-
     ctx.progress(96, "편집 계획")
-    plan, notes = carry_over_plan(store.load_plan(project_id), old, analysis)
-    plan.options = apply_profile(plan.options, profile)
-    plan = compile_plan(plan, store.get(project_id).timeline_clips(), analysis)
-    store.save_plan(project_id, plan)
+    with store.lock(project_id):      # 분석 저장부터 계획 저장까지: 그 사이 사용자가 고친 계획이 사라지지 않게
+        old = store.load_analysis(project_id)
+        store.save_analysis(project_id, analysis)
+        plan, notes = carry_over_plan(store.load_plan(project_id), old, analysis)
+        plan.options = apply_profile(plan.options, profile)
+        plan = compile_plan(plan, store.get(project_id).timeline_clips(), analysis)
+        store.save_plan(project_id, plan)
     analysis_state = AnalysisState(status="done", job_id=ctx.job_id, timeline=timeline, engines=engines,
                                    warnings=analysis.warnings + notes, updated_at=now_iso())
     store.update(project_id, lambda p: setattr(p, "analysis", analysis_state))

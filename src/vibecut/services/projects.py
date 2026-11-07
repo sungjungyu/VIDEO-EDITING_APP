@@ -8,7 +8,7 @@ from ..domain.models import ClipInfo, Project
 from ..errors import BadRequest, Conflict, NotFound
 from ..media.probe import MediaInfo
 from ..storage.projects import ProjectStore
-from .editing import recompile_and_save
+from .editing import edit_plan, recompile_and_save
 from .jobs import JobManager
 
 
@@ -58,7 +58,7 @@ def update_project(store: ProjectStore, project_id: str, name: str | None = None
                 clip.out_point = None if out_point >= clip.duration - 0.01 else max(clip.in_point + 0.1, out_point)
 
     project = store.update(project_id, change)
-    recompile_and_save(store, project, store.load_plan(project_id))
+    edit_plan(store, project_id)
     return project
 
 
