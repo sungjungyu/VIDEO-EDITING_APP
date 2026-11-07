@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from unittest import mock
 
 from vibecut.ai.client import GeminiClient, schema_payload
 from vibecut.analysis.judge import JudgeResponse, rule_decisions
@@ -37,6 +38,9 @@ from vibecut.render.ass import build_ass
 from vibecut.settings import load_settings
 
 FPS = 30
+# ASS 글자 크기는 설치된 글꼴의 메트릭(line_ratio)을 따른다. 골든은 이 값(Windows 맑은 고딕)으로 만들었으므로
+# 어느 PC에서든 같게 고정한다 (리눅스 CI에는 맑은 고딕이 없어 나눔고딕 비율로 계산돼 크기가 달랐다)
+GOLDEN_LINE_RATIO = 1.330078125
 
 
 def _sha(text: str) -> str:
@@ -113,7 +117,8 @@ def _plans(analysis: Analysis, clips: list[ClipInfo]) -> dict:
     snapshot = {name: _plan_dump(p) for name, p in out.items()}
     snapshot["issues"] = {name: validate_plan(p, clips, analysis) for name, p in out.items()}
     w, h = out["extras"].output.size()
-    snapshot["ass_extras"] = build_ass(out["extras"].events, out["extras"].styles, w, h)
+    with mock.patch("vibecut.render.fonts.line_ratio", lambda family, bold=False: GOLDEN_LINE_RATIO):
+        snapshot["ass_extras"] = build_ass(out["extras"].events, out["extras"].styles, w, h)
     for target in (20.0, 35.0):
         sel, engine, warnings = select_scenes(analysis, {c.clip_id: c for c in clips}, EditPlan(),
                                               effective_decisions(EditPlan(), analysis), target, "카페 장면 위주로",
