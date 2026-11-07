@@ -21,6 +21,11 @@ from ..settings import get_settings
 
 log = logging.getLogger("vibecut.media")
 
+HDR_TONEMAP_FILTER = (
+    "zscale=t=linear:npl=100,format=gbrpf32le,zscale=p=bt709,"
+    "tonemap=tonemap=hable:desat=0,zscale=t=bt709:m=bt709:r=tv,format=yuv420p"
+)
+
 
 @lru_cache(maxsize=1)
 def ffmpeg_path() -> str:
@@ -44,6 +49,17 @@ def ffmpeg_version() -> tuple[int, int]:
                          encoding="utf-8", errors="replace").stdout
     m = re.search(r"ffmpeg version n?(\d+)\.(\d+)", out)
     return (int(m.group(1)), int(m.group(2))) if m else (0, 0)
+
+
+@lru_cache(maxsize=1)
+def supports_tonemap() -> bool:
+    """ffmpeg 빌드에 HDR→SDR 변환용 zscale·tonemap 필터가 모두 있는지 확인한다."""
+    try:
+        out = subprocess.run([ffmpeg_path(), "-hide_banner", "-filters"], capture_output=True, text=True,
+                             encoding="utf-8", errors="replace", timeout=10).stdout
+        return " zscale " in out and " tonemap " in out
+    except Exception:
+        return False
 
 
 def filter_script_args(script_name: str) -> list[str]:

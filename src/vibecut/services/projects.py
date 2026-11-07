@@ -23,8 +23,8 @@ def import_clip(store: ProjectStore, project_id: str, tmp: Path, original_name: 
         tmp.replace(final)
         clip = ClipInfo(clip_id=clip_id, filename=Path(original_name).name[:120], stored_name=final.name,
                         duration=info.duration, width=info.width, height=info.height, fps=info.fps,
-                        has_audio=info.has_audio, has_video=info.has_video, created_at=info.created_at,
-                        size_bytes=size, sha1=sha1)
+                        has_audio=info.has_audio, has_video=info.has_video, hdr=info.hdr,
+                        created_at=info.created_at, size_bytes=size, sha1=sha1)
         p.clips.append(clip)
         if add_to_timeline:
             p.timeline.append(clip_id)

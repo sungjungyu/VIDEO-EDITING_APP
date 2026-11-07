@@ -22,7 +22,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from ..domain.models import ClipInfo, EditPlan, KeepRange
-from ..media.ffmpeg import filter_script_args, run_with_progress
+from ..media.ffmpeg import HDR_TONEMAP_FILTER, filter_script_args, run_with_progress, supports_tonemap
 from ..media.probe import probe
 from . import fonts
 from .ass import build_ass
@@ -97,6 +97,8 @@ def compile_render(plan: EditPlan, clips: dict[str, ClipInfo], files: dict[str, 
         if clip.has_video:
             trim = f"trim=start={_seconds(max(0.0, s - half))}:end={_seconds(e - half)}"
             video = f"[{j}:v]{trim},setpts=PTS-STARTPTS,{fit}"
+            if clip.hdr and supports_tonemap():
+                video += f",{HDR_TONEMAP_FILTER}"
         else:
             video = f"color=c=black:s={width}x{height}:r={out_fps}:d={_seconds(dur)},setsar=1"
         if effects:

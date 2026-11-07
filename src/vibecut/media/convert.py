@@ -10,7 +10,7 @@ from pathlib import Path
 import numpy as np
 
 from ..errors import Canceled, FFmpegError
-from .ffmpeg import ffmpeg_path, run, run_with_progress, spawn, tail
+from .ffmpeg import HDR_TONEMAP_FILTER, ffmpeg_path, run, run_with_progress, spawn, supports_tonemap, tail
 from .probe import MediaInfo
 
 NO_AUDIO_MARKERS = ("does not contain any stream", "matches no streams", "Output file is empty",
@@ -45,10 +45,11 @@ def make_proxy(src: str | Path, dst: str | Path, info: MediaInfo, short_side: in
         scale = f"scale=-2:{short_side}"
     else:
         scale = f"scale={short_side}:-2"
+    color_filter = HDR_TONEMAP_FILTER if (info.hdr and supports_tonemap()) else "format=yuv420p"
     tmp = Path(dst).with_suffix(".part.mp4")
     args = ["-loglevel", "error", "-i", str(src)]
     if info.has_video:
-        args += ["-vf", f"{scale},format=yuv420p", "-c:v", "libx264", "-preset", "veryfast", "-crf", "28",
+        args += ["-vf", f"{scale},{color_filter}", "-c:v", "libx264", "-preset", "veryfast", "-crf", "28",
                  "-g", str(round(fps)), "-keyint_min", str(round(fps)), "-sc_threshold", "0"]
     if info.has_audio:
         args += ["-c:a", "aac", "-b:a", "128k", "-ac", "2"]

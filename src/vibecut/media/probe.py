@@ -1,6 +1,6 @@
 """영상 정보 읽기: ffprobe 대신 `ffmpeg -hide_banner -i 파일`의 stderr를 읽는다.
 
-출력 파일이 없어 종료 코드는 1이지만 길이·해상도·fps·오디오 유무·촬영 시각·회전 정보가 모두 찍힌다.
+출력 파일이 없어 종료 코드는 1이지만 길이·해상도·fps·오디오 유무·촬영 시각·회전·HDR 정보가 모두 찍힌다.
 (영상을 디코딩하지 않아 긴 영상도 빠르다)
 """
 
@@ -29,6 +29,7 @@ class MediaInfo:
     rotation: int = 0
     has_video: bool = False
     has_audio: bool = False
+    hdr: bool = False
     created_at: float | None = None
     video_codec: str = ""
     audio_codec: str = ""
@@ -43,6 +44,7 @@ _FPS = re.compile(r"(\d+(?:\.\d+)?) (?:fps|tbr)")
 _AUDIO = re.compile(r"Stream #\S+.*?: Audio: (\w+)")
 _ROTATE = re.compile(r"(?:rotate\s*:\s*(-?\d+))|(?:rotation of (-?\d+(?:\.\d+)?) degrees)")
 _CREATED = re.compile(r"(com\.apple\.quicktime\.creationdate|creation_time)\s*:\s*(\S+)", re.IGNORECASE)
+_HDR = re.compile(r"\b(arib-std-b67|smpte2084)\b", re.IGNORECASE)
 
 
 def parse_probe(stderr: str) -> MediaInfo:
@@ -57,6 +59,7 @@ def parse_probe(stderr: str) -> MediaInfo:
         line = stderr[v.start():stderr.find("\n", v.start())]
         f = _FPS.search(line)
         info.fps = float(f.group(1)) if f else 0.0
+        info.hdr = bool(_HDR.search(line))
     a = _AUDIO.search(stderr)
     if a:
         info.has_audio = True

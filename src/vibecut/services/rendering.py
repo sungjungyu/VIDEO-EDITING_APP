@@ -51,7 +51,7 @@ def run_proxy(ctx: RunContext, store: ProjectStore, project_id: str, clip_id: st
     if clip is None:
         raise ValueError("클립이 삭제되었습니다.")
     info = MediaInfo(duration=clip.duration, width=clip.width, height=clip.height, fps=clip.fps,
-                     has_video=clip.has_video, has_audio=clip.has_audio)
+                     has_video=clip.has_video, has_audio=clip.has_audio, hdr=clip.hdr)
     dst = store.proxy_path(project_id, clip_id)
     make_proxy(store.clip_path(project_id, clip.stored_name), dst, info, 540, ctx.sub(0, 100, "미리보기 사본"),
                ctx.cancel)

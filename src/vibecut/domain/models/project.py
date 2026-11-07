@@ -19,6 +19,7 @@ class ClipInfo(BaseModel):
     fps: float = 0.0
     has_audio: bool = True
     has_video: bool = True
+    hdr: bool = False
     created_at: float | None = None     # 촬영 시각 (epoch 초). 메타데이터가 없으면 None
     uploaded_at: str = Field(default_factory=now_iso)
     size_bytes: int = 0
