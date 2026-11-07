@@ -2,12 +2,24 @@
 
 from __future__ import annotations
 
+import math
 from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator
 
 from .analysis import LineDecision, Word
 from .common import now_iso
+
+# 자막에 쓸 수 있는 글꼴 (화면 목록·render/fonts.py의 파일 후보와 같은 이름)
+SUBTITLE_FONTS = ("Malgun Gothic", "NanumGothic", "NanumMyeongjo", "Noto Sans KR", "Arial")
+_FONT_BY_LOWER = {name.lower(): name for name in SUBTITLE_FONTS}
+
+
+def _clamp(value: float, lo: float, hi: float) -> float:
+    """API 값·저장된 값을 렌더가 감당할 수 있는 범위로 맞춘다 (거절하면 예전 plan.json을 못 연다).
+    NaN·무한대는 아래 끝으로."""
+    value = float(value)
+    return lo if not math.isfinite(value) else max(lo, min(hi, value))
 
 
 class Selection(BaseModel):
@@ -65,11 +77,48 @@ class StyleSpec(BaseModel):
     def _chars(cls, v: int) -> int:
         return max(4, min(60, int(v)))
 
+    @field_validator("font")
+    @classmethod
+    def _font(cls, v: str) -> str:
+        """목록에 없는 글꼴은 기본 글꼴로 (글꼴 이름이 ASS Style 줄에 그대로 들어간다 — 쉼표·줄바꿈 차단)."""
+        return _FONT_BY_LOWER.get(str(v or "").strip().lower(), "Malgun Gothic")
+
+    @field_validator("size")
+    @classmethod
+    def _size(cls, v: float) -> float:
+        return _clamp(v, 8, 300)
+
+    @field_validator("outline_width", "shadow_distance")
+    @classmethod
+    def _thickness(cls, v: float) -> float:
+        return _clamp(v, 0, 50)
+
+    @field_validator("bg_opacity")
+    @classmethod
+    def _opacity(cls, v: float) -> float:
+        return _clamp(v, 0, 100)
+
+    @field_validator("bottom_margin")
+    @classmethod
+    def _margin(cls, v: float) -> float:
+        return _clamp(v, 0, 1000)
+
 
 class OutputSpec(BaseModel):
     aspect: Literal["16:9", "9:16"] = "16:9"
     resolution: int = 1080      # 짧은 변 px
     fps: int = 30
+
+    @field_validator("resolution")
+    @classmethod
+    def _resolution(cls, v: int) -> int:
+        """360~2160 사이 짝수 (libx264 yuv420p는 가로·세로가 짝수여야 한다)."""
+        return int(_clamp(v, 360, 2160)) // 2 * 2
+
+    @field_validator("fps")
+    @classmethod
+    def _fps(cls, v: int) -> int:
+        return int(_clamp(v, 12, 60))
 
     def size(self, resolution: int | None = None) -> tuple[int, int]:
         short = resolution or self.resolution
@@ -93,6 +142,27 @@ class PlanOptions(BaseModel):
     subtitles: bool = True
     location_captions: bool = False  # 장소가 바뀔 때 '촬영지 자막'
     title_text: str = ""            # 처음 3초 '제목' 자막
+
+    @field_validator("pad_start", "pad_end")
+    @classmethod
+    def _pad(cls, v: float) -> float:
+        return _clamp(v, 0, 2)
+
+    @field_validator("fade_ms")
+    @classmethod
+    def _fade(cls, v: int) -> int:
+        return int(_clamp(v, 0, 500))
+
+    @field_validator("punch_scale")
+    @classmethod
+    def _punch(cls, v: float) -> float:
+        """1보다 작으면 줌 사본이 출력 크기보다 작아져 crop이 실패한다."""
+        return _clamp(v, 1.0, 1.5)
+
+    @field_validator("title_text")
+    @classmethod
+    def _title(cls, v: str) -> str:
+        return v[:200]
 
 
 class KeepRange(BaseModel):
