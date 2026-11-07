@@ -14,6 +14,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from .. import __version__
 from ..ai.client import GeminiClient
@@ -27,6 +28,8 @@ from .routes import router
 
 log = logging.getLogger("vibecut.server")
 NO_CACHE = {"Cache-Control": "no-cache, no-store, must-revalidate"}
+LOCAL_HOSTS = ("127.0.0.1", "localhost")
+OPEN_HOSTS = ("0.0.0.0", "::")      # 일부러 외부에 연 경우(팀 시연)는 접속 주소를 알 수 없어 Host를 검사하지 않는다
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -53,6 +56,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     app = FastAPI(title="VIBE CUT", version=__version__, lifespan=lifespan)
     app.state.vibecut = state
+    if settings.host not in OPEN_HOSTS:
+        # 인증이 없으니 Host가 이 PC 주소일 때만 받는다 (DNS 리바인딩으로 다른 사이트가 API를 부르는 것 차단)
+        allowed = list(dict.fromkeys([*LOCAL_HOSTS, settings.host]))
+        app.add_middleware(TrustedHostMiddleware, allowed_hosts=allowed)
     app.include_router(router)
     app.mount("/static", StaticFiles(directory=settings.web_dir), name="static")
 

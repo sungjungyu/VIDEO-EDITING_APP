@@ -113,5 +113,6 @@ def clip_file(request: Request, project_id: str, clip_id: str) -> FileResponse:
 @router.get("/projects/{project_id}/clips/{clip_id}/proxy")
 def clip_proxy(request: Request, project_id: str, clip_id: str) -> FileResponse:
     store = state(request).store
-    store.get(project_id)
+    if store.get(project_id).clip(clip_id) is None:   # 경로에 넣기 전에 확인 (Windows는 %5C가 경로 구분자로 풀린다)
+        raise NotFound("클립을 찾을 수 없습니다.")
     return media_response(store.proxy_path(project_id, clip_id))

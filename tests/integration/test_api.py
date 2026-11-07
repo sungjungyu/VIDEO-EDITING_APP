@@ -38,9 +38,10 @@ def settings(tmp_path):
 
 
 def test_full_flow(settings, media):
-    with TestClient(create_app(settings)) as client:
+    with TestClient(create_app(settings), base_url="http://127.0.0.1") as client:
         config = client.get("/api/config").json()
         assert config["ai_mode"] == "offline" and config["ffmpeg"]["ok"]
+        assert client.get("/api/config", headers={"host": "evil.example"}).status_code == 400   # DNS 리바인딩 차단
 
         pid = client.post("/api/projects", json={"name": "테스트 브이로그"}).json()["project_id"]
         files = [("files", (p.name, p.read_bytes(), "video/mp4")) for p in media]
@@ -50,6 +51,8 @@ def test_full_flow(settings, media):
 
         bad = client.post(f"/api/projects/{pid}/clips", files=[("files", ("x.txt", b"hello", "text/plain"))])
         assert bad.status_code == 400
+        # Windows에서 %5C(\)가 경로로 풀려 proxy/..\clips\c01.mp4(원본)가 열리던 것: 없는 클립 id는 404
+        assert client.get(f"/api/projects/{pid}/clips/..%5Cclips%5Cc01/proxy").status_code == 404
 
         assert client.post(f"/api/projects/{pid}/analyze", json={}).status_code == 422   # 타임라인이 비어 있음
         client.patch(f"/api/projects/{pid}", json={"timeline": ids})
@@ -94,7 +97,7 @@ def test_full_flow(settings, media):
         assert metrics["output_sec"] == pytest.approx(after["duration"], abs=0.01)
         assert metrics["word_cuts"] == 0 and metrics["user_flips"] == 1
 
-    with TestClient(create_app(settings)) as client:      # 서버를 다시 켜도 그대로
+    with TestClient(create_app(settings), base_url="http://127.0.0.1") as client:      # 서버를 다시 켜도 그대로
         project = client.get(f"/api/projects/{pid}").json()
         assert [c["clip_id"] for c in project["clips"]] == ["c01", "c02"] and project["renders"]
         assert client.get(f"/api/projects/{pid}/plan").json()["plan"]["lines"][first]["keep"] is False
