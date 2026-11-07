@@ -12,7 +12,8 @@ from ..render.renderer import render_plan
 from ..storage.projects import ProjectStore
 from .context import RunContext
 
-MAX_RENDERS_KEPT = 10
+MAX_FINAL_RENDERS = 10
+MAX_PREVIEW_RENDERS = 3
 
 
 def run_render(ctx: RunContext, store: ProjectStore, project_id: str, quality: str) -> dict:
@@ -34,9 +35,17 @@ def run_render(ctx: RunContext, store: ProjectStore, project_id: str, quality: s
 
     def add(p):
         p.renders.insert(0, info)
-        for old in p.renders[MAX_RENDERS_KEPT:]:
-            store.render_path(project_id, old.file).unlink(missing_ok=True)
-        del p.renders[MAX_RENDERS_KEPT:]
+        kept = []
+        counts: dict[str, int] = {}
+        limits = {"final": MAX_FINAL_RENDERS, "preview": MAX_PREVIEW_RENDERS}
+        for r in p.renders:
+            limit = limits.get(r.quality, MAX_FINAL_RENDERS)
+            if counts.get(r.quality, 0) < limit:
+                counts[r.quality] = counts.get(r.quality, 0) + 1
+                kept.append(r)
+            else:
+                store.render_path(project_id, r.file).unlink(missing_ok=True)
+        p.renders[:] = kept
 
     store.update(project_id, add)
     ctx.metrics.update({"render_x_realtime": round(result["elapsed_sec"] / max(result["duration"], 0.1), 2)})

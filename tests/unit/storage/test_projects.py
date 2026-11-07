@@ -6,7 +6,7 @@ import os
 
 import pytest
 
-from vibecut.domain.models import Analysis, EditPlan, Line
+from vibecut.domain.models import Analysis, ClipInfo, EditPlan, Line
 from vibecut.errors import NotFound
 from vibecut.storage.projects import ProjectStore
 
@@ -43,3 +43,43 @@ def test_analysis_cache_follows_file_changes(tmp_path):
     stat = path.stat()
     os.utime(path, ns=(stat.st_atime_ns, stat.st_mtime_ns + 1_000_000))
     assert [line.text for line in store.load_analysis(pid).lines] == ["둘둘"]
+
+
+def test_preview_renders_do_not_evict_final_renders(tmp_path, monkeypatch):
+    from vibecut.domain.models import KeepRange
+    from vibecut.services import rendering
+
+    store = ProjectStore(tmp_path)
+    p = store.create("렌더 한도")
+    pid = p.project_id
+    clip_file = store.clip_path(pid, "c01.mp4")
+    clip_file.write_bytes(b"fake")
+
+    def setup(proj):
+        proj.clips.append(ClipInfo(clip_id="c01", filename="a.mp4", stored_name="c01.mp4", duration=5.0, fps=30))
+        proj.timeline.append("c01")
+
+    store.update(pid, setup)
+    plan = store.load_plan(pid)
+    plan.keep = [KeepRange(clip_id="c01", start=0.0, end=2.0, out_start=0.0)]
+    plan.duration = 2.0
+    store.save_plan(pid, plan)
+
+    def fake_render(plan, clips, files, quality, out, workdir, on_progress=None, cancel=None):
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_bytes(b"mp4")
+        return {"width": 960, "height": 540, "duration": 2.0, "plan_duration": 2.0, "error_ms": 0.0,
+                "elapsed_sec": 0.1, "size_bytes": 3}
+
+    monkeypatch.setattr(rendering, "render_plan", fake_render)
+    from vibecut.services.context import RunContext
+    final_res = rendering.run_render(RunContext(), store, pid, "final")["render"]
+    for _ in range(5):
+        rendering.run_render(RunContext(), store, pid, "preview")
+
+    proj = store.get(pid)
+    finals = [r for r in proj.renders if r.quality == "final"]
+    previews = [r for r in proj.renders if r.quality == "preview"]
+    assert len(finals) == 1 and finals[0].render_id == final_res["render_id"]
+    assert store.render_path(pid, final_res["file"]).exists()
+    assert len(previews) == rendering.MAX_PREVIEW_RENDERS
