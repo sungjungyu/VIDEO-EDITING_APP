@@ -5,7 +5,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Request
 from fastapi.concurrency import run_in_threadpool
 
-from ...errors import NotFound
+from ...errors import BadRequest, NotFound
 from ...services import editing as editing_service
 from ...services.analysis import run_analysis
 from ..deps import state
@@ -21,7 +21,7 @@ router = APIRouter()
 def analyze(request: Request, project_id: str, body: AnalyzeRequest) -> dict:
     app = state(request)
     if not app.store.get(project_id).timeline:
-        raise ValueError("타임라인에 클립이 없습니다. 클립을 타임라인에 올린 뒤 분석하세요.")
+        raise BadRequest("타임라인에 클립이 없습니다. 클립을 타임라인에 올린 뒤 분석하세요.")
     running = app.jobs.active(project_id, "analyze")
     if running is not None:
         return running.model_dump()

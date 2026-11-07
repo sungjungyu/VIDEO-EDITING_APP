@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from ..domain.models import ClipInfo, Project
-from ..errors import Conflict, NotFound
+from ..errors import BadRequest, Conflict, NotFound
 from ..media.probe import MediaInfo
 from ..storage.projects import ProjectStore
 from .editing import recompile_and_save
@@ -46,7 +46,7 @@ def update_project(store: ProjectStore, project_id: str, name: str | None = None
             ids = {c.clip_id for c in p.clips}
             unknown = [cid for cid in timeline if cid not in ids]
             if unknown or len(set(timeline)) != len(timeline):
-                raise ValueError(f"타임라인 클립 목록이 올바르지 않습니다: {unknown}")
+                raise BadRequest(f"타임라인 클립 목록이 올바르지 않습니다: {unknown}")
             p.timeline = list(timeline)
         for clip_id, in_point, out_point in clip_ranges or []:
             clip = p.clip(clip_id)

@@ -17,7 +17,7 @@ from fastapi.staticfiles import StaticFiles
 
 from .. import __version__
 from ..ai.client import GeminiClient
-from ..errors import Conflict, NotFound
+from ..errors import BadRequest, Conflict, NotFound
 from ..log import setup_logging
 from ..services.jobs import JobManager
 from ..settings import Settings, get_settings
@@ -71,9 +71,16 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     async def conflict(request: Request, error: Conflict):
         return JSONResponse({"detail": str(error)}, status_code=409)
 
-    @app.exception_handler(ValueError)
-    async def bad_value(request: Request, error: ValueError):
+    @app.exception_handler(BadRequest)
+    async def bad_request(request: Request, error: BadRequest):
         return JSONResponse({"detail": str(error)}, status_code=422)
+
+    @app.exception_handler(ValueError)
+    async def server_value_error(request: Request, error: ValueError):
+        # BadRequest가 아닌 ValueError는 요청 잘못이 아니라 서버 쪽 문제다 (저장 파일 깨짐·코드 버그)
+        log.error("요청 처리 중 오류 (%s %s)", request.method, request.url.path,
+                  exc_info=(type(error), error, error.__traceback__))
+        return JSONResponse({"detail": "서버에서 처리하지 못했습니다. 서버 로그를 확인하세요."}, status_code=500)
 
     @app.get("/", include_in_schema=False)
     async def home():

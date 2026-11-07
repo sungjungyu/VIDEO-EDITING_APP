@@ -14,7 +14,7 @@ from ..domain.models import EditPlan, LineDecision, OutputSpec, PlanOptions, Pro
 from ..editing.planner import compile_plan, effective_decisions
 from ..editing.revise import revise as revise_lines
 from ..editing.select import select_scenes
-from ..errors import Conflict
+from ..errors import BadRequest, Conflict
 from ..storage.projects import ProjectStore
 from .analysis import apply_profile
 
@@ -104,7 +104,7 @@ def select(store: ProjectStore, client: GeminiClient | None, project_id: str,
             "user_prompt": user_prompt})
     else:
         if not target_sec or target_sec <= 0:
-            raise ValueError("목표 분량(초)을 입력하세요.")
+            raise BadRequest("목표 분량(초)을 입력하세요.")
         decisions = effective_decisions(plan, analysis)
         clips = {c.clip_id: c for c in project.timeline_clips()}
         plan.options = apply_profile(plan.options, profile)

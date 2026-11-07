@@ -8,7 +8,7 @@ from fastapi import APIRouter, Request
 from fastapi.responses import FileResponse
 
 from ...editing.planner import validate_plan
-from ...errors import NotFound
+from ...errors import BadRequest, NotFound
 from ...eval.metrics import project_metrics
 from ...services import editing as editing_service
 from ...services.rendering import run_render
@@ -27,7 +27,7 @@ def render(request: Request, project_id: str, body: RenderRequest) -> dict:
     errors = [i for i in validate_plan(plan, project.timeline_clips(), app.store.load_analysis(project_id),
                                        app.store.clip_files(project)) if i["level"] == "error"]
     if errors:
-        raise ValueError(" / ".join(e["message"] for e in errors[:3]))
+        raise BadRequest(" / ".join(e["message"] for e in errors[:3]))
     return app.jobs.submit("render", project_id, run_render, app.store, project_id, body.quality).model_dump()
 
 

@@ -1,6 +1,7 @@
 """VIBE CUT 예외. 모든 계층이 여기서 가져다 쓴다 (예외 때문에 위 계층 모듈을 import하지 않게).
 
     VibecutError
+     ├─ BadRequest      사용자 요청·계획이 잘못됨 (API에서 422, ValueError 하위 클래스)
      ├─ NotFound        프로젝트·클립·파일이 없음 (API에서 404)
      ├─ Conflict        지금 상태에서는 할 수 없음 — 분석 전·분석 중 (API에서 409)
      ├─ Canceled        사용자가 작업을 취소함
@@ -15,6 +16,10 @@ CANCELED_MESSAGE = "사용자가 작업을 취소했습니다."
 
 
 class VibecutError(Exception):
+    pass
+
+
+class BadRequest(VibecutError, ValueError):
     pass
 
 
