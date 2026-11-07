@@ -12,7 +12,7 @@ import re
 from pydantic import BaseModel
 
 from ..ai.client import GeminiClient
-from ..analysis.judge import rule_decisions
+from ..analysis.judge import _line_sort_key, rule_decisions
 from ..domain.models import Line, LineDecision
 from ..errors import AIError, AIUnavailable
 
@@ -68,7 +68,7 @@ def revise(instruction: str, lines: list[Line], decisions: dict[str, LineDecisio
            client: GeminiClient | None) -> tuple[dict[str, dict], str, str]:
     """(id → {"keep"?, "text"?}, 안내 메시지, 엔진)."""
     profile = profile or {}
-    lines = sorted(lines, key=lambda x: x.seg_id)
+    lines = sorted(lines, key=_line_sort_key)
     if client is not None:
         try:
             data = client.generate_json(build_prompt(instruction, lines, decisions), ReviseResponse,

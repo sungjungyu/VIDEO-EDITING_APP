@@ -25,8 +25,13 @@ log = logging.getLogger("vibecut.analysis.judge")
 
 CUT_REASONS = ("NG", "반복", "군더더기", "지시어")
 KEEP_REASONS = ("핵심", "일반")
-HARD_RULE = 0.75          # 이 확신 이상 규칙 컷은 Gemini가 따로 '남김'이라고 하지 않으면 자른다
+HARD_RULE = 0.7           # 이 확신 이상 규칙 컷은 Gemini가 따로 '남김'이라고 하지 않으면 자른다
 BATCH = 400
+
+
+def _line_sort_key(line: Line) -> tuple:
+    num = int(line.seg_id[1:]) if line.seg_id[1:].isdigit() else 0
+    return (line.clip_id, line.start, num, line.seg_id)
 
 
 def _filler_ratio(text: str) -> float:
@@ -155,7 +160,7 @@ def judge_lines(lines: list[Line], scenes: list[Scene], profile: dict | None, cl
                 ) -> tuple[dict[str, LineDecision], str, list[str]]:
     """(문장별 판단, 엔진 이름, 경고). 시각은 받아쓰기 그대로이고 판단만 바뀐다."""
     profile = profile or {}
-    lines = sorted(lines, key=lambda x: x.seg_id)
+    lines = sorted(lines, key=_line_sort_key)
     rules = rule_decisions(lines, profile)
     if not lines or client is None:
         return rules, "rule", []

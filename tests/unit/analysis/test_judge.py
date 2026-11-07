@@ -54,6 +54,15 @@ def test_judge_merges_ai_items_with_hard_rules():
     assert "t9999" not in decisions
 
 
+def test_judge_preserves_retake_cut_when_ai_omits_it():
+    """AI가 응답에서 생략한 다시 찍기(NG, 확신도 0.7) 문장도 규칙대로 잘린다."""
+    ai = ScriptedAI({"decisions": []})
+    decisions, engine, warnings = judge_mod.judge_lines(LINES, [], {}, ai)
+    assert engine == "ai" and not warnings
+    assert decisions["t0003"].keep is False and decisions["t0003"].reason == "NG"
+    assert decisions["t0004"].keep is False and decisions["t0004"].reason == "지시어"
+
+
 def test_judge_guard_and_failure_fall_back_to_rules():
     all_cut = ScriptedAI({"decisions": [{"id": line.seg_id, "keep": False, "reason": "NG", "confidence": 0.9,
                                          "emphasis": False, "note": ""} for line in LINES]})
