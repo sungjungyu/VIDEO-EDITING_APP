@@ -9,6 +9,7 @@
 
 from __future__ import annotations
 
+import concurrent.futures.thread as _thread_pool
 import logging
 import threading
 import time
@@ -22,6 +23,7 @@ from pathlib import Path
 from ..domain.models import Job, now_iso
 from ..errors import Canceled
 from ..log import close_job_logger, job_logger
+from ..media.ffmpeg import kill_active_processes
 from ..storage.files import read_json, write_json
 from .context import RunContext
 
@@ -100,8 +102,8 @@ class JobManager:
         return job.model_copy()
 
     def _run(self, job_id: str, fn: Callable, args: tuple, kwargs: dict) -> None:
-        cancel = self._cancel[job_id]
-        if cancel.is_set():
+        cancel = self._cancel.get(job_id)
+        if cancel is None or cancel.is_set():
             return
         logger = job_logger(job_id, self.dir / f"{job_id}.log")
         ctx = JobContext(self, job_id, cancel, logger)
@@ -121,6 +123,9 @@ class JobManager:
                         metrics=ctx.metrics)
         finally:
             close_job_logger(logger)
+            with self._lock:
+                self._cancel.pop(job_id, None)
+                self._last_write.pop(job_id, None)
 
     def get(self, job_id: str) -> Job | None:
         with self._lock:
@@ -141,10 +146,26 @@ class JobManager:
             job = self._jobs.get(job_id)
             if job is None:
                 return None
-            self._cancel.get(job_id, threading.Event()).set()
+            if ev := self._cancel.get(job_id):
+                ev.set()
             if job.status == "queued":
+                self._cancel.pop(job_id, None)
+                self._last_write.pop(job_id, None)
                 return self.update(job_id, status="canceled", stage="취소됨", finished_at=now_iso())
             return job.model_copy()
+
+    def cancel_project(self, project_id: str, kind: str | None = None, timeout: float = 5.0) -> None:
+        """프로젝트의 활성 작업을 취소하고 끝날 때까지 기다린다 (파일 삭제 전 ffmpeg가 파일을 놓게)."""
+        active_ids = [j.job_id for j in self.list(project_id, kind) if not j.finished]
+        for jid in active_ids:
+            self.cancel(jid)
+        deadline = time.time() + timeout
+        for jid in active_ids:
+            while time.time() < deadline:
+                job = self.get(jid)
+                if job is None or job.finished:
+                    break
+                time.sleep(0.05)
 
     def wait(self, job_id: str, timeout: float = 600.0) -> Job:
         """테스트·명령줄용: 작업이 끝날 때까지 기다린다."""
@@ -157,10 +178,15 @@ class JobManager:
         raise TimeoutError(f"작업 {job_id}이 {timeout}초 안에 끝나지 않았습니다.")
 
     def shutdown(self) -> None:
-        for event in self._cancel.values():
+        with self._lock:
+            events = list(self._cancel.values())
+        for event in events:
             event.set()
+        kill_active_processes()
         for executor in self._executors.values():
             executor.shutdown(wait=False, cancel_futures=True)
+            for t in getattr(executor, "_threads", ()):
+                _thread_pool._threads_queues.pop(t, None)
 
 
 def _timestamp(iso: str) -> float:

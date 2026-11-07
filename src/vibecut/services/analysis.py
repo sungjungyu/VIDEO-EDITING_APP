@@ -9,8 +9,8 @@
 from __future__ import annotations
 
 import logging
+import shutil
 import threading
-from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 from ..ai.client import GeminiClient
@@ -94,17 +94,20 @@ def run_analysis(ctx: RunContext, store: ProjectStore, settings: Settings, proje
     timeline = list(project.timeline)
     store.update(project_id, lambda p: setattr(p, "analysis", AnalysisState(status="running", job_id=ctx.job_id,
                                                                            timeline=timeline)))
+    scene_work_dir = store.work_dir(project_id, f"scene_{ctx.job_id}")
     try:
-        return _analyze(ctx, store, settings, project_id, clips, timeline, profile, client)
+        return _analyze(ctx, store, settings, project_id, clips, timeline, profile, client, scene_work_dir)
     except BaseException as error:
         state = AnalysisState(status="none" if isinstance(error, Canceled) else "failed", job_id=ctx.job_id,
                               timeline=timeline, warnings=[str(error)[:300]], updated_at=now_iso())
         store.update(project_id, lambda p: setattr(p, "analysis", state))
         raise
+    finally:
+        shutil.rmtree(scene_work_dir, ignore_errors=True)
 
 
 def _analyze(ctx: RunContext, store: ProjectStore, settings: Settings, project_id: str, clips: list[ClipInfo],
-             timeline: list[str], profile: dict, client: GeminiClient | None) -> dict:
+             timeline: list[str], profile: dict, client: GeminiClient | None, scene_work_dir: Path) -> dict:
     client = (client or GeminiClient(settings, store.cache_dir / "ai")).with_usage(ctx.usage)
     vocab = [w for w in profile.get("frequent_words") or [] if isinstance(w, str) and w.strip()][:30]
     spans = clip_spans(clips)
@@ -124,6 +127,7 @@ def _analyze(ctx: RunContext, store: ProjectStore, settings: Settings, project_i
     scene_out: dict[str, dict] = {}
     progress_lock = threading.Lock()
     done = {"stt": 0, "scenes": 0}
+    errors: list[BaseException] = []
 
     def tick(kind: str, label: str):
         with progress_lock:
@@ -132,33 +136,53 @@ def _analyze(ctx: RunContext, store: ProjectStore, settings: Settings, project_i
             ctx.progress(8 + 67 * (done["stt"] + done["scenes"]) / total, "받아쓰기·영상 분석", label)
 
     def do_stt():
-        for c in clips:
-            ctx.check()
-            wav = wavs[c.clip_id]
-            if wav is None:
-                stt[c.clip_id] = {"segments": [], "silences": [], "engine": "no-audio", "warnings": []}
-            else:
-                stt[c.clip_id] = transcribe_clip(wav, c.sha1, settings, store.cache_dir / "stt", vocab,
-                                                  ctx.cancel, client)
-            tick("stt", f"받아쓰기 {c.filename}")
+        try:
+            for c in clips:
+                ctx.check()
+                wav = wavs[c.clip_id]
+                if wav is None:
+                    stt[c.clip_id] = {"segments": [], "silences": [], "engine": "no-audio", "warnings": []}
+                else:
+                    stt[c.clip_id] = transcribe_clip(wav, c.sha1, settings, store.cache_dir / "stt", vocab,
+                                                      ctx.cancel, client)
+                tick("stt", f"받아쓰기 {c.filename}")
+        except BaseException as err:
+            errors.append(err)
+            ctx.cancel.set()
 
     def do_scenes():
-        prev_summary, people = "", ""
-        for c in clips:
-            ctx.check()
-            r = analyze_clip_scenes(store.clip_path(project_id, c.stored_name), c.sha1, c.duration, settings,
-                                    store.cache_dir / "scenes", store.work_dir(project_id, f"scene_{ctx.job_id}"),
-                                    prev_summary, people, ctx.cancel, client)
-            scene_out[c.clip_id] = r
-            if r["scenes"]:
-                prev_summary = " / ".join(s.get("summary", "") for s in r["scenes"][-3:])
-                people = ", ".join(sorted({s.get("people", "") for s in r["scenes"] if s.get("people")}))
-            tick("scenes", f"영상 분석 {c.filename}")
+        try:
+            prev_summary, people = "", ""
+            for c in clips:
+                ctx.check()
+                r = analyze_clip_scenes(store.clip_path(project_id, c.stored_name), c.sha1, c.duration, settings,
+                                        store.cache_dir / "scenes", scene_work_dir,
+                                        prev_summary, people, ctx.cancel, client)
+                scene_out[c.clip_id] = r
+                if r["scenes"]:
+                    prev_summary = " / ".join(s.get("summary", "") for s in r["scenes"][-3:])
+                    people = ", ".join(sorted({s.get("people", "") for s in r["scenes"] if s.get("people")}))
+                tick("scenes", f"영상 분석 {c.filename}")
+        except BaseException as err:
+            errors.append(err)
+            ctx.cancel.set()
 
-    with ctx.stage("transcribe_and_scenes"), ThreadPoolExecutor(max_workers=2) as pool:
-        futures = [pool.submit(do_stt), pool.submit(do_scenes)]
-        for f in futures:
-            f.result()
+    with ctx.stage("transcribe_and_scenes"):
+        # daemon=True 스레드로 돌려 Ctrl+C 종료 시 응답 대기 중인 API 호출이 프로세스를 붙잡지 않게 한다
+        threads = [
+            threading.Thread(target=do_stt, name="analyze-stt", daemon=True),
+            threading.Thread(target=do_scenes, name="analyze-scenes", daemon=True),
+        ]
+        for t in threads:
+            t.start()
+        while any(t.is_alive() for t in threads):
+            if ctx.cancel.is_set() and errors:
+                break
+            for t in threads:
+                t.join(timeout=0.1)
+        if errors:
+            raise errors[0]
+        ctx.check()
 
     lines: list[Line] = []
     silences: dict[str, list] = {}

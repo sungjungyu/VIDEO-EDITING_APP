@@ -8,7 +8,9 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
+import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
@@ -30,6 +32,27 @@ log = logging.getLogger("vibecut.server")
 NO_CACHE = {"Cache-Control": "no-cache, no-store, must-revalidate"}
 LOCAL_HOSTS = ("127.0.0.1", "localhost")
 OPEN_HOSTS = ("0.0.0.0", "::")      # 일부러 외부에 연 경우(팀 시연)는 접속 주소를 알 수 없어 Host를 검사하지 않는다
+SHUTDOWN_TIMEOUT_SEC = 2            # Ctrl+C 종료 시 열린 스트리밍 연결을 최대 2초만 기다린다
+
+
+def _silence_windows_connection_reset(loop: asyncio.AbstractEventLoop) -> None:
+    """Windows에서 브라우저 <video>가 Range 요청을 먼저 끊을 때 찍히는 무해한 WinError 10054를 숨긴다."""
+    if os.name != "nt":
+        return
+    default_handler = loop.get_exception_handler()
+
+    def handler(loop: asyncio.AbstractEventLoop, context: dict) -> None:
+        exc = context.get("exception")
+        if isinstance(exc, ConnectionResetError) or (
+            isinstance(exc, OSError) and getattr(exc, "winerror", None) == 10054
+        ):
+            return
+        if default_handler is not None:
+            default_handler(loop, context)
+        else:
+            loop.default_exception_handler(context)
+
+    loop.set_exception_handler(handler)
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -46,6 +69,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
+        _silence_windows_connection_reset(asyncio.get_running_loop())
         removed = state.store.cleanup(settings.retention_days)
         if removed:
             log.info("오래된 중간 파일·미리보기 %d개를 정리했습니다.", removed)
@@ -104,6 +128,8 @@ def serve(host: str | None = None, port: int | None = None, reload: bool = False
     host, port = host or settings.host, port or settings.port
     print(f"VIBE CUT 서버 시작: http://{host}:{port}")
     if reload:
-        uvicorn.run("vibecut.server.app:create_app", factory=True, host=host, port=port, reload=True)
+        uvicorn.run("vibecut.server.app:create_app", factory=True, host=host, port=port, reload=True,
+                    timeout_graceful_shutdown=SHUTDOWN_TIMEOUT_SEC)
     else:
-        uvicorn.run(create_app(settings), host=host, port=port)
+        uvicorn.run(create_app(settings), host=host, port=port,
+                    timeout_graceful_shutdown=SHUTDOWN_TIMEOUT_SEC)

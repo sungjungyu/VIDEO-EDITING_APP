@@ -31,7 +31,8 @@ def setup_logging(level: str = "INFO") -> None:
 
 def job_logger(job_id: str, log_path: Path) -> logging.Logger:
     """작업 하나의 로그를 log_path에도 남기는 로거. 작업이 끝나면 close_job_logger로 닫는다."""
-    logger = logging.getLogger(f"vibecut.job.{job_id}")
+    name = f"vibecut.job.{job_id}"
+    logger = logging.getLogger(name)
     log_path.parent.mkdir(parents=True, exist_ok=True)
     handler = logging.FileHandler(log_path, encoding="utf-8")
     handler.setFormatter(logging.Formatter(FORMAT))
@@ -44,3 +45,4 @@ def close_job_logger(logger: logging.Logger) -> None:
     for handler in list(logger.handlers):
         handler.close()
         logger.removeHandler(handler)
+    logging.Logger.manager.loggerDict.pop(logger.name, None)

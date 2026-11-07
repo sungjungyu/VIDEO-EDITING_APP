@@ -1,13 +1,17 @@
-"""프로젝트 저장소 테스트: 저장·다시 열기·삭제, 분석 결과 읽기 캐시."""
+"""프로젝트 저장소 테스트: 저장·다시 열기·삭제, 분석 결과 읽기 캐시, 클립 삭제 시 활성 작업 검사."""
 
 from __future__ import annotations
 
 import os
+import threading
+import time
 
 import pytest
 
 from vibecut.domain.models import Analysis, ClipInfo, EditPlan, Line
-from vibecut.errors import NotFound
+from vibecut.errors import Conflict, NotFound
+from vibecut.services import projects as project_service
+from vibecut.services.jobs import JobManager
 from vibecut.storage.projects import ProjectStore
 
 
@@ -43,6 +47,36 @@ def test_analysis_cache_follows_file_changes(tmp_path):
     stat = path.stat()
     os.utime(path, ns=(stat.st_atime_ns, stat.st_mtime_ns + 1_000_000))
     assert [line.text for line in store.load_analysis(pid).lines] == ["둘둘"]
+
+
+def test_delete_clip_blocked_during_render_and_delete_project_waits_for_job(tmp_path):
+    store = ProjectStore(tmp_path)
+    jobs = JobManager(tmp_path)
+    started = threading.Event()
+    try:
+        p = store.create("삭제 테스트")
+        pid = p.project_id
+
+        def add_clip(proj):
+            proj.clips.append(ClipInfo(clip_id="c01", filename="a.mp4", stored_name="c01.mp4", duration=5.0))
+            proj.timeline.append("c01")
+
+        store.update(pid, add_clip)
+
+        def running_render(ctx):
+            started.set()
+            while not ctx.cancel.is_set():
+                time.sleep(0.02)
+            ctx.check()
+
+        job = jobs.submit("render", pid, running_render)
+        started.wait(5)
+        with pytest.raises(Conflict):
+            project_service.delete_clip(store, jobs, pid, "c01")
+        project_service.delete_project(store, jobs, pid)
+        assert jobs.get(job.job_id).status == "canceled"
+    finally:
+        jobs.shutdown()
 
 
 def test_preview_renders_do_not_evict_final_renders(tmp_path, monkeypatch):

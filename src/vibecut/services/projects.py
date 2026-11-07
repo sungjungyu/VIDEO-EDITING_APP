@@ -8,7 +8,7 @@ from ..domain.models import ClipInfo, Project
 from ..errors import BadRequest, Conflict, NotFound
 from ..media.probe import MediaInfo
 from ..storage.projects import ProjectStore
-from .editing import edit_plan, recompile_and_save
+from .editing import edit_plan
 from .jobs import JobManager
 
 
@@ -63,8 +63,7 @@ def update_project(store: ProjectStore, project_id: str, name: str | None = None
 
 
 def delete_project(store: ProjectStore, jobs: JobManager, project_id: str) -> None:
-    for job in jobs.list(project_id):
-        jobs.cancel(job.job_id)
+    jobs.cancel_project(project_id)
     store.delete(project_id)
 
 
@@ -73,17 +72,20 @@ def delete_clip(store: ProjectStore, jobs: JobManager, project_id: str, clip_id:
     clip = project.clip(clip_id)
     if clip is None:
         raise NotFound("클립을 찾을 수 없습니다.")
-    if jobs.active(project_id, "analyze") is not None and clip_id in project.timeline:
-        raise Conflict("분석 중에는 타임라인의 클립을 삭제할 수 없습니다.")
+    if clip_id in project.timeline and (jobs.active(project_id, "analyze") is not None
+                                        or jobs.active(project_id, "render") is not None):
+        raise Conflict("분석 또는 렌더링 중에는 타임라인의 클립을 삭제할 수 없습니다.")
+    jobs.cancel_project(project_id, kind="proxy")
 
     def change(p: Project):
         p.clips = [c for c in p.clips if c.clip_id != clip_id]
         p.timeline = [cid for cid in p.timeline if cid != clip_id]
 
-    project = store.update(project_id, change)
-    store.clip_path(project_id, clip.stored_name).unlink(missing_ok=True)
-    store.proxy_path(project_id, clip_id).unlink(missing_ok=True)
-    recompile_and_save(store, project, store.load_plan(project_id))
+    with store.lock(project_id):
+        store.clip_path(project_id, clip.stored_name).unlink(missing_ok=True)
+        store.proxy_path(project_id, clip_id).unlink(missing_ok=True)
+        project = store.update(project_id, change)
+        edit_plan(store, project_id)
     return project
 
 

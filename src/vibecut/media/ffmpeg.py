@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import re
 import shutil
 import subprocess
@@ -25,11 +26,15 @@ HDR_TONEMAP_FILTER = (
     "zscale=t=linear:npl=100,format=gbrpf32le,zscale=p=bt709,"
     "tonemap=tonemap=hable:desat=0,zscale=t=bt709:m=bt709:r=tv,format=yuv420p"
 )
+# Windows에서 콘솔 Ctrl+C가 하위 ffmpeg와 엉키지 않게 별도 프로세스 그룹으로 띄운다
+_CREATIONFLAGS = getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0) if os.name == "nt" else 0
+_active_procs: set[subprocess.Popen] = set()
+_procs_lock = threading.Lock()
 
 
-@lru_cache(maxsize=1)
-def ffmpeg_path() -> str:
-    env = get_settings().ffmpeg_bin
+@lru_cache(maxsize=4)
+def ffmpeg_path(ffmpeg_bin: str | None = None) -> str:
+    env = ffmpeg_bin if ffmpeg_bin is not None else get_settings().ffmpeg_bin
     if env and (Path(env).exists() or shutil.which(env)):
         return env
     found = shutil.which("ffmpeg")
@@ -70,7 +75,7 @@ def filter_script_args(script_name: str) -> list[str]:
 def run(args: list[str], cwd: str | Path | None = None, timeout: float | None = None) -> subprocess.CompletedProcess:
     """ffmpeg 한 번 실행. 실패하면 stderr 끝부분을 담아 FFmpegError."""
     cmd = [ffmpeg_path(), "-hide_banner", "-nostdin", "-y", *args]
-    result = subprocess.run(cmd, cwd=cwd, capture_output=True, timeout=timeout)
+    result = subprocess.run(cmd, cwd=cwd, capture_output=True, timeout=timeout, creationflags=_CREATIONFLAGS)
     if result.returncode != 0:
         raise FFmpegError(tail(result.stderr))
     return result
@@ -81,15 +86,32 @@ def tail(stderr: bytes | str, n: int = 1500) -> str:
     return text[-n:].strip()
 
 
+def kill_active_processes() -> None:
+    """서버 종료 시 아직 돌고 있는 하위 ffmpeg 프로세스를 모두 즉시 종료한다."""
+    with _procs_lock:
+        procs = list(_active_procs)
+        _active_procs.clear()
+    for proc in procs:
+        try:
+            proc.kill()
+        except Exception:
+            pass
+
+
 def spawn(cmd: list[str], cwd: str | Path | None = None) -> tuple[subprocess.Popen, Callable[[], bytes]]:
     """stdout을 읽으며 실행할 프로세스를 띄운다. stderr는 따로 모아 두었다가 두 번째 반환값으로 꺼낸다
     (두 파이프를 한 스레드에서 읽으면 버퍼가 차서 멈출 수 있다)."""
-    proc = subprocess.Popen(cmd, cwd=cwd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    proc = subprocess.Popen(cmd, cwd=cwd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                            creationflags=_CREATIONFLAGS)
+    with _procs_lock:
+        _active_procs.add(proc)
     chunks: list[bytes] = []
     reader = threading.Thread(target=lambda: chunks.append(proc.stderr.read()), daemon=True)
     reader.start()
 
     def collected() -> bytes:
+        with _procs_lock:
+            _active_procs.discard(proc)
         reader.join(timeout=5)
         return b"".join(chunks)
 
@@ -104,20 +126,22 @@ def run_with_progress(args: list[str], total_sec: float, on_progress: Callable[[
     if cancel is not None:
         def _watch():
             while proc.poll() is None:
-                if cancel.wait(0.3):
-                    proc.terminate()
+                if cancel.wait(0.2):
+                    proc.kill()
                     return
         threading.Thread(target=_watch, daemon=True).start()
-    for raw in proc.stdout:
-        line = raw.decode("utf-8", errors="replace").strip()
-        if line.startswith(("out_time_us=", "out_time_ms=")) and on_progress and total_sec > 0:
-            try:
-                sec = int(line.split("=", 1)[1]) / 1_000_000   # out_time_ms도 실제로는 마이크로초
-            except ValueError:
-                continue
-            on_progress(max(0.0, min(1.0, sec / total_sec)))
-    proc.wait()
-    err = stderr()
+    try:
+        for raw in proc.stdout:
+            line = raw.decode("utf-8", errors="replace").strip()
+            if line.startswith(("out_time_us=", "out_time_ms=")) and on_progress and total_sec > 0:
+                try:
+                    sec = int(line.split("=", 1)[1]) / 1_000_000   # out_time_ms도 실제로는 마이크로초
+                except ValueError:
+                    continue
+                on_progress(max(0.0, min(1.0, sec / total_sec)))
+        proc.wait()
+    finally:
+        err = stderr()
     if cancel is not None and cancel.is_set():
         raise Canceled()
     if proc.returncode != 0:
