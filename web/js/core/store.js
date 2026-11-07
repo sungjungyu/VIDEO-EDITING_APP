@@ -110,6 +110,13 @@ export function globalToClip(t) {
 const undoStack = [];
 const redoStack = [];
 const MAX_HISTORY = 50;
+let planQueue = Promise.resolve();
+
+function enqueuePlan(task) {
+  const next = planQueue.then(task, task);
+  planQueue = next.catch(() => {});
+  return next;
+}
 
 function snapshot() {
   const p = state.plan;
@@ -126,32 +133,33 @@ export function clearHistory() {
   emit("history");
 }
 
-/* change: async () => 서버 응답(plan view). 성공하면 이전 상태를 기록하고 화면을 갱신한다. */
-export async function mutatePlan(change, { record = true } = {}) {
-  const before = snapshot();
-  const view = await change();
-  if (record && before) {
-    undoStack.push(before);
-    if (undoStack.length > MAX_HISTORY) undoStack.shift();
-    redoStack.length = 0;
-  }
-  setPlanView(view);
-  emit("history");
-  return view;
+/* change: async () => 서버 응답(plan view). 요청을 줄 세워 순서가 꼬이지 않게 하고 이전 상태를 기록한다. */
+export function mutatePlan(change, { record = true } = {}) {
+  return enqueuePlan(async () => {
+    const before = snapshot();
+    const view = await change();
+    if (record && before) {
+      undoStack.push(before);
+      if (undoStack.length > MAX_HISTORY) undoStack.shift();
+      redoStack.length = 0;
+    }
+    setPlanView(view);
+    emit("history");
+    return view;
+  });
 }
 
-export async function undo() {
-  if (!undoStack.length) return;
-  const target = undoStack.pop();
-  redoStack.push(snapshot());
-  setPlanView(await api.putPlan(pid(), target));
-  emit("history");
+/* from 맨 위 상태로 되돌리고 지금 상태를 to에 쌓는다. 서버가 받아들인 뒤에만 기록을 옮긴다 (실패하면 그대로) */
+function travel(from, to) {
+  return enqueuePlan(async () => {
+    if (!from.length) return;
+    const view = await api.putPlan(pid(), from[from.length - 1]);
+    from.pop();
+    to.push(snapshot());
+    setPlanView(view);
+    emit("history");
+  });
 }
 
-export async function redo() {
-  if (!redoStack.length) return;
-  const target = redoStack.pop();
-  undoStack.push(snapshot());
-  setPlanView(await api.putPlan(pid(), target));
-  emit("history");
-}
+export const undo = () => travel(undoStack, redoStack);
+export const redo = () => travel(redoStack, undoStack);

@@ -71,7 +71,10 @@ function renameProject() {
   button.replaceWith(input);
   input.focus();
   input.select();
+  let finished = false;
   const done = async save => {
+    if (finished) return;
+    finished = true;
     input.replaceWith(button);
     const name = input.value.trim();
     if (save && name && name !== state.project.name) {

@@ -284,13 +284,18 @@ async function runAiAutoEdit() {
   }
 }
 
-const saveOptions = debounce(async changes => {
+/* 0.5초 안에 여러 옵션을 바꾸면 모아서 한 번에 보낸다 (디바운스는 마지막 인자만 넘겨 앞의 변경이 사라졌다) */
+let pendingOptions = {};
+const flushOptions = debounce(async () => {
+  const changes = pendingOptions;
+  pendingOptions = {};
   try {
     await mutatePlan(() => api.putPlan(pid(), { options: { ...state.plan.options, ...changes } }));
   } catch (err) {
     toast(err.message, "error");
   }
 }, 500);
+const saveOptions = changes => { Object.assign(pendingOptions, changes); flushOptions(); };
 
 /* ---------------------------------------------------------------- 열기·닫기 */
 
