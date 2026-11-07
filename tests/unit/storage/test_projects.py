@@ -117,3 +117,19 @@ def test_preview_renders_do_not_evict_final_renders(tmp_path, monkeypatch):
     assert len(finals) == 1 and finals[0].render_id == final_res["render_id"]
     assert store.render_path(pid, final_res["file"]).exists()
     assert len(previews) == rendering.MAX_PREVIEW_RENDERS
+
+
+def test_wipe_media_removes_videos_and_audio_but_keeps_text_caches(tmp_path):
+    store = ProjectStore(tmp_path)
+    pid = store.create("지울 프로젝트").project_id
+    store.clip_path(pid, "c01.mp4").write_bytes(b"video")
+    store.audio_dir.mkdir(parents=True)
+    (store.audio_dir / "abc.wav").write_bytes(b"wav")
+    (store.cache_dir / "stt").mkdir()
+    (store.cache_dir / "stt" / "abc.json").write_text("{}", encoding="utf-8")
+
+    assert store.wipe_media() == 1
+    assert not any(store.projects_dir.iterdir()) and not store.audio_dir.exists()
+    assert (store.cache_dir / "stt" / "abc.json").exists()           # 받아쓰기 글자 캐시는 남긴다
+    with pytest.raises(NotFound):
+        store.get(pid)

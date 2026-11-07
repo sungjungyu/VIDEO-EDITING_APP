@@ -70,13 +70,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         _silence_windows_connection_reset(asyncio.get_running_loop())
-        removed = state.store.cleanup(settings.retention_days)
+        # 영상은 서버가 켜져 있는 동안에만 둔다 (켤 때: 지난번에 못 지운 것까지, 끌 때: 작업을 멈춘 뒤)
+        removed = state.store.wipe_media()
         if removed:
-            log.info("오래된 중간 파일·미리보기 %d개를 정리했습니다.", removed)
+            log.info("지난 실행의 프로젝트 %d개(영상·렌더)를 지웠습니다.", removed)
         mode = "live (Gemini 사용)" if settings.ai_live else "offline (규칙·캐시만)"
         log.info("VIBE CUT %s — AI 모드: %s, 데이터: %s", __version__, mode, settings.data_dir)
         yield
         state.jobs.shutdown()
+        state.store.wipe_media()
 
     app = FastAPI(title="VIBE CUT", version=__version__, lifespan=lifespan)
     app.state.vibecut = state

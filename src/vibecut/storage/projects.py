@@ -1,4 +1,6 @@
-"""프로젝트 저장소 (디스크). 서버를 다시 켜도 업로드·분석·편집 계획·결과가 그대로 남는다.
+"""프로젝트 저장소 (디스크). 영상은 작업하는 동안에만 둔다: 서버를 켤 때·끌 때 wipe_media()로
+프로젝트(원본·미리보기 사본·렌더·중간 파일)와 영상에서 뽑은 오디오를 모두 지운다.
+(받아쓰기·장면·AI 응답 캐시는 글자(JSON)라 남겨 같은 영상을 다시 올리면 빨리 분석한다)
 
 data/
   projects/{project_id}/
@@ -18,7 +20,6 @@ from __future__ import annotations
 import re
 import shutil
 import threading
-import time
 import uuid
 from collections.abc import Callable
 from pathlib import Path
@@ -28,6 +29,7 @@ from ..errors import NotFound
 from .files import read_json, write_json
 
 _ID = re.compile(r"^[0-9a-f]{12}$")
+AUDIO_CACHE = "audio"          # cache/ 아래 영상에서 뽑은 오디오(WAV) — 영상과 함께 지운다
 
 
 class ProjectStore:
@@ -35,6 +37,7 @@ class ProjectStore:
         self.root = Path(data_dir)
         self.projects_dir = self.root / "projects"
         self.cache_dir = self.root / "cache"
+        self.audio_dir = self.cache_dir / AUDIO_CACHE
         self.projects_dir.mkdir(parents=True, exist_ok=True)
         self.cache_dir.mkdir(parents=True, exist_ok=True)
         self._locks: dict[str, threading.RLock] = {}
@@ -168,16 +171,15 @@ class ProjectStore:
 
     # ------------------------------------------------------------ 정리
 
-    def cleanup(self, retention_days: int) -> int:
-        """오래된 렌더 중간 폴더와 오래된 미리보기 렌더를 지운다 (원본·계획은 지우지 않는다)."""
-        limit = time.time() - retention_days * 86400
+    def wipe_media(self) -> int:
+        """모든 프로젝트(원본·미리보기 사본·렌더·중간 파일)와 영상에서 뽑은 오디오 캐시를 지운다.
+        지운 프로젝트 수를 돌려준다. (Windows에서 아직 잡혀 있는 파일은 남을 수 있다 → 다음에 켤 때 지운다)"""
         removed = 0
-        for work in self.projects_dir.glob("*/work/*"):
-            if work.stat().st_mtime < limit or not any(work.iterdir()):
-                shutil.rmtree(work, ignore_errors=True)
-                removed += 1
-        for preview in self.projects_dir.glob("*/renders/*_preview.mp4"):
-            if preview.stat().st_mtime < limit:
-                preview.unlink(missing_ok=True)
-                removed += 1
+        for path in self.projects_dir.iterdir():
+            with self.lock(path.name):
+                shutil.rmtree(path, ignore_errors=True)
+            removed += 1
+        shutil.rmtree(self.audio_dir, ignore_errors=True)
+        self._analysis_cache.clear()
+        self._plan_cache.clear()
         return removed

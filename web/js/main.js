@@ -1,4 +1,5 @@
-/* 시작점: 설정을 읽고, 마지막에 열었던 프로젝트를 다시 열고(서버에 저장돼 있음), 각 화면 모듈을 연결한다. */
+/* 시작점: 설정을 읽고, 마지막에 열었던 프로젝트를 다시 열고, 각 화면 모듈을 연결한다.
+   프로젝트(영상)는 서버가 켜져 있는 동안에만 남는다 — 서버를 켜거나 끄면 서버가 모두 지운다. */
 
 import { api } from "./core/api.js";
 import { $, el, toast } from "./core/dom.js";
@@ -214,7 +215,7 @@ async function boot() {
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "y") { e.preventDefault(); redo().catch(err => toast(err.message, "error")); }
   });
 
-  let project = null;
+  let project = null;                  // 새로고침: 열던 프로젝트 → 가장 최근 프로젝트 → 새 프로젝트
   const saved = (() => { try { return localStorage.getItem(PROJECT_KEY); } catch (err) { return null; } })();
   if (saved) project = await api.getProject(saved).catch(() => null);
   if (!project) {

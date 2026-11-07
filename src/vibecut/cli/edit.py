@@ -71,6 +71,16 @@ def run(args: argparse.Namespace) -> int:
 
     store = ProjectStore(settings.data_dir)
     pid = store.create(files[0].stem).project_id
+    try:
+        return _edit(args, settings, store, pid, files)
+    finally:                                   # 영상 복사본·렌더·오디오는 남기지 않는다 (결과는 -o 파일로 이미 복사)
+        sha1s = [c.sha1 for c in store.get(pid).clips]
+        store.delete(pid)
+        for sha1 in sha1s:                     # 이 영상의 오디오만 (서버가 같은 폴더로 다른 영상을 분석 중일 수 있다)
+            (store.audio_dir / f"{sha1[:20]}.wav").unlink(missing_ok=True)
+
+
+def _edit(args, settings, store: ProjectStore, pid: str, files: list[Path]) -> int:
     for src in files:
         tmp = store.project_dir(pid) / "clips" / f".cli_{uuid.uuid4().hex[:8]}{src.suffix.lower()}"
         shutil.copyfile(src, tmp)
@@ -106,5 +116,4 @@ def run(args: argparse.Namespace) -> int:
     project, plan = editing.current_plan(store, pid)
     print()
     print(to_markdown(project.name, project_metrics(project, store.load_analysis(pid), plan, [])))
-    print(f"\n웹 화면에서 이어서 편집: vibecut serve → 프로젝트 {pid}")
     return 0

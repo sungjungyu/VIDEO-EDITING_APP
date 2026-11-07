@@ -118,7 +118,7 @@ def _analyze(ctx: RunContext, store: ProjectStore, settings: Settings, project_i
         for i, c in enumerate(clips):
             ctx.check()
             ctx.progress(8 * i / len(clips), "오디오 추출", c.filename)
-            wav = store.cache_dir / "audio" / f"{c.sha1[:20]}.wav"
+            wav = store.audio_dir / f"{c.sha1[:20]}.wav"
             wav.parent.mkdir(parents=True, exist_ok=True)
             ok = c.has_audio and extract_audio(store.clip_path(project_id, c.stored_name), wav)
             wavs[c.clip_id] = wav if ok else None

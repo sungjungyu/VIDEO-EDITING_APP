@@ -1,4 +1,5 @@
-"""API 전체 흐름 (오프라인 모드, 실제 ffmpeg): 업로드 → 분석 → AI 가편집 → 수정 → 렌더 → 다운로드 → 재시작."""
+"""API 전체 흐름 (오프라인 모드, 실제 ffmpeg): 업로드 → 분석 → AI 가편집 → 수정 → 렌더 → 다운로드
+→ 서버 종료 시 영상 삭제."""
 
 from __future__ import annotations
 
@@ -97,9 +98,14 @@ def test_full_flow(settings, media):
         assert metrics["output_sec"] == pytest.approx(after["duration"], abs=0.01)
         assert metrics["word_cuts"] == 0 and metrics["user_flips"] == 1
 
-    with TestClient(create_app(settings), base_url="http://127.0.0.1") as client:      # 서버를 다시 켜도 그대로
-        project = client.get(f"/api/projects/{pid}").json()
-        assert [c["clip_id"] for c in project["clips"]] == ["c01", "c02"] and project["renders"]
-        assert client.get(f"/api/projects/{pid}/plan").json()["plan"]["lines"][first]["keep"] is False
         deleted = client.delete(f"/api/projects/{pid}/clips/c02").json()
         assert deleted["timeline"] == ["c01"]
+        assert (settings.data_dir / "cache" / "audio").is_dir()          # 분석이 뽑은 오디오가 있었다
+
+    # 서버를 끄면 영상(원본·미리보기 사본·렌더)과 영상에서 뽑은 오디오를 남기지 않는다
+    assert not any((settings.data_dir / "projects").iterdir())
+    assert not (settings.data_dir / "cache" / "audio").exists()
+
+    with TestClient(create_app(settings), base_url="http://127.0.0.1") as client:      # 다시 켜면 빈 상태
+        assert client.get(f"/api/projects/{pid}").status_code == 404
+        assert client.get("/api/projects").json() == []
