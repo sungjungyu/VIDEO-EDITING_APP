@@ -258,12 +258,16 @@ export function initPreview() {
   document.querySelectorAll(".aspect-btn").forEach(btn => btn.addEventListener("click", async () => {
     if (!state.plan || state.plan.output.aspect === btn.dataset.ratio) return;
     try {
-      await mutatePlan(() => api.putPlan(pid(), { output: { ...state.plan.output, aspect: btn.dataset.ratio } }));
+      await mutatePlan(() => api.putPlan(pid(), { output: { ...state.plan.output, aspect: btn.dataset.ratio,
+                                                             aspect_source: "user" } }));
     } catch (err) { toast(err.message, "error"); }
   }));
   on("plan", () => {
-    const aspect = state.plan?.output?.aspect;
-    document.querySelectorAll(".aspect-btn").forEach(b => b.classList.toggle("active", b.dataset.ratio === aspect));
+    const { aspect, aspect_source: source } = state.plan?.output || {};
+    document.querySelectorAll(".aspect-btn").forEach(b => {
+      b.classList.toggle("active", b.dataset.ratio === aspect);
+      b.title = source === "auto" && b.dataset.ratio === aspect ? "영상 방향에 맞춰 자동으로 골랐어요" : "";
+    });
   });
   on("preview-clip", ({ clipId: id, time }) => showSource(id, time, false));
   on("analysis", renderHint);

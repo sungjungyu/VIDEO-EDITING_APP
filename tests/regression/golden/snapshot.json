@@ -450,6 +450,7 @@
    },
    "output": {
     "aspect": "16:9",
+    "aspect_source": "auto",
     "fps": 30,
     "resolution": 1080
    },
@@ -898,6 +899,7 @@
    },
    "output": {
     "aspect": "9:16",
+    "aspect_source": "auto",
     "fps": 30,
     "resolution": 1080
    },
@@ -1123,6 +1125,7 @@
    },
    "output": {
     "aspect": "16:9",
+    "aspect_source": "auto",
     "fps": 30,
     "resolution": 1080
    },
@@ -1603,6 +1606,7 @@
    },
    "output": {
     "aspect": "16:9",
+    "aspect_source": "auto",
     "fps": 30,
     "resolution": 1080
    },

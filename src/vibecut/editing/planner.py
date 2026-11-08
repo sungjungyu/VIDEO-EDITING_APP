@@ -201,11 +201,45 @@ def _effects(keep: list[KeepRange], lines_by_clip: dict[str, list[Line]], decisi
 
 # ---------------------------------------------------------------- 전체
 
+def clip_orientation(clip: ClipInfo) -> str | None:
+    """보이는 방향 (휴대폰 회전 정보는 probe에서 이미 반영). 화면이 없으면 None."""
+    if not clip.has_video or clip.width <= 0 or clip.height <= 0:
+        return None
+    return "9:16" if clip.height > clip.width else "16:9"
+
+
+def auto_aspect(clips: list[ClipInfo]) -> str | None:
+    """타임라인 영상 방향 → 결과 비율. 쓰는 길이로 따져 세로가 더 많으면 9:16. 알 수 없으면 None."""
+    total = {"9:16": 0.0, "16:9": 0.0}
+    for clip in clips:
+        side = clip_orientation(clip)
+        if side:
+            total[side] += max(0.0, clip.usable_end - clip.in_point)
+    if not any(total.values()):
+        return None
+    return "9:16" if total["9:16"] > total["16:9"] else "16:9"
+
+
+def _orientation_warning(clips: list[ClipInfo], aspect: str) -> str | None:
+    other = [c.filename for c in clips if clip_orientation(c) not in (None, aspect)]
+    if not other:
+        return None
+    side = "가로" if aspect == "9:16" else "세로"
+    cut = "양옆" if aspect == "9:16" else "위아래"
+    names = ", ".join(other[:2]) + (f" 외 {len(other) - 2}개" if len(other) > 2 else "")
+    return f"{side}로 찍은 영상({names})은 {aspect} 화면에 맞추느라 {cut}가 많이 잘립니다."
+
+
 def compile_plan(plan: EditPlan, clips: list[ClipInfo], analysis: Analysis | None) -> EditPlan:
     """사용자 값(selection, lines, styles, options) → keep·effects·events·duration을 계산해 채운 새 계획."""
     plan = plan.model_copy(deep=True)
     opts = plan.options
     warnings: list[str] = []
+    if plan.output.aspect_source == "auto":
+        plan.output.aspect = auto_aspect(clips) or plan.output.aspect
+    mixed = _orientation_warning(clips, plan.output.aspect)
+    if mixed:
+        warnings.append(mixed)
     decisions = effective_decisions(plan, analysis)
     lines_by_clip = analysis.lines_by_clip() if analysis else {}
     analyzed = {s.clip_id for s in analysis.clips} if analysis else set()

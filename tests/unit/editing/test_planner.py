@@ -11,6 +11,7 @@ from vibecut.domain.models import (
     KeepRange,
     Line,
     LineDecision,
+    OutputSpec,
     PlanOptions,
     Selection,
     Word,
@@ -175,3 +176,18 @@ def test_count_word_cuts_counts_boundaries_inside_words():
     assert count_word_cuts([KeepRange(clip_id="c01", start=0.0, end=2.0)], lines) == 0
     mid = (words_line.words[1].start + words_line.words[1].end) / 2
     assert count_word_cuts([KeepRange(clip_id="c01", start=mid, end=2.0)], lines) == 1
+
+
+def test_output_aspect_follows_clip_orientation_until_user_picks_one():
+    vertical = clip("c01", 20.0).model_copy(update={"width": 1080, "height": 1920})
+    wide = clip("c02", 5.0).model_copy(update={"width": 1920, "height": 1080, "filename": "wide.mp4"})
+    out = compile_plan(EditPlan(), [vertical, wide], None)
+    assert out.output.aspect == "9:16" and out.output.aspect_source == "auto"     # 세로가 더 길다
+    assert any("wide.mp4" in w and "양옆" in w for w in out.warnings)              # 섞여 있으면 알려 준다
+    assert compile_plan(EditPlan(), [wide], None).output.aspect == "16:9"
+    chosen = EditPlan(output=OutputSpec(aspect="16:9"))                              # 직접 고른 비율
+    assert chosen.output.aspect_source == "user"
+    out = compile_plan(chosen, [vertical], None)
+    assert out.output.aspect == "16:9" and any("위아래" in w for w in out.warnings)
+    unknown = clip("c03", 5.0)                                                       # 크기를 모르면 그대로
+    assert compile_plan(EditPlan(), [unknown], None).output.aspect == "16:9"

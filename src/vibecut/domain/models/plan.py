@@ -5,7 +5,7 @@ from __future__ import annotations
 import math
 from typing import Literal
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from .analysis import LineDecision, Word
 from .common import now_iso
@@ -105,9 +105,19 @@ class StyleSpec(BaseModel):
 
 
 class OutputSpec(BaseModel):
+    """결과 영상 설정. aspect_source=auto면 편집 계획을 계산할 때 타임라인 영상 방향(세로가 많으면 9:16)을 따른다.
+    비율을 직접 정하면(화면의 비율 버튼, --aspect, OutputSpec(aspect=...)) user가 되어 더는 자동으로 바꾸지 않는다."""
     aspect: Literal["16:9", "9:16"] = "16:9"
+    aspect_source: Literal["auto", "user"] = "auto"
     resolution: int = 1080      # 짧은 변 px
     fps: int = 30
+
+    @model_validator(mode="before")
+    @classmethod
+    def _explicit_aspect_is_user(cls, data):
+        if isinstance(data, dict) and "aspect" in data and "aspect_source" not in data:
+            return {**data, "aspect_source": "user"}
+        return data
 
     @field_validator("resolution")
     @classmethod

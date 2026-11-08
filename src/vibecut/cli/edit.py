@@ -49,7 +49,8 @@ def add_arguments(ap: argparse.ArgumentParser) -> None:
     ap.add_argument("-o", "--output", default="output.mp4")
     ap.add_argument("--target", type=float, default=None, help="목표 분량(초). 주면 AI 가편집으로 장면을 고른다")
     ap.add_argument("--prompt", default="", help="AI 가편집 요청 (예: '카페 장면 위주로')")
-    ap.add_argument("--aspect", choices=["16:9", "9:16"], default="16:9")
+    ap.add_argument("--aspect", choices=["16:9", "9:16"], default=None,
+                    help="결과 비율 (기본: 영상 방향에 맞춰 자동 — 세로 영상이 많으면 9:16)")
     ap.add_argument("--quality", choices=["final", "preview"], default="final")
     ap.add_argument("--sort", action="store_true", help="촬영 시각 순으로 정렬 (기본은 입력 순서)")
     ap.add_argument("--no-subtitles", action="store_true")
@@ -97,7 +98,8 @@ def _edit(args, settings, store: ProjectStore, pid: str, files: list[Path]) -> i
         print(f"  ! {w}")
 
     plan = store.load_plan(pid)
-    output = plan.output.model_copy(update={"aspect": args.aspect})
+    output = plan.output if args.aspect is None else \
+        plan.output.model_copy(update={"aspect": args.aspect, "aspect_source": "user"})
     options = plan.options.model_copy(update={"subtitles": not args.no_subtitles})
     editing.update_plan(store, pid, output=output, options=options)
     if args.target:

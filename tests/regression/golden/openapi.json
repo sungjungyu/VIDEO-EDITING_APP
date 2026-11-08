@@ -68,6 +68,7 @@
   ],
   "OutputSpec": [
    "aspect",
+   "aspect_source",
    "fps",
    "resolution"
   ],
