@@ -1,74 +1,75 @@
-/* 화면 뼈대: 상단 바·아이콘 바·가운데 열·패널 배치 */
+/* 화면 뼈대: 상단 바(단계 표시줄)·왼쪽 영상·가운데 미리보기·아래 타임라인·오른쪽 단계 패널 */
 
-/* Shell */
 .app{display:flex;flex-direction:column;height:100vh}
 
-/* Topbar */
-.topbar{flex:0 0 48px;display:flex;align-items:center;justify-content:space-between;
-  padding:0 14px;background:var(--panel3);border-bottom:1px solid var(--border);z-index:30}
-.topbar-left{display:flex;align-items:center;gap:14px}
-.topbar-right{display:flex;align-items:center;gap:8px}
-.topbar-center{flex:1;text-align:center;font-size:11px;color:var(--muted)}
-.brand{display:flex;align-items:center;gap:7px;font-weight:700;font-size:14px}
-.brand-mark{width:22px;height:22px;border-radius:5px;display:grid;place-items:center;
-  background:linear-gradient(135deg,var(--keep),var(--accent));font-size:11px;font-weight:900;color:#fff}
-.brand-mark-lg{width:26px;height:26px;font-size:13px}
-.btn-row{display:flex;gap:3px}
+/* 상단 바 */
+.topbar{flex:0 0 60px;display:flex;align-items:center;gap:16px;padding:0 16px;background:var(--panel3);
+  border-bottom:1px solid var(--border);z-index:30}
+.topbar-left{flex:0 0 auto;display:flex;align-items:center;gap:10px;min-width:0}
+.topbar-right{flex:0 0 auto;display:flex;align-items:center;gap:6px}
+.brand{display:flex;align-items:center;gap:8px;font-weight:800;font-size:16px;margin-right:4px}
+.brand-mark{width:26px;height:26px;border-radius:7px;display:grid;place-items:center;
+  background:linear-gradient(135deg,var(--keep),var(--accent));font-size:13px;font-weight:900;color:#fff}
 .brand-ai{color:var(--accent)}
-.btn-tb{width:28px;height:28px;background:none;border:1px solid var(--border);border-radius:5px;
-  color:var(--muted);font-size:14px;cursor:pointer;display:grid;place-items:center;transition:background .15s}
+.btn-menu{font-size:13px;color:var(--muted);background:none;border:1px solid var(--border);border-radius:7px;
+  padding:5px 11px;cursor:pointer}
+.btn-menu:hover{color:var(--text);background:var(--panel2)}
+.project-name{font-size:14px;font-weight:600;background:none;border:1px solid transparent;border-radius:7px;
+  padding:4px 9px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:text}
+.project-name:hover{border-color:var(--border)}
+.project-name-input{font-size:14px;font-weight:600;background:var(--panel2);border:1px solid var(--accent);
+  border-radius:7px;padding:4px 9px;width:200px;outline:none}
+.btn-tb{width:34px;height:34px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--muted);
+  font-size:16px;cursor:pointer;display:grid;place-items:center}
 .btn-tb:hover:not(:disabled){background:var(--panel2);color:var(--text)}
 .btn-tb:disabled{opacity:.3;cursor:not-allowed}
-.btn-export{background:var(--accent);color:#fff;font-weight:700;font-size:12px;
-  padding:6px 16px;border:none;border-radius:6px;cursor:pointer;transition:filter .15s}
-.btn-export:hover:not(:disabled){filter:brightness(1.08)}
-.btn-export:disabled{opacity:.4;cursor:not-allowed}
-
-/* Main area */
-.main-area{flex:1 1 auto;display:flex;min-height:0}
-
-/* ① Icon bar */
-.icon-bar{flex:0 0 66px;background:var(--panel3);border-right:1px solid var(--border);
-  display:flex;flex-direction:column;align-items:center;padding:10px 5px;gap:2px;z-index:10}
-.icon-bar-logo{margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid var(--border);
-  width:100%;display:flex;justify-content:center}
-.icon-btn{width:54px;padding:7px 3px 5px;border-radius:7px;background:none;border:none;
-  color:var(--muted);cursor:pointer;display:flex;flex-direction:column;align-items:center;
-  gap:3px;font-size:9px;font-weight:600;transition:background .15s,color .15s;letter-spacing:.02em}
-.icon-btn svg{width:20px;height:20px}
-.icon-btn:hover:not(.icon-disabled){background:var(--panel2);color:var(--text)}
-.icon-btn.icon-active{background:var(--panel2);color:var(--accent)}
-.icon-btn.icon-disabled{opacity:.3;cursor:not-allowed}
-.icon-divider{width:36px;height:1px;background:var(--border);margin:4px 0}
-
-/* Middle column */
-.middle-col{flex:1 1 auto;display:flex;flex-direction:column;min-width:0;min-height:0}
-.middle-top{flex:1 1 auto;display:flex;min-height:0}
-
-/* ② Context panel */
-.ctx-panel{flex:0 0 258px;display:flex;flex-direction:column;background:var(--panel);
-  border-right:1px solid var(--border);min-height:0;overflow:hidden}
-.ctx-inner{display:none;flex-direction:column;flex:1;min-height:0;overflow:hidden}
-.ctx-inner.active{display:flex}
-
-
-/* 상단 바: 프로젝트 이름·메뉴·AI 모드 */
-.project-name{font-size:12px;font-weight:600;color:var(--text);background:none;border:1px solid transparent;
-  border-radius:5px;padding:3px 8px;max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:text}
-.project-name:hover{border-color:var(--border)}
-.project-name-input{font-size:12px;font-weight:600;background:var(--panel2);color:var(--text);border:1px solid var(--accent);
-  border-radius:5px;padding:3px 8px;width:220px;outline:none;font-family:inherit}
-.btn-menu{font-size:11px;color:var(--muted);background:none;border:1px solid var(--border);border-radius:5px;
-  padding:4px 10px;cursor:pointer}
-.btn-menu:hover{color:var(--text);background:var(--panel2)}
-.ai-badge{font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;letter-spacing:.03em}
-.ai-badge.live{background:rgba(92,168,255,.15);color:var(--keep)}
+.ai-badge{font-size:12px;font-weight:700;padding:4px 10px;border-radius:12px;margin-left:6px;white-space:nowrap}
+.ai-badge.live{background:var(--keep-soft);color:var(--keep)}
 .ai-badge.offline{background:rgba(196,181,253,.15);color:var(--analyzing)}
-.project-menu{position:absolute;top:44px;left:120px;z-index:60;background:var(--panel);border:1px solid var(--border);
-  border-radius:8px;min-width:280px;max-height:60vh;overflow:auto;box-shadow:0 8px 24px rgba(0,0,0,.4);padding:6px}
-.project-menu.hidden{display:none}
-.project-menu-item{display:flex;justify-content:space-between;gap:10px;padding:7px 9px;border-radius:5px;cursor:pointer;font-size:11px}
+
+/* 단계 표시줄 */
+.stepper{flex:1 1 auto;display:flex;align-items:center;justify-content:center;gap:4px;min-width:0}
+.step-btn{display:flex;align-items:center;gap:8px;padding:6px 12px 6px 6px;border-radius:22px;border:1px solid transparent;
+  background:none;color:var(--muted);cursor:pointer;white-space:nowrap;transition:background .15s,color .15s}
+.step-btn:hover{background:var(--panel2);color:var(--text)}
+.step-num{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;font-size:13px;font-weight:800;
+  background:var(--panel2);border:1px solid var(--border)}
+.step-name{font-size:14px;font-weight:600}
+.step-extra{font-size:12px;color:var(--analyzing)}
+.step-btn.done .step-num{background:var(--keep-soft);border-color:transparent;color:var(--keep)}
+.step-btn.active{background:var(--accent-soft);color:var(--text);border-color:rgba(139,92,246,.5)}
+.step-btn.active .step-num{background:var(--accent);border-color:var(--accent);color:#fff}
+.step-line{flex:0 1 28px;height:2px;background:var(--border);border-radius:1px;min-width:8px}
+.step-line.done{background:rgba(77,163,255,.5)}
+
+/* 프로젝트 메뉴 */
+.project-menu{position:absolute;top:54px;left:120px;z-index:60;background:var(--panel);border:1px solid var(--border);
+  border-radius:10px;min-width:320px;max-height:60vh;overflow:auto;box-shadow:0 10px 28px rgba(0,0,0,.45);padding:8px}
+.project-menu-item{display:flex;justify-content:space-between;gap:10px;padding:9px 10px;border-radius:7px;cursor:pointer;
+  font-size:13px}
 .project-menu-item:hover{background:var(--panel2)}
 .project-menu-item.current{color:var(--accent)}
-.project-menu-meta{color:var(--muted);font-size:10px;white-space:nowrap}
-.project-menu-new{width:100%;margin-bottom:4px}
+.project-menu-meta{color:var(--muted);font-size:12px;white-space:nowrap}
+.project-menu-new{width:100%;margin-bottom:6px}
+
+/* 본문 */
+.main-area{flex:1 1 auto;display:flex;min-height:0}
+.work-col{flex:1 1 auto;display:flex;flex-direction:column;min-width:0;min-height:0}
+.work-top{flex:1 1 auto;display:flex;min-height:0}
+
+/* 오른쪽 단계 패널 */
+.side-panel{flex:0 0 400px;display:flex;flex-direction:column;background:var(--panel);border-left:1px solid var(--border);
+  min-height:0}
+.side-notice{flex:0 0 auto;margin:12px 14px 0;padding:10px 12px;border-radius:9px;font-size:13px;line-height:1.5;
+  background:rgba(245,185,74,.1);border:1px solid rgba(245,185,74,.35);color:#f8d593;display:flex;flex-direction:column;
+  gap:8px;align-items:flex-start}
+
+@media (max-width:1400px){
+  .side-panel{flex-basis:360px}
+  .step-name{font-size:13px}
+  .ai-badge{display:none}
+}
+@media (max-width:1200px){
+  .step-btn .step-name{display:none}
+  .step-btn.active .step-name{display:inline}
+}

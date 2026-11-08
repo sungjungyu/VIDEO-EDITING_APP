@@ -1,4 +1,5 @@
-/* 클립 목록·업로드·썸네일·출력 비율.
+/* 왼쪽 영상 패널: 업로드·올린 영상 목록·썸네일·선택한 클립 정보.
+   올린 영상은 바로 타임라인 끝에 붙인다 (처음 쓰는 사람이 '타임라인에 넣기'를 따로 몰라도 되게).
    업로드한 파일은 서버가 켜져 있는 동안 프로젝트에 남는다 (새로고침해도 유지, 서버를 켜거나 끄면 지운다).
    같은 세션에서는 로컬 파일(blob)로 바로 재생하고,
    서버가 540p 미리보기 사본(프록시)을 만들면 그것을 쓴다 (어디로 이동해도 빨리 보임). */
@@ -6,7 +7,7 @@
 import { api } from "../core/api.js";
 import { $, el, toast } from "../core/dom.js";
 import { fmt } from "../core/format.js";
-import { clipById, emit, mutatePlan, on, pid, setProject, state } from "../core/store.js";
+import { clipById, emit, on, pid, setProject, state } from "../core/store.js";
 
 export function mediaUrl(clip) {
   if (!clip) return "";
@@ -83,6 +84,7 @@ async function uploadFiles(files) {
       state.media.set(clip.clip_id, { ...(state.media.get(clip.clip_id) || {}), blobUrl: URL.createObjectURL(file) });
       setProject(data.project);
       ensureThumbnails(clipById(clip.clip_id));
+      if (!state.project.timeline.includes(clip.clip_id)) await addToTimeline(clip.clip_id);
     } catch (err) {
       toast(`${file.name}: ${err.message}`, "error", 7000);
     } finally {
@@ -120,12 +122,13 @@ export function removeFromTimeline(clipId) {
 }
 
 async function deleteClip(clip) {
-  if (!window.confirm(`"${clip.filename}"을(를) 프로젝트에서 삭제할까요? (원본 파일도 서버에서 지워집니다)`)) return;
+  if (!window.confirm(`"${clip.filename}"을(를) 프로젝트에서 지울까요? (서버에 올린 파일도 지워집니다)`)) return;
   try {
     setProject(await api.deleteClip(pid(), clip.clip_id));
     const info = state.media.get(clip.clip_id);
     if (info?.blobUrl) URL.revokeObjectURL(info.blobUrl);
     state.media.delete(clip.clip_id);
+    if (state.ui.selectedClipId === clip.clip_id) { state.ui.selectedClipId = null; emit("selection"); }
     emit("timeline-changed");
   } catch (err) {
     toast(err.message, "error");
@@ -139,9 +142,9 @@ export let draggingClipId = null;
 function statusOf(clip) {
   const onTimeline = state.project.timeline.includes(clip.clip_id);
   const analyzed = state.analysis?.clips?.some(s => s.clip_id === clip.clip_id);
-  if (!onTimeline) return ["ready", "대기"];
-  if (analyzed && !state.project.analysis_stale) return ["analyzed", "분석 완료"];
-  return ["review", "타임라인"];
+  if (!onTimeline) return ["off", "타임라인 밖"];
+  if (analyzed && !state.project.analysis_stale) return ["done", "분석 완료"];
+  return ["on", "타임라인"];
 }
 
 function renderClipList() {
@@ -149,29 +152,32 @@ function renderClipList() {
   list.innerHTML = "";
   const clips = state.project?.clips || [];
   if (!clips.length && !state.pendingUploads.length) {
-    list.appendChild(el("div", { style: { color: "var(--muted)", fontSize: "11px", textAlign: "center",
-                                          padding: "20px 0" } }, "영상을 추가하면 여기에 표시됩니다"));
+    list.appendChild(el("div", { class: "clip-empty" }, "아직 올린 영상이 없어요.\n위 상자를 눌러 시작하세요."));
     return;
   }
   for (const clip of clips) {
-    const [badgeClass, badgeText] = statusOf(clip);
+    const [kind, label] = statusOf(clip);
+    const onTimeline = state.project.timeline.includes(clip.clip_id);
     const first = state.media.get(clip.clip_id)?.thumbnails?.[0];
     const thumb = first ? el("img", { class: "clip-thumb", src: first, alt: "" }) : el("div", { class: "clip-thumb" });
-    const item = el("div", { class: "clip-item" + (state.project.timeline.includes(clip.clip_id) ? " on-timeline" : ""),
-                             draggable: "true", dataset: { id: clip.clip_id } },
+    const item = el("div", { class: `clip-item${clip.clip_id === state.ui.selectedClipId ? " selected" : ""}`,
+                             draggable: "true", dataset: { id: clip.clip_id },
+                             title: "타임라인으로 끌어 놓을 수 있어요 · 두 번 누르면 미리보기" },
       el("div", { class: "clip-thumb-wrap" }, thumb),
       el("div", { class: "clip-info" },
         el("div", { class: "clip-name", title: clip.filename }, clip.filename),
         el("div", { class: "clip-meta" },
-          el("span", { class: `clip-status-badge badge-${badgeClass}` }, badgeText),
-          el("span", { class: "clip-dur" }, fmt(clip.duration)),
-          clip.proxy ? null : el("span", { class: "clip-dur", title: "브라우저 미리보기용 사본을 만드는 중" }, "· 사본 준비 중"))),
-      el("button", { class: "clip-add-btn", title: "타임라인 끝에 추가",
-                     onclick: e => { e.stopPropagation(); addToTimeline(clip.clip_id); } }, "+"),
-      el("button", { class: "clip-delete-btn", title: "삭제",
-                     onclick: e => { e.stopPropagation(); deleteClip(clip); } }, "🗑"));
+          el("span", { class: `clip-status status-${kind}` }, label),
+          el("span", {}, fmt(clip.duration)),
+          clip.proxy ? null : el("span", { title: "브라우저 미리보기용 사본을 만드는 중" }, "· 준비 중"))),
+      el("div", { class: "clip-actions" },
+        onTimeline ? null : el("button", { class: "clip-act", title: "타임라인 끝에 넣기",
+                                          onclick: e => { e.stopPropagation(); addToTimeline(clip.clip_id); } }, "＋"),
+        el("button", { class: "clip-act danger", title: "프로젝트에서 지우기",
+                       onclick: e => { e.stopPropagation(); deleteClip(clip); } }, "🗑")));
     item.addEventListener("dragstart", e => { draggingClipId = clip.clip_id; e.dataTransfer.effectAllowed = "copy"; });
     item.addEventListener("dragend", () => { draggingClipId = null; });
+    item.addEventListener("click", () => selectClip(clip.clip_id));
     item.addEventListener("dblclick", () => emit("preview-clip", { clipId: clip.clip_id, time: 0 }));
     list.appendChild(item);
   }
@@ -179,9 +185,33 @@ function renderClipList() {
     list.appendChild(el("div", { class: "clip-item", dataset: { pending: pending.name } },
       el("div", { class: "clip-info" },
         el("div", { class: "clip-name" }, pending.name),
-        el("div", { class: "clip-meta" }, el("span", { class: "clip-status-badge badge-uploading" }, "업로드 중")),
+        el("div", { class: "clip-meta" }, el("span", { class: "clip-status status-uploading" }, "올리는 중")),
         el("div", { class: "clip-upload-bar" }, el("div", { style: { width: `${Math.round(pending.progress * 100)}%` } })))));
   }
+}
+
+export function selectClip(clipId) {
+  state.ui.selectedClipId = clipId;
+  emit("selection");
+  const clip = clipById(clipId);
+  if (clip) emit("preview-clip", { clipId, time: clip.in_point });
+}
+
+/* 선택한 클립 정보 (목록 아래) */
+function renderClipDetail() {
+  const box = $("clip-detail");
+  const clip = clipById(state.ui.selectedClipId);
+  box.classList.toggle("hidden", !clip);
+  if (!clip) return;
+  const kept = (state.plan?.keep || []).filter(k => k.clip_id === clip.clip_id).reduce((a, k) => a + k.end - k.start, 0);
+  const created = clip.created_at ? new Date(clip.created_at * 1000).toLocaleString("ko-KR") : "알 수 없음";
+  const used = `${fmt(clip.in_point)} ~ ${fmt(clip.out_point ?? clip.duration)}`;
+  const rows = [["길이", fmt(clip.duration)], ["쓰는 범위", used], ["결과에 남는 길이", state.plan ? fmt(kept) : "-"],
+                ["화질", `${clip.width}x${clip.height} · ${clip.fps}fps`], ["소리", clip.has_audio ? "있음" : "없음"],
+                ["찍은 시각", created]];
+  box.innerHTML = "";
+  box.appendChild(el("div", { class: "clip-detail-title", title: clip.filename }, clip.filename));
+  for (const [k, v] of rows) box.appendChild(el("div", { class: "clip-prop" }, el("span", {}, k), el("span", {}, v)));
 }
 
 /* ---------------------------------------------------------------- 초기화 */
@@ -191,10 +221,17 @@ export function initMedia() {
   const button = $("upload-btn");
   button.addEventListener("click", () => input.click());
   input.addEventListener("change", e => { if (e.target.files.length) uploadFiles(Array.from(e.target.files)); input.value = ""; });
-  button.addEventListener("dragover", e => { e.preventDefault(); button.style.borderColor = "var(--accent)"; });
-  button.addEventListener("dragleave", () => { button.style.borderColor = ""; });
-  button.addEventListener("drop", e => {
-    e.preventDefault(); button.style.borderColor = "";
+  const panel = document.querySelector(".media-panel");
+  panel.addEventListener("dragover", e => {
+    if (!e.dataTransfer.types.includes("Files")) return;
+    e.preventDefault();
+    button.classList.add("drag-over");
+  });
+  panel.addEventListener("dragleave", e => { if (!panel.contains(e.relatedTarget)) button.classList.remove("drag-over"); });
+  panel.addEventListener("drop", e => {
+    if (!e.dataTransfer.files.length) return;
+    e.preventDefault();
+    button.classList.remove("drag-over");
     uploadFiles(Array.from(e.dataTransfer.files));
   });
   $("btn-sort-clips").addEventListener("click", () => {
@@ -202,19 +239,13 @@ export function initMedia() {
       .sort((a, b) => (a.created_at ?? Infinity) - (b.created_at ?? Infinity) || a.filename.localeCompare(b.filename));
     setTimeline(sorted.map(c => c.clip_id));
   });
-  document.querySelectorAll(".aspect-btn").forEach(btn => btn.addEventListener("click", async () => {
-    if (!state.plan || state.plan.output.aspect === btn.dataset.ratio) return;
-    try {
-      await mutatePlan(() => api.putPlan(pid(), { output: { ...state.plan.output, aspect: btn.dataset.ratio } }));
-    } catch (err) { toast(err.message, "error"); }
-  }));
   on("project", () => {
     renderClipList();
+    renderClipDetail();
     for (const clip of state.project.clips) ensureThumbnails(clip);
   });
   on("analysis", renderClipList);
   on("thumbnails", renderClipList);
-  on("plan", () => {
-    document.querySelectorAll(".aspect-btn").forEach(b => b.classList.toggle("active", b.dataset.ratio === state.plan.output.aspect));
-  });
+  on("selection", () => { renderClipList(); renderClipDetail(); });
+  on("plan", renderClipDetail);
 }

@@ -32,7 +32,10 @@ export const state = {
   pendingUploads: [],
   ui: {
     selectedClipId: null,
-    aiStage: "idle",
+    selectedLineId: null,    // 타임라인·문장 목록에서 고른 문장 (둘이 같이 표시된다)
+    step: 1,                 // 지금 보는 단계 (1 올리기 · 2 분석 · 3 분량·장면 · 4 확인·수정 · 5 내보내기)
+    analyzing: null,         // 분석 작업이 도는 중이면 {progress, stage}
+    flash: new Set(),        // 방금 수정 요청으로 바뀐 문장 (잠깐 반짝인다)
     pxPerSec: 40,
   },
 };
@@ -65,6 +68,12 @@ export function setAnalysis(analysis) {
 
 export const linesOfClip = cid => linesByClip.get(cid) || [];
 
+/* 문장 고르기. from: "timeline" | "list" (어디서 골랐는지 — 다른 쪽이 그 문장으로 스크롤한다) */
+export function selectLine(line, from) {
+  state.ui.selectedLineId = line ? line.seg_id : null;
+  emit("line-selected", { line, from });
+}
+
 /* 문장 하나의 최종 판단: 사용자 결정 > AI·규칙 판단 > 남김 */
 export function decisionOf(segId) {
   return state.plan?.lines?.[segId] || state.analysis?.judgments?.[segId]
@@ -91,6 +100,11 @@ export function timelineLayout() {
     t += dur;
     return item;
   });
+}
+
+/* 타임라인에 놓인 원본 길이 (클립 사용 범위의 합) */
+export function sourceDuration() {
+  return timelineClips().reduce((s, c) => s + Math.max(0, usableEnd(c) - c.in_point), 0);
 }
 
 export function analysisReady() {

@@ -1,12 +1,14 @@
 /* 미리보기.
-   원본 모드  : 클립 하나를 재생. 받아쓰기 문장을 자막으로 보여 주고, 자른 문장은 줄을 그어 표시
-   편집본 모드: 렌더하지 않고 편집 계획의 남길 구간(keep)만 이어서 재생. 자막은 서버가 계산한 결과 자막(events),
-               강조 줌인(effects)도 그대로 → 렌더 결과와 같은 화면 (계획서 2차 '선택 결과 바로 미리보기')
-   미리보기 상자는 출력 비율(16:9/9:16) 그대로, 영상은 가운데를 잘라 채운다 (렌더의 scale+crop과 같음). */
+   원본 클립 : 클립 하나를 재생. 받아쓰기 문장을 자막으로 보여 주고, 뺀 문장은 줄을 그어 표시
+   편집 결과 : 렌더하지 않고 편집 결과의 남길 구간(keep)만 이어서 재생. 자막은 서버가 계산한 결과 자막(events),
+               강조 줌인(effects)도 그대로 → 내보낸 영상과 같은 화면
+   미리보기 상자는 출력 비율(16:9/9:16) 그대로, 영상은 가운데를 잘라 채운다 (렌더의 scale+crop과 같음).
+   비율 버튼은 미리보기 아래 재생 줄 오른쪽 끝에 있다 (어느 단계에서나 바꿀 수 있고, 영상 자리를 줄이지 않게). */
 
-import { $ } from "../core/dom.js";
+import { api } from "../core/api.js";
+import { $, toast } from "../core/dom.js";
 import { clamp, fmt } from "../core/format.js";
-import { clipById, decisionOf, emit, linesOfClip, on, state } from "../core/store.js";
+import { clipById, decisionOf, emit, linesOfClip, mutatePlan, on, pid, state } from "../core/store.js";
 import { drawEvent, lineToEvent } from "../subtitle/draw.js";
 import { mediaUrl } from "./media.js";
 import { effectiveStyle } from "./style-panel.js";
@@ -50,6 +52,19 @@ function setMode(next) {
   $("btn-mode-source").classList.toggle("active", mode === "source");
   $("btn-mode-plan").classList.toggle("active", mode === "plan");
   if (mode === "source") video().style.transform = "none";
+  renderHint();
+}
+
+function renderHint() {
+  const hint = $("preview-hint");
+  if (mode === "plan") {
+    hint.textContent = "뺀 부분은 건너뛰고 재생해요";
+    hint.title = "렌더하지 않고 결과 영상처럼 이어서 재생합니다";
+    return;
+  }
+  const clip = clipById(clipId);
+  hint.textContent = !clip ? "" : state.analysis ? "자르지 않은 원본 · 뺀 문장은 줄로 표시" : "자르지 않은 원본";
+  hint.title = clip ? clip.filename : "";
 }
 
 export async function showSource(id, time = null, play = false) {
@@ -78,7 +93,7 @@ async function seekRange(index, offset = 0) {
   }
 }
 
-async function startPlan(at = 0, play = true) {
+export async function showPlan(at = 0, play = true) {
   const ranges = keep();
   if (!ranges.length) return;
   setMode("plan");
@@ -206,7 +221,7 @@ export function togglePlay() {
   const v = video();
   if (!v.src) return;
   if (mode === "plan" && v.paused && planIndex === keep().length - 1 && v.currentTime >= keep()[planIndex].end - 0.05) {
-    startPlan(0, true);
+    showPlan(0, true);
     return;
   }
   if (v.paused) v.play().catch(() => {}); else v.pause();
@@ -226,21 +241,32 @@ export function initPreview() {
   $("preview-progress").addEventListener("click", e => {
     const r = e.currentTarget.getBoundingClientRect();
     const f = clamp((e.clientX - r.left) / r.width, 0, 1);
-    if (mode === "plan") startPlan(f * (state.plan?.duration || 0), !v.paused);
+    if (mode === "plan") showPlan(f * (state.plan?.duration || 0), !v.paused);
     else if (Number.isFinite(v.duration)) v.currentTime = f * v.duration;
   });
   $("btn-mode-source").addEventListener("click", () => {
     const id = clipId || state.project?.timeline[0];
     if (id) showSource(id, mode === "plan" ? v.currentTime : null);
   });
-  $("btn-mode-plan").addEventListener("click", () => startPlan(0, true));
+  $("btn-mode-plan").addEventListener("click", () => showPlan(0, true));
   new ResizeObserver(fitBox).observe($("preview-area"));
   on("plan", () => {
     fitBox();
     $("btn-mode-plan").disabled = !keep().length;
     if (mode === "plan" && planIndex >= keep().length) planIndex = keep().length - 1;
   });
+  document.querySelectorAll(".aspect-btn").forEach(btn => btn.addEventListener("click", async () => {
+    if (!state.plan || state.plan.output.aspect === btn.dataset.ratio) return;
+    try {
+      await mutatePlan(() => api.putPlan(pid(), { output: { ...state.plan.output, aspect: btn.dataset.ratio } }));
+    } catch (err) { toast(err.message, "error"); }
+  }));
+  on("plan", () => {
+    const aspect = state.plan?.output?.aspect;
+    document.querySelectorAll(".aspect-btn").forEach(b => b.classList.toggle("active", b.dataset.ratio === aspect));
+  });
   on("preview-clip", ({ clipId: id, time }) => showSource(id, time, false));
+  on("analysis", renderHint);
   const restyle = () => { styleVersion += 1; };        // 스타일이 바뀌면 자막을 다시 그린다
   on("style-draft", restyle);
   on("plan", restyle);

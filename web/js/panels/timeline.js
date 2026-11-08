@@ -1,17 +1,23 @@
-/* 타임라인 (자석식: 클립을 순서대로 붙여 놓는다 → 렌더도 이 순서).
-   - 왼쪽 목록에서 끌어다 놓기 / [+] : 타임라인에 넣기, 클립 위 × : 빼기
-   - 클립을 좌우로 끌기: 순서 바꾸기, 양 끝 손잡이: 앞뒤 잘라 내기(사용 범위)
-   - 클립 아래 파란 줄: 편집 계획에서 실제로 남는 구간 (빨간 바탕은 잘린 곳)
-   - 자막 칸 클릭: 그 문장 남김/자름 전환 (흐린 칸은 고르지 않은 장면이라 결과에 없음) */
+/* 타임라인 (자석식: 클립을 순서대로 붙여 놓는다 → 내보낸 영상도 이 순서).
+   - 왼쪽 목록에서 끌어다 놓기 / [＋] : 타임라인에 넣기, 클립 위 × : 빼기
+   - 클립을 좌우로 끌기: 순서 바꾸기, 양 끝 손잡이: 앞뒤 잘라 내기(쓰는 범위)
+   - 클립 아래 파란 줄: 결과에 남는 부분 (빨간 바탕은 뺀 부분)
+   - 자막 칸 한 번 누르기: 그 문장 고르기 (미리보기가 그 위치로, ④ 문장 목록에서도 같은 문장 표시)
+     두 번 누르기: 자막 글자 고치기 · 칸 위의 ×/↺ 또는 Delete 키: 빼기/살리기
+     (흐린 칸은 고르지 않은 장면이라 결과에 없음)
+   - 확대: 도구 줄의 −/＋·슬라이더·전체 보기, 또는 Ctrl+휠 (그냥 휠은 가로 이동) */
 
 import { api } from "../core/api.js";
 import { $, el, perFrame, toast } from "../core/dom.js";
 import { clamp, fmt } from "../core/format.js";
-import { decisionOf, emit, linesOfClip, mutatePlan, on, pid, setProject, state, timelineLayout, usableEnd } from "../core/store.js";
+import { cutReason, reasonLabel } from "../core/labels.js";
+import { decisionOf, emit, linesOfClip, mutatePlan, on, pid, selectLine, setProject, state, timelineLayout,
+         usableEnd } from "../core/store.js";
 import { addToTimeline, draggingClipId, removeFromTimeline, setTimeline } from "./media.js";
 import { currentPosition, showSource } from "./preview.js";
 
-const OFFSET = 52;
+const OFFSET = 56;
+const MIN_PX = 2, MAX_PX = 400;
 let trim = null;
 let move = null;
 let playheadDrag = false;
@@ -87,7 +93,6 @@ function renderVideoTrack() {
     const width = Math.max(dur * px(), 24);
     const block = el("div", {
       class: ["tl-clip", clip.clip_id === state.ui.selectedClipId ? "selected" : "",
-              analyzed.has(clip.clip_id) ? "analyzed" : "", state.analysis && !analyzed.has(clip.clip_id) ? "needs-analysis" : "",
               move?.clipId === clip.clip_id && move.moved ? "clip-moving" : ""].filter(Boolean).join(" "),
       style: { left: `${start * px()}px`, width: `${width}px` }, dataset: { id: clip.clip_id },
     });
@@ -107,7 +112,10 @@ function renderVideoTrack() {
     const kept = keepRangesOf(clip.clip_id).reduce((a, k) => a + (k.end - k.start), 0);
     block.appendChild(el("div", { class: "tl-clip-overlay" },
       el("div", { class: "tl-clip-name" }, clip.filename),
-      el("div", { class: "tl-clip-dur" }, state.plan ? `${fmt(dur)} → 결과 ${fmt(kept)}` : fmt(dur))));
+      el("div", { class: "tl-clip-dur" }, state.analysis ? `${fmt(dur)} → 남는 길이 ${fmt(kept)}` : fmt(dur))));
+    if (state.analysis && !analyzed.has(clip.clip_id)) {
+      block.appendChild(el("div", { class: "tl-clip-warn", title: "이 영상은 아직 분석하지 않았어요" }, "분석 필요"));
+    }
     if (state.plan) {
       const strip = el("div", { class: "tl-keep-strip" });
       for (const k of keepRangesOf(clip.clip_id)) {
@@ -117,7 +125,8 @@ function renderVideoTrack() {
       block.appendChild(strip);
     }
     for (const edge of ["left", "right"]) {
-      const handle = el("div", { class: `trim-handle trim-${edge}` });
+      const handle = el("div", { class: `trim-handle trim-${edge}`,
+                                 title: edge === "left" ? "끌어서 앞부분 잘라 내기" : "끌어서 뒷부분 잘라 내기" });
       handle.addEventListener("mousedown", e => {
         e.preventDefault(); e.stopPropagation();
         trim = { clipId: clip.clip_id, edge, x: e.clientX, in0: clip.in_point, out0: usableEnd(clip) };
@@ -140,7 +149,14 @@ function renderVideoTrack() {
 function renderSubtitleTrack() {
   const body = $("subtitle-track-body");
   body.innerHTML = "";
-  if (!state.analysis) return;
+  if (!state.analysis) {                // 자막은 AI 분석(받아쓰기)이 만든다 → 빈 줄 대신 이유와 갈 곳을 보여 준다
+    if (!timelineLayout().length) return;
+    const hint = el("div", { class: "tl-sub-hint" },
+      state.ui.analyzing ? `받아쓰는 중… ${Math.round(state.ui.analyzing.progress)}%` : "자막은 AI 분석을 하면 여기에 생겨요");
+    if (!state.ui.analyzing) hint.appendChild(el("button", { class: "btn-mini", dataset: { go: "2" } }, "② AI 분석으로"));
+    body.appendChild(hint);
+    return;
+  }
   for (const { clip, start } of timelineLayout()) {
     const ranges = keepRangesOf(clip.clip_id);
     for (const line of linesOfClip(clip.clip_id)) {
@@ -149,21 +165,29 @@ function renderSubtitleTrack() {
       const inOutput = ranges.some(k => k.start < line.end && line.start < k.end);
       const left = (start + Math.max(0, line.start - clip.in_point)) * px();
       const width = Math.max((Math.min(line.end, usableEnd(clip)) - Math.max(line.start, clip.in_point)) * px(), 6);
-      const tag = d.keep ? (d.emphasis ? "강조" : "남김") : d.reason;
+      const tag = d.keep ? (d.emphasis ? "강조" : "") : reasonLabel(cutReason(d));
       const seg = el("div", {
         class: ["sub-seg", d.keep ? "sub-keep" : "sub-cut", d.keep && !inOutput ? "sub-dim" : "",
-                d.keep && d.emphasis ? "sub-emph" : ""].filter(Boolean).join(" "),
-        style: { left: `${left}px`, width: `${width}px` },
-        title: `${line.text || "(받아쓰기 없음)"}\n${d.keep ? "남김" : `자름 · ${d.reason}`}${d.note ? ` · ${d.note}` : ""}`
-               + `${d.keep && !inOutput ? "\n(고르지 않은 장면이라 결과에 없음)" : ""}\n클릭: 남김/자름 전환`,
-      }, el("span", { class: "sub-seg-text" }, (d.text || line.text) || "…"), el("span", { class: "sub-seg-tag" }, tag));
-      seg.addEventListener("click", () => toggleLine(line.seg_id));
+                d.keep && d.emphasis ? "sub-emph" : "", state.ui.flash.has(line.seg_id) ? "flash" : "",
+                state.ui.selectedLineId === line.seg_id ? "selected" : ""].filter(Boolean).join(" "),
+        style: { left: `${left}px`, width: `${width}px` }, dataset: { seg: line.seg_id },
+        title: `${d.text || line.text || "(받아쓰기 없음)"}\n${d.keep ? "살림" : `뺌 · ${reasonLabel(cutReason(d))}`}${d.note ? ` · ${d.note}` : ""}`
+               + `${d.keep && !inOutput ? "\n(고르지 않은 장면이라 결과에 없어요)" : ""}`
+               + `\n누르기: 고르기 · 두 번 누르기: 글자 고치기 · Delete: ${d.keep ? "빼기" : "살리기"}`,
+      }, el("span", { class: "sub-seg-text" }, (d.text || line.text) || "…"), tag ? el("span", { class: "sub-seg-tag" }, tag) : null);
+      const act = el("button", { class: `sub-seg-act${d.keep ? "" : " is-cut"}`, title: d.keep ? "이 문장 빼기" : "이 문장 살리기" },
+                     d.keep ? "×" : "↺");
+      act.addEventListener("click", e => { e.stopPropagation(); toggleLine(line.seg_id); });
+      act.addEventListener("dblclick", e => e.stopPropagation());
+      seg.appendChild(act);
+      seg.addEventListener("click", () => selectLine(line, "timeline"));
+      seg.addEventListener("dblclick", () => emit("edit-line", line));
       body.appendChild(seg);
     }
   }
 }
 
-async function toggleLine(segId) {
+export async function toggleLine(segId) {
   const d = decisionOf(segId);
   try {
     await mutatePlan(() => api.patchLines(pid(), [{ seg_id: segId, keep: !d.keep }]));
@@ -177,8 +201,8 @@ function renderStats() {
   const node = $("tl-stats");
   if (!layout.length) { node.textContent = ""; return; }
   const source = layout.reduce((a, l) => a + l.dur, 0);
-  const parts = [`클립 ${layout.length}개`, `원본 ${fmt(source)}`];
-  if (state.plan) parts.push(`결과 ${fmt(state.plan.duration)} (구간 ${state.plan.keep.length}개)`);
+  const parts = [`영상 ${layout.length}개`, `원본 ${fmt(source)}`];
+  if (state.plan && state.analysis) parts.push(`결과 ${fmt(state.plan.duration)}`);
   node.textContent = parts.join("  ·  ");
 }
 
@@ -305,24 +329,18 @@ export function initTimeline() {
     seekToTimelineX(e.clientX - e.currentTarget.getBoundingClientRect().left);
   });
 
-  let zoomTimer = null;
   $("tl-scroll").addEventListener("scroll", redrawOnScroll, { passive: true });
   new ResizeObserver(redrawOnScroll).observe($("tl-scroll"));
   $("tl-scroll").addEventListener("wheel", e => {
     const scroll = e.currentTarget;
     e.preventDefault();
     if (!e.ctrlKey) { scroll.scrollLeft += e.deltaY || e.deltaX; return; }
-    const rect = scroll.getBoundingClientRect();
-    const sec = (e.clientX - rect.left + scroll.scrollLeft - OFFSET) / px();
-    state.ui.pxPerSec = clamp(px() * (e.deltaY < 0 ? 1.12 : 1 / 1.12), 2, 400);
-    renderTimeline();
-    scroll.scrollLeft = sec * px() + OFFSET - (e.clientX - rect.left);
-    const hint = $("zoom-hint");
-    hint.textContent = `확대 ${Math.round(px())}px/초`;
-    hint.classList.add("show");
-    clearTimeout(zoomTimer);
-    zoomTimer = setTimeout(() => hint.classList.remove("show"), 900);
+    setZoom(px() * (e.deltaY < 0 ? 1.12 : 1 / 1.12), e.clientX - scroll.getBoundingClientRect().left);
   }, { passive: false });
+  $("btn-zoom-in").addEventListener("click", () => setZoom(px() * 1.5));
+  $("btn-zoom-out").addEventListener("click", () => setZoom(px() / 1.5));
+  $("btn-zoom-fit").addEventListener("click", zoomToFit);
+  $("tl-zoom-range").addEventListener("input", e => setZoom(MIN_PX * (MAX_PX / MIN_PX) ** (Number(e.target.value) / 100)));
 
   let lastCount = -1;
   on("project", () => {
@@ -340,12 +358,49 @@ export function initTimeline() {
   on("analysis", renderTimeline);
   on("thumbnails", renderVideoTrack);
   on("time", movePlayhead);
+  on("flash", renderSubtitleTrack);
+  on("analyzing", () => { if (!state.analysis) renderSubtitleTrack(); });
+  on("reveal-line", revealLine);
+  on("line-selected", ({ line, from }) => {
+    // 다시 그리지 않고 표시만 옮긴다 (다시 그리면 두 번 누르기가 새 요소에 떨어져 dblclick이 안 생긴다)
+    const body = $("subtitle-track-body");
+    body.querySelectorAll(".sub-seg.selected").forEach(n => n.classList.remove("selected"));
+    if (!line) return;
+    body.querySelector(`.sub-seg[data-seg="${CSS.escape(line.seg_id)}"]`)?.classList.add("selected");
+    showSource(line.clip_id, line.start);
+    if (from === "list") revealLine(line);
+  });
+}
+
+/* 확대 배율을 바꾼다. anchorX(스크롤 영역 안 x)의 시각이 제자리에 있게 (없으면 가운데) */
+function setZoom(next, anchorX = null) {
+  const scroll = $("tl-scroll");
+  const x = anchorX ?? scroll.clientWidth / 2;
+  const sec = (x + scroll.scrollLeft - OFFSET) / px();
+  state.ui.pxPerSec = clamp(next, MIN_PX, MAX_PX);
+  renderTimeline();
+  scroll.scrollLeft = sec * px() + OFFSET - x;
+  syncZoomRange();
+}
+
+function syncZoomRange() {
+  $("tl-zoom-range").value = String(Math.round(100 * Math.log(px() / MIN_PX) / Math.log(MAX_PX / MIN_PX)));
+}
+
+/* 문장 하나가 보이게 타임라인을 옮긴다 (수정 요청으로 바뀐 문장 보여 주기) */
+function revealLine(line) {
+  const item = timelineLayout().find(l => l.clip.clip_id === line.clip_id);
+  if (!item) return;
+  const scroll = $("tl-scroll");
+  const x = (item.start + Math.max(0, line.start - item.clip.in_point)) * px();
+  scroll.scrollLeft = Math.max(0, x - scroll.clientWidth / 3);
 }
 
 /* 긴 영상도 처음엔 타임라인 폭에 맞게 */
 export function zoomToFit() {
   const total = totalDuration();
   const width = $("tl-scroll").clientWidth - OFFSET - 40;
-  if (total > 0 && width > 0) state.ui.pxPerSec = clamp(width / total, 2, 120);
+  if (total > 0 && width > 0) state.ui.pxPerSec = clamp(width / total, MIN_PX, 120);
   renderTimeline();
+  syncZoomRange();
 }

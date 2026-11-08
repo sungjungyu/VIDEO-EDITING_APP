@@ -1,11 +1,10 @@
-/* 제작자 프로필 (브라우저 localStorage). 분석·AI 가편집·수정 요청에 함께 보낸다.
-     컷 템포        → 남기는 문장 사이 쉼을 얼마나 줄일지 (느림 1.5초 / 보통 0.8초 / 빠름 0.4초)
-     군말 제거 강도 → 규칙·AI 컷 판단의 기준
+/* 내 편집 스타일 (브라우저 localStorage). ② 분석 단계에서 고르고, 분석·AI 가편집·수정 요청에 함께 보낸다.
+     컷 빠르기      → 한 컷 평균 길이 성향 (서버는 앞 글자 '느림/보통/빠름'으로 남기는 문장 사이 쉼을 정한다)
+     군말 빼기 강도 → 규칙·AI 컷 판단의 기준 (앞 글자 '약/중/강')
      자주 쓰는 단어 → 받아쓰기 고유명사 힌트 + 강조(줌인) 후보
-   저장할 때 지금 자막 스타일도 함께 넣어 두고, 새 프로젝트를 만들면 그 스타일로 시작한다. */
+   바꾸면 바로 저장한다. 자막 모양은 ④ '내 기본 모양으로 저장'으로 넣어 두고, 새 프로젝트를 그 모양으로 시작한다. */
 
 import { $ } from "../core/dom.js";
-import { state } from "../core/store.js";
 import { migrateStyle } from "../subtitle/presets.js";
 
 const KEY = "video_editor_profile_v1";
@@ -26,40 +25,40 @@ export function loadProfile() {
 }
 
 function saveProfile(profile) {
-  try { localStorage.setItem(KEY, JSON.stringify(profile)); } catch (err) { /* 저장 공간 없음 */ }
+  try { localStorage.setItem(KEY, JSON.stringify(profile)); return true; } catch (err) { return false; }
+}
+
+export function saveDefaultStyle(style) {
+  return saveProfile({ ...loadProfile(), subtitle_style: style || null });
 }
 
 function parseCommaList(text) {
   return text.split(",").map(s => s.trim()).filter(Boolean);
 }
 
-function open() {
+function fill() {
   const p = loadProfile();
   $("profile-cut-tempo").value = p.cut_tempo;
   $("profile-filler-removal").value = p.filler_removal;
   $("profile-frequent-words").value = p.frequent_words.join(", ");
-  $("profile-save-status").textContent = "";
-  $("profile-modal").classList.remove("hidden");
+  $("profile-box").open = !!(p.cut_tempo || p.filler_removal || p.frequent_words.length);
 }
 
-function close() {
-  $("profile-modal").classList.add("hidden");
+function save() {
+  const ok = saveProfile({
+    ...loadProfile(),
+    cut_tempo: $("profile-cut-tempo").value,
+    filler_removal: $("profile-filler-removal").value,
+    frequent_words: parseCommaList($("profile-frequent-words").value),
+  });
+  const status = $("profile-save-status");
+  status.textContent = ok ? "저장했어요. 다음 분석·AI 가편집부터 반영됩니다." : "이 브라우저에는 저장할 수 없어요.";
+  status.className = `field-note${ok ? " ok" : ""}`;
 }
 
 export function initProfile() {
-  $("btn-profile").addEventListener("click", open);
-  $("profile-modal-close").addEventListener("click", close);
-  $("profile-modal-backdrop").addEventListener("click", close);
-  $("btn-profile-cancel").addEventListener("click", close);
-  $("btn-profile-save").addEventListener("click", () => {
-    saveProfile({
-      cut_tempo: $("profile-cut-tempo").value,
-      filler_removal: $("profile-filler-removal").value,
-      frequent_words: parseCommaList($("profile-frequent-words").value),
-      subtitle_style: state.plan?.styles?.subtitle || null,
-    });
-    const status = $("profile-save-status");
-    status.textContent = "저장했습니다. 다음 분석·AI 가편집부터 반영됩니다.";
-    status.className = "modal-status ok";
-  });
+  fill();
+  $("profile-cut-tempo").addEventListener("change", save);
+  $("profile-filler-removal").addEventListener("change", save);
+  $("profile-frequent-words").addEventListener("change", save);
 }

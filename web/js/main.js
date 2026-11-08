@@ -3,16 +3,17 @@
 
 import { api } from "./core/api.js";
 import { $, el, toast } from "./core/dom.js";
-import { fmt } from "./core/format.js";
-import { analysisReady, canRedo, canUndo, clearHistory, clipById, mutatePlan, on, pid, redo, setProject, state,
-         timelineClips, undo } from "./core/store.js";
-import { initAnalysis, loadAnalysisAndPlan, setAiStage, trackAnalysis, updateAnalyzeButton } from "./panels/analysis.js";
+import { canRedo, canUndo, clearHistory, mutatePlan, on, pid, redo, selectLine, setProject, state, timelineClips,
+         undo } from "./core/store.js";
+import { initAnalysis, loadAnalysisAndPlan, showReviewTab, toggleSelectedLine, trackAnalysis,
+         updateAnalyzeButton } from "./panels/analysis.js";
 import { initExport, trackRender } from "./panels/export.js";
 import { initMedia, resetMedia } from "./panels/media.js";
 import { initPreview, togglePlay } from "./panels/preview.js";
 import { initProfile, loadProfile } from "./panels/profile.js";
-import { closeEditSetup, initSetup } from "./panels/setup.js";
-import { attachPane, detachPane, initStylePanel } from "./panels/style-panel.js";
+import { initSetup } from "./panels/setup.js";
+import { goStep, initSteps, suggestedStep } from "./panels/steps.js";
+import { initStylePanel, setActiveStyle } from "./panels/style-panel.js";
 import { initTimeline, zoomToFit } from "./panels/timeline.js";
 
 const PROJECT_KEY = "vibecut_project_id";
@@ -24,16 +25,17 @@ async function openProject(project) {
   if (project.project_id !== pid()) resetMedia();
   clearHistory();
   state.analysis = null;
+  state.ui.selectedClipId = null;
+  state.ui.selectedLineId = null;
   setProject(project);
   await loadAnalysisAndPlan();
-  setAiStage(analysisReady() ? "review" : "idle");
   zoomToFit();
-  const first = timelineClips()[0];
-  if (first) $("preview-empty").classList.add("hidden");
+  if (timelineClips()[0]) $("preview-empty").classList.add("hidden");
   for (const job of project.active_jobs || []) {
     if (job.kind === "analyze") trackAnalysis(job);
     if (job.kind === "render") trackRender(job);
   }
+  goStep(suggestedStep());
   watchProject();
 }
 
@@ -61,7 +63,7 @@ async function toggleProjectMenu() {
       class: `project-menu-item${p.project_id === pid() ? " current" : ""}`,
       onclick: async () => { menu.classList.add("hidden"); openProject(await api.getProject(p.project_id)); },
     }, el("span", {}, p.name), el("span", { class: "project-menu-meta" },
-      `클립 ${p.clips} · ${p.analysis === "done" ? "분석됨" : "분석 전"} · ${p.updated_at.slice(5, 16).replace("T", " ")}`)));
+      `영상 ${p.clips}개 · ${p.analysis === "done" ? "분석함" : "분석 전"} · ${p.updated_at.slice(5, 16).replace("T", " ")}`)));
   }
   menu.classList.remove("hidden");
 }
@@ -103,22 +105,17 @@ async function watchProject() {
   }
 }
 
-/* ---------------------------------------------------------------- 상단 바·객체 패널 */
+/* ---------------------------------------------------------------- 상단 바 */
 
 function renderTopbar() {
   const p = state.project;
   if (!p) return;
   $("project-name").textContent = p.name;
-  const clips = timelineClips();
-  const status = $("topbar-status");
-  if (!clips.length) status.textContent = "타임라인에 영상을 추가하세요";
-  else if (state.plan) status.textContent = `클립 ${clips.length}개 · 결과 ${fmt(state.plan.duration)}`
-    + (p.analysis.status === "done" ? (p.analysis_stale ? " · 타임라인이 바뀌어 다시 분석이 필요합니다" : " · 분석 완료") : " · 분석 전");
   const badge = $("ai-badge");
   const live = state.config?.ai_mode === "live";
   badge.className = `ai-badge ${live ? "live" : "offline"}`;
-  badge.textContent = live ? "AI: Gemini" : "AI: 오프라인";
-  badge.title = live ? `글 판단 ${state.config.models.text} · 받아쓰기 ${state.config.models.stt}`
+  badge.textContent = live ? "AI 연결됨" : "오프라인 모드";
+  badge.title = live ? `Gemini · 글 판단 ${state.config.models.text} · 받아쓰기 ${state.config.models.stt}`
     : "Gemini 키가 없거나 VIBECUT_AI_MODE=offline — 규칙 판단과 로컬 엔진, 저장해 둔 AI 응답만 씁니다";
 }
 
@@ -127,38 +124,12 @@ function renderHistoryButtons() {
   $("btn-redo").disabled = !canRedo();
 }
 
-function showClipPanel() {
-  const panel = $("obj-panel");
-  const clip = clipById(state.ui.selectedClipId);
-  if (!clip || document.body.classList.contains("setup-active")) {
-    if (!$("sub-style-pane").closest(".style-item-body")) detachPane();
-    if (panel.dataset.mode !== "style") panel.classList.add("hidden");
-    return;
-  }
-  detachPane();
-  panel.dataset.mode = "clip";
-  panel.classList.remove("hidden");
-  $("obj-tab-body").style.display = "";
-  $("obj-panel-name").textContent = clip.filename;
-  const kept = (state.plan?.keep || []).filter(k => k.clip_id === clip.clip_id).reduce((a, k) => a + k.end - k.start, 0);
-  const created = clip.created_at ? new Date(clip.created_at * 1000).toLocaleString("ko-KR") : "메타데이터 없음";
-  const rows = [["길이", fmt(clip.duration)], ["사용 범위", `${fmt(clip.in_point)} ~ ${fmt(clip.out_point ?? clip.duration)}`],
-                ["결과에 남는 길이", fmt(kept)], ["해상도", `${clip.width}x${clip.height} · ${clip.fps}fps`],
-                ["소리", clip.has_audio ? "있음" : "없음"], ["촬영 시각", created], ["파일", clip.filename]];
-  const box = $("obj-tab-basic");
-  box.innerHTML = "";
-  for (const [k, v] of rows) box.appendChild(el("div", { class: "obj-prop" }, el("span", { class: "obj-prop-label" }, k),
-                                               el("span", { class: "obj-prop-value" }, v)));
-}
-
-function showStylePanel() {
-  if (document.body.classList.contains("setup-active")) return;
-  const panel = $("obj-panel");
-  panel.dataset.mode = "style";
-  panel.classList.remove("hidden");
-  $("obj-panel-name").textContent = "자막 스타일";
-  $("obj-tab-body").style.display = "none";
-  attachPane(panel, "subtitle");
+/* 타임라인 '자막' 이름표 → ④ 확인·수정의 자막 모양 탭 */
+function openSubtitleStyle() {
+  goStep(4);
+  if (!state.analysis) return;
+  showReviewTab("style");
+  setActiveStyle("subtitle");
 }
 
 /* ---------------------------------------------------------------- 시작 */
@@ -172,6 +143,7 @@ async function boot() {
   }
   if (!state.config.ffmpeg?.ok) toast(`ffmpeg 문제: ${state.config.ffmpeg?.error}`, "error", 15000);
 
+  initSteps();
   initMedia();
   initTimeline();
   initPreview();
@@ -182,17 +154,17 @@ async function boot() {
   initExport();
 
   on("project", renderTopbar);
-  on("plan", renderTopbar);
-  on("plan", showClipPanel);
-  on("selection", showClipPanel);
   on("history", renderHistoryButtons);
   on("project", () => { if (state.project?.active_jobs?.some(j => j.kind === "proxy")) watchProject(); });
+  on("project", renderStep1);
+  on("uploads", renderStep1);
 
   $("btn-project-menu").addEventListener("click", () => toggleProjectMenu().catch(e => toast(e.message, "error")));
   $("project-name").addEventListener("click", renameProject);
   $("btn-undo").addEventListener("click", () => undo().catch(e => toast(e.message, "error")));
   $("btn-redo").addEventListener("click", () => redo().catch(e => toast(e.message, "error")));
-  $("sub-track-label").addEventListener("click", showStylePanel);
+  $("sub-track-label").addEventListener("click", openSubtitleStyle);
+  $("btn-step1-next").addEventListener("click", () => goStep(2));
   document.addEventListener("click", e => {
     const menu = $("project-menu");
     if (!menu.classList.contains("hidden") && !e.target.closest("#project-menu") && !e.target.closest("#btn-project-menu")) {
@@ -204,10 +176,12 @@ async function boot() {
     if (e.key === "Escape") {
       document.querySelectorAll(".modal").forEach(m => m.classList.add("hidden"));
       $("project-menu").classList.add("hidden");
+      if (!typing && state.ui.selectedLineId) selectLine(null);
       return;
     }
     if (typing) return;
     if (e.code === "Space") { e.preventDefault(); togglePlay(); }
+    if ((e.key === "Delete" || e.key === "Backspace") && toggleSelectedLine()) e.preventDefault();
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") {
       e.preventDefault();
       (e.shiftKey ? redo() : undo()).catch(err => toast(err.message, "error"));
@@ -224,7 +198,16 @@ async function boot() {
   }
   await openProject(project);
   updateAnalyzeButton();
-  closeEditSetup();
+}
+
+/* ① 영상 올리기: 지금 상태 한 줄 + '다음' 버튼 */
+function renderStep1() {
+  const clips = timelineClips();
+  const box = $("step1-summary");
+  const uploading = state.pendingUploads.length;
+  box.textContent = uploading ? `영상 ${uploading}개를 올리는 중이에요…`
+    : clips.length ? `타임라인에 영상 ${clips.length}개가 있어요. 순서가 맞으면 다음으로 넘어가세요.` : "";
+  $("btn-step1-next").disabled = !clips.length || !!uploading;
 }
 
 boot();

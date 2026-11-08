@@ -9,24 +9,29 @@
   <link rel="stylesheet" href="/static/css/layout.css" />
   <link rel="stylesheet" href="/static/css/panels/media.css" />
   <link rel="stylesheet" href="/static/css/panels/preview.css" />
-  <link rel="stylesheet" href="/static/css/panels/style-panel.css" />
-  <link rel="stylesheet" href="/static/css/panels/ai-panel.css" />
   <link rel="stylesheet" href="/static/css/panels/timeline.css" />
-  <link rel="stylesheet" href="/static/css/panels/setup.css" />
+  <link rel="stylesheet" href="/static/css/panels/steps.css" />
+  <link rel="stylesheet" href="/static/css/panels/style-panel.css" />
   <link rel="stylesheet" href="/static/css/panels/export.css" />
 </head>
 <body>
 <!--
   화면 구조만 담는다. 스타일: /static/css/ (base·layout + panels/영역별), 동작: /static/js/ (ES 모듈)
+
+  배치: 위 = 단계 표시줄(① 올리기 → ② 분석 → ③ 분량·장면 → ④ 확인·수정 → ⑤ 내보내기)
+        왼쪽 = 올린 영상, 가운데 = 미리보기, 아래 = 타임라인 (어느 단계에서나 그대로)
+        오른쪽 = 지금 단계에서 할 일 (단계마다 바뀐다)
+
     main.js            시작·프로젝트 열기·단축키
-    core/              api.js 서버 API · store.js 화면 상태·실행취소 · dom.js 요소 도우미 · format.js 값 도우미
+    core/              api.js 서버 API · store.js 화면 상태·실행취소 · dom.js 요소 도우미 · format.js 값 도우미 · labels.js 화면 용어
     subtitle/          서버와 규칙이 같아야 하는 자막 코드: wrap.js 줄바꿈 · draw.js 스타일 → CSS · presets.js 프리셋
-    panels/            media 클립·업로드 · timeline 타임라인 · preview 미리보기 · analysis 분석·검토·수정 요청
-                       setup 편집 설정 · style-panel 자막 스타일 폼 · export 내보내기 · profile 제작자 프로필
+    panels/            steps 단계 표시줄 · media 영상·업로드 · timeline 타임라인 · preview 미리보기
+                       analysis ② 분석 · ④ 결과 카드·문장 목록·수정 요청 · setup ③ 분량·장면 · style-panel ④ 자막 모양
+                       export ⑤ 내보내기·결과 리포트 · profile 내 편집 스타일
 -->
 <div class="app">
 
-  <!-- Topbar -->
+  <!-- 상단 바: 프로젝트 · 단계 표시줄 · 실행취소 -->
   <header class="topbar">
     <div class="topbar-left">
       <div class="brand">
@@ -34,253 +39,86 @@
         <span>Vibe<span class="brand-ai">Cut</span></span>
       </div>
       <button class="btn-menu" id="btn-project-menu" title="프로젝트 열기·새로 만들기">프로젝트 ▾</button>
-      <button class="project-name" id="project-name" title="클릭해서 이름 바꾸기">새 프로젝트</button>
-      <div class="btn-row">
-        <button class="btn-tb" id="btn-undo" title="실행취소 (Ctrl+Z)" disabled>↩</button>
-        <button class="btn-tb" id="btn-redo" title="다시실행 (Ctrl+Shift+Z)" disabled>↪</button>
-      </div>
+      <button class="project-name" id="project-name" title="눌러서 이름 바꾸기">새 프로젝트</button>
     </div>
-    <div class="topbar-center" id="topbar-status">타임라인에 영상을 추가하세요</div>
+    <nav class="stepper" id="stepper" aria-label="편집 단계"></nav>
     <div class="topbar-right">
+      <button class="btn-tb" id="btn-undo" title="되돌리기 (Ctrl+Z)" disabled>↩</button>
+      <button class="btn-tb" id="btn-redo" title="다시 하기 (Ctrl+Shift+Z)" disabled>↪</button>
       <span class="ai-badge" id="ai-badge" title=""></span>
-      <button class="btn-export" id="btn-export" disabled>내보내기</button>
     </div>
   </header>
   <div class="project-menu hidden" id="project-menu"></div>
 
-  <!-- Main area -->
   <div class="main-area">
+    <div class="work-col">
+      <div class="work-top">
 
-    <!-- ① Icon bar -->
-    <nav class="icon-bar">
-      <div class="icon-bar-logo">
-        <div class="brand-mark brand-mark-lg">V</div>
-      </div>
-      <button class="icon-btn icon-active" data-panel="media">
-        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
-          <rect x="2" y="5" width="16" height="11" rx="2"/>
-          <line x1="6" y1="5" x2="6" y2="16"/><line x1="14" y1="5" x2="14" y2="16"/>
-          <line x1="2" y1="8.5" x2="6" y2="8.5"/><line x1="14" y1="8.5" x2="18" y2="8.5"/>
-          <line x1="2" y1="12.5" x2="6" y2="12.5"/><line x1="14" y1="12.5" x2="18" y2="12.5"/>
-        </svg>미디어
-      </button>
-      <div class="icon-divider"></div>
-      <!-- 편집 설정: 장면 트리 + AI 가편집 + 자막 스타일 목록 -->
-      <button class="icon-btn" id="btn-editsetup-icon" title="편집 설정 (장면 트리 + 의도 + 자막 스타일)">
-        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="10" cy="10" r="2.5"/>
-          <path d="M10 2v3M10 15v3M2 10h3M15 10h3M4.5 4.5l2 2M13.5 13.5l2 2M4.5 15.5l2-2M13.5 6.5l2-2"/>
-        </svg>편집 설정
-      </button>
-    </nav>
-
-    <!-- Middle column -->
-    <div class="middle-col">
-      <div class="middle-top">
-
-        <!-- ② Context panel -->
-        <aside class="ctx-panel">
-          <div class="ctx-inner active" id="ctx-media">
-            <div class="media-header">
-              <input type="file" id="file-input" accept="video/*,.mov,.mkv,.m4v,.3gp" multiple hidden />
-              <button class="media-upload-btn" id="upload-btn">
-                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" width="16" height="16">
-                  <path d="M8 10V3M5 6l3-3 3 3"/><path d="M2 12h12"/>
-                </svg>
-                영상 추가 (클릭 또는 드래그)
-              </button>
-              <div class="aspect-row">
-                출력 비율:
-                <button class="aspect-btn active" data-ratio="16:9">16:9</button>
-                <button class="aspect-btn" data-ratio="9:16">9:16</button>
-              </div>
-            </div>
-            <div class="clip-list-head">
-              <div class="clip-list-label">업로드된 클립</div>
-              <button class="btn-mini" id="btn-sort-clips" title="타임라인 순서를 촬영 시각 순으로">촬영순 정렬</button>
-            </div>
-            <div class="clip-list" id="clip-list"></div>
+        <!-- 왼쪽: 올린 영상 -->
+        <aside class="media-panel">
+          <input type="file" id="file-input" accept="video/*,.mov,.mkv,.m4v,.3gp" multiple hidden />
+          <button class="dropzone" id="upload-btn">
+            <span class="dropzone-plus">＋</span>
+            <span class="dropzone-title">영상 추가</span>
+            <span class="dropzone-sub">눌러서 고르거나 파일을 끌어다 놓으세요</span>
+          </button>
+          <div class="clip-list-head">
+            <span class="section-label">올린 영상</span>
+            <button class="btn-mini" id="btn-sort-clips" title="타임라인 순서를 촬영한 시각 순서로">촬영 순서로</button>
           </div>
+          <div class="clip-list" id="clip-list"></div>
+          <div class="clip-detail hidden" id="clip-detail"></div>
         </aside>
 
-        <!-- ③ Preview + 편집 설정의 장면 탭/목록 -->
+        <!-- 가운데: 미리보기 -->
         <section class="preview-col">
+          <div class="preview-head">
+            <div class="seg-switch preview-mode">
+              <button id="btn-mode-source" class="active" title="고른 클립을 자르지 않은 그대로">원본 클립</button>
+              <button id="btn-mode-plan" disabled title="뺀 부분을 건너뛰고 결과 영상처럼 재생 (렌더 없이)">편집 결과</button>
+            </div>
+            <span class="preview-hint" id="preview-hint"></span>
+          </div>
           <div class="preview-area" id="preview-area">
             <div class="preview-box" id="preview-box">
               <video id="video" playsinline preload="auto"></video>
               <div class="sub-overlay" id="sub-overlay"></div>
-              <div class="preview-empty" id="preview-empty">타임라인에서 클립을 선택하거나<br>좌측에서 영상을 추가하세요</div>
+              <div class="preview-empty" id="preview-empty">영상을 추가하면 여기에서 볼 수 있어요</div>
             </div>
           </div>
           <div class="preview-controls">
             <button class="btn-play" id="btn-play" disabled title="재생/일시정지 (Space)">
-              <svg id="icon-play" viewBox="0 0 10 12" width="9" height="11"><polygon points="1,1 9,6 1,11" fill="currentColor"/></svg>
-              <svg id="icon-pause" viewBox="0 0 10 12" width="9" height="11" style="display:none"><rect x="1" y="1" width="3" height="10" fill="currentColor"/><rect x="6" y="1" width="3" height="10" fill="currentColor"/></svg>
+              <svg id="icon-play" viewBox="0 0 10 12" width="10" height="12"><polygon points="1,1 9,6 1,11" fill="currentColor"/></svg>
+              <svg id="icon-pause" viewBox="0 0 10 12" width="10" height="12" style="display:none"><rect x="1" y="1" width="3" height="10" fill="currentColor"/><rect x="6" y="1" width="3" height="10" fill="currentColor"/></svg>
             </button>
             <span class="preview-time" id="preview-time">0:00 / 0:00</span>
             <div class="preview-progress" id="preview-progress">
               <div class="preview-progress-fill" id="preview-progress-fill"></div>
             </div>
-            <div class="preview-mode">
-              <button id="btn-mode-source" class="active" title="선택한 클립의 원본">원본</button>
-              <button id="btn-mode-plan" disabled title="렌더하지 않고 편집 결과를 바로 재생">편집본</button>
+            <div class="seg-switch aspect-switch" title="결과 영상 비율 (미리보기·자막·내보내기에 모두 적용)">
+              <button class="aspect-btn active" data-ratio="16:9"><span class="ar ar-wide"></span>16:9</button>
+              <button class="aspect-btn" data-ratio="9:16"><span class="ar ar-tall"></span>9:16</button>
             </div>
-          </div>
-
-          <!-- 장면 탭/목록 - 편집 설정 모드에서만 보임 -->
-          <div class="scene-tabs-section" id="scene-tabs-section">
-            <div class="scene-tabs" id="scene-tabs"></div>
-            <div class="scene-list" id="scene-list"></div>
           </div>
         </section>
+      </div>
 
-        <!-- ④ Object panel (클립 정보 / 자막 스타일) -->
-        <aside class="obj-panel hidden" id="obj-panel">
-          <div class="obj-panel-top">
-            <div class="obj-panel-name" id="obj-panel-name">—</div>
-          </div>
-          <div class="obj-tab-body" id="obj-tab-body">
-            <div class="obj-tab-pane active" id="obj-tab-basic"></div>
-          </div>
-
-          <!-- 자막 스타일 폼: 평상시엔 이 패널, 편집 설정에서는 스타일 목록 항목 안으로 옮겨 쓴다 (panels/style-panel.js) -->
-          <div id="sub-style-pane" style="display:none">
-            <div class="ss-label">미리보기 (렌더와 같은 크기 비율)</div>
-            <div class="ss-preview-box">
-              <div class="ss-preview-stage" id="ss-preview-stage"></div>
-            </div>
-
-            <div class="ss-label ss-label-spaced">프리셋</div>
-            <div class="ss-preset-row">
-              <button class="ss-preset-btn" data-preset="매운맛">매운맛</button>
-              <button class="ss-preset-btn" data-preset="순한맛">순한맛</button>
-              <button class="ss-preset-btn" data-preset="정석맛">정석맛</button>
-            </div>
-
-            <div class="ss-row">
-              <span class="ss-row-label">글꼴</span>
-              <div class="ss-row-ctrl">
-                <select class="ss-select" id="ss-font">
-                  <option value="Malgun Gothic">맑은 고딕</option>
-                  <option value="NanumGothic">나눔고딕</option>
-                  <option value="NanumMyeongjo">나눔명조</option>
-                  <option value="Noto Sans KR">본고딕</option>
-                  <option value="Arial">Arial</option>
-                </select>
-              </div>
-            </div>
-            <div class="ss-row">
-              <span class="ss-row-label" title="출력 영상의 짧은 변이 1080px일 때 기준">크기</span>
-              <div class="ss-row-ctrl">
-                <input type="range" class="ss-slider" id="ss-size" min="24" max="140" step="1" value="54">
-                <span class="ss-slider-val" id="ss-size-val">54</span>
-              </div>
-            </div>
-            <div class="ss-row">
-              <span class="ss-row-label">굵기</span>
-              <div class="ss-row-ctrl">
-                <select class="ss-select" id="ss-weight">
-                  <option value="normal">보통</option>
-                  <option value="bold">굵게</option>
-                  <option value="extra-bold">아주 굵게</option>
-                </select>
-              </div>
-            </div>
-            <div class="ss-row">
-              <span class="ss-row-label">기울임</span>
-              <div class="ss-row-ctrl"><button class="ss-toggle off" id="ss-italic"></button></div>
-            </div>
-            <div class="ss-row">
-              <span class="ss-row-label">글자 색</span>
-              <div class="ss-row-ctrl"><input type="color" class="ss-color" id="ss-color" value="#ffffff"></div>
-            </div>
-            <div class="ss-row">
-              <span class="ss-row-label">외곽선</span>
-              <div class="ss-row-ctrl"><button class="ss-toggle on" id="ss-outline"></button></div>
-            </div>
-            <div class="ss-row" id="ss-outline-color-row">
-              <span class="ss-row-label ss-row-label-sub">외곽선 색</span>
-              <div class="ss-row-ctrl"><input type="color" class="ss-color" id="ss-outline-color" value="#000000"></div>
-            </div>
-            <div class="ss-row" id="ss-outline-row">
-              <span class="ss-row-label ss-row-label-sub">외곽선 두께</span>
-              <div class="ss-row-ctrl">
-                <input type="range" class="ss-slider" id="ss-outline-w" min="0" max="10" step="0.5" value="3">
-                <span class="ss-slider-val" id="ss-outline-w-val">3</span>
-              </div>
-            </div>
-            <div class="ss-row">
-              <span class="ss-row-label">그림자</span>
-              <div class="ss-row-ctrl"><button class="ss-toggle off" id="ss-shadow"></button></div>
-            </div>
-            <div class="ss-row" id="ss-shadow-dist-row">
-              <span class="ss-row-label ss-row-label-sub">그림자 거리</span>
-              <div class="ss-row-ctrl">
-                <input type="range" class="ss-slider" id="ss-shadow-dist" min="0" max="20" step="1" value="4">
-                <span class="ss-slider-val" id="ss-shadow-dist-val">4</span>
-              </div>
-            </div>
-            <div class="ss-row">
-              <span class="ss-row-label">배경 박스</span>
-              <div class="ss-row-ctrl"><button class="ss-toggle off" id="ss-bg-box"></button></div>
-            </div>
-            <div class="ss-row" id="ss-bg-color-row">
-              <span class="ss-row-label ss-row-label-sub">박스 색</span>
-              <div class="ss-row-ctrl"><input type="color" class="ss-color" id="ss-bg-color" value="#000000"></div>
-            </div>
-            <div class="ss-row" id="ss-bg-opacity-row">
-              <span class="ss-row-label ss-row-label-sub">박스 불투명도</span>
-              <div class="ss-row-ctrl">
-                <input type="range" class="ss-slider" id="ss-bg-opacity" min="0" max="100" step="5" value="60">
-                <span class="ss-slider-val" id="ss-bg-opacity-val">60%</span>
-              </div>
-            </div>
-            <div class="ss-row">
-              <span class="ss-row-label">위치</span>
-              <div class="ss-row-ctrl">
-                <select class="ss-select" id="ss-position">
-                  <option value="top">위</option>
-                  <option value="center">가운데</option>
-                  <option value="bottom" selected>아래</option>
-                </select>
-              </div>
-            </div>
-            <div class="ss-row">
-              <span class="ss-row-label">위·아래 여백</span>
-              <div class="ss-row-ctrl">
-                <input type="range" class="ss-slider" id="ss-bottom-margin" min="0" max="300" step="5" value="60">
-                <span class="ss-slider-val" id="ss-bottom-margin-val">60</span>
-              </div>
-            </div>
-            <div class="ss-row">
-              <span class="ss-row-label">한 줄 최대 글자</span>
-              <div class="ss-row-ctrl">
-                <input type="range" class="ss-slider" id="ss-max-chars" min="5" max="40" step="1" value="20">
-                <span class="ss-slider-val" id="ss-max-chars-val">20</span>
-              </div>
-            </div>
-            <div class="ss-row">
-              <span class="ss-row-label">카라오케 (말한 단어 색)</span>
-              <div class="ss-row-ctrl"><button class="ss-toggle off" id="ss-karaoke"></button></div>
-            </div>
-            <div class="ss-row">
-              <span class="ss-row-label">페이드 인/아웃</span>
-              <div class="ss-row-ctrl"><button class="ss-toggle off" id="ss-fade"></button></div>
-            </div>
-            <div class="spaced-top">
-              <button class="btn-ss-reset" id="btn-ss-reset" type="button">기본값으로</button>
-            </div>
-          </div>
-        </aside>
-
-      </div><!-- end .middle-top -->
-
-      <!-- ⑥ Timeline -->
+      <!-- 아래: 타임라인 -->
       <section class="timeline-panel">
         <div class="tl-toolbar">
           <span class="tl-title">타임라인</span>
           <span class="tl-stats" id="tl-stats"></span>
-          <span class="tl-wheel-hint">휠: 가로 이동 · Ctrl+휠: 확대 · 자막 칸 클릭: 남김/자름 · 파란 줄: 결과에 남는 구간</span>
+          <span class="tl-legend">
+            <span><i class="lg lg-keep"></i>결과에 남음</span>
+            <span><i class="lg lg-cut"></i>뺀 부분</span>
+            <span><i class="lg lg-emph"></i>강조</span>
+          </span>
+          <div class="tl-zoom" title="확대·축소 (Ctrl+마우스 휠도 됩니다)">
+            <button class="btn-zoom" id="btn-zoom-out" aria-label="축소">−</button>
+            <input type="range" id="tl-zoom-range" min="0" max="100" step="1" value="40" aria-label="확대 정도">
+            <button class="btn-zoom" id="btn-zoom-in" aria-label="확대">＋</button>
+            <button class="btn-mini" id="btn-zoom-fit">전체 보기</button>
+          </div>
         </div>
         <div class="tl-scroll" id="tl-scroll">
           <div class="tl-content" id="tl-content">
@@ -291,240 +129,402 @@
             <div class="tl-row video-row">
               <div class="tl-row-label">영상</div>
               <div class="tl-row-body" id="video-track-body">
-                <div class="tl-empty-hint" id="tl-empty-hint">좌측 클립을 여기로 드래그하거나 [+] 버튼을 누르세요</div>
+                <div class="tl-empty-hint" id="tl-empty-hint">왼쪽 영상을 여기로 끌어 오거나 영상의 [＋]를 누르세요</div>
               </div>
             </div>
             <div class="tl-row sub-row">
-              <div class="tl-row-label" id="sub-track-label" title="클릭: 자막 스타일 편집">자막</div>
+              <div class="tl-row-label tl-row-label-link" id="sub-track-label" title="자막 모양 바꾸기">자막 ✎</div>
               <div class="tl-row-body" id="subtitle-track-body"></div>
             </div>
-            <div class="playhead" id="playhead" style="left:52px">
+            <div class="playhead" id="playhead" style="left:56px">
               <div class="playhead-handle" id="playhead-handle"></div>
             </div>
           </div>
         </div>
       </section>
-    </div><!-- end .middle-col -->
+    </div>
 
-    <!-- ⑤ AI panel -->
-    <aside class="ai-panel">
-      <div class="ai-panel-hdr">
-        <div class="ai-panel-title"><div class="ai-dot"></div>AI 어시스턴트</div>
-        <div class="ai-panel-hdr-actions">
-          <button class="btn-profile" id="btn-profile">내 프로필</button>
-          <button class="btn-ai-reset hidden" id="btn-ai-reset">처음으로</button>
+    <!-- 오른쪽: 지금 단계에서 할 일 -->
+    <aside class="side-panel" id="side-panel">
+      <div class="side-notice hidden" id="side-notice"></div>
+
+      <!-- ① 영상 올리기 -->
+      <section class="step-pane" data-step="1">
+        <div class="pane-scroll">
+          <h2 class="pane-title"><span class="pane-num">1</span>영상 올리기</h2>
+          <p class="pane-lead">편집할 영상을 올리고 순서를 정하세요. 여러 개를 올려도 하나로 이어 붙여 편집합니다.</p>
+          <ol class="howto">
+            <li><b>영상 추가</b><span>왼쪽 상자를 누르거나 영상 파일을 끌어다 놓기</span></li>
+            <li><b>타임라인에 놓기</b><span>올린 영상은 자동으로 타임라인 끝에 붙어요. 빼려면 클립의 ×</span></li>
+            <li><b>순서 바꾸기</b><span>타임라인의 클립을 좌우로 끌거나 '촬영 순서로'</span></li>
+            <li><b>앞뒤 잘라 내기 (선택)</b><span>클립 양 끝의 손잡이를 끌기</span></li>
+          </ol>
+          <div class="pane-summary" id="step1-summary"></div>
         </div>
-      </div>
+        <div class="pane-footer">
+          <button class="btn-next" id="btn-step1-next">다음: AI 분석 →</button>
+        </div>
+      </section>
 
-      <!-- Stage: idle -->
-      <div class="ai-stage" id="ai-idle">
-        <p class="ai-idle-hint">
-          타임라인에 클립을 올리고 AI 분석을 시작하세요.<br>
-          받아쓰기·장면 분석·컷 판단을 클립 전체에 한 번에 합니다.
-        </p>
-        <button class="btn-analyze" id="btn-analyze" disabled>AI 분석 시작</button>
-        <p class="analysis-hint" id="analyze-hint"></p>
-      </div>
-
-      <!-- Stage: analyzing -->
-      <div class="ai-stage hidden" id="ai-analyzing">
-        <div class="analyzing-title">분석 중...</div>
-        <div class="progress-stage" id="progress-stage"></div>
-        <div class="progress-bar-track"><div class="progress-bar-fill" id="progress-bar-fill"></div></div>
-        <div class="analysis-hint" id="progress-message"></div>
-        <button class="btn-cancel" id="btn-analyze-cancel">분석 취소</button>
-      </div>
-
-      <!-- Stage: setup (편집 설정) -->
-      <div class="ai-stage hidden" id="ai-setup">
-        <div class="ai-setup-top">
-          <label class="setup-field">
-            <span>목표 분량 (분)</span>
-            <input type="number" id="setup-target-minutes" min="0" step="0.1" value="3">
-          </label>
-          <label class="setup-field">
-            <span>AI 프롬프트</span>
-            <textarea id="setup-user-prompt" rows="4"
-              placeholder="예: 쇼츠용으로 재밌는 장면 위주로, 친구 얼굴 나오는 부분은 빼줘"></textarea>
-          </label>
-          <div class="setup-summary-bar">
-            고른 장면: <span id="setup-selected-duration">0.0초</span>
-            → 실제 결과: <span id="setup-plan-duration">0.0초</span><br>
-            목표: <span id="setup-target-display">3분 (180.0초)</span>
+      <!-- ② AI 분석 -->
+      <section class="step-pane" data-step="2">
+        <div class="pane-scroll">
+          <h2 class="pane-title"><span class="pane-num">2</span>AI 분석</h2>
+          <p class="pane-lead">AI가 영상을 보고 들으면서 말을 받아 적고, 뺄 문장과 장면을 찾습니다.</p>
+          <ol class="pipeline" id="pipeline">
+            <li data-stage="0"><span class="pl-dot"></span><div><b>소리 꺼내기</b><small>영상에서 소리만 뽑기</small></div></li>
+            <li data-stage="1"><span class="pl-dot"></span><div><b>받아쓰기 · 장면 이해</b><small>말을 글로, 화면을 장소·활동으로</small></div></li>
+            <li data-stage="2"><span class="pl-dot"></span><div><b>컷 판단</b><small>NG · 군더더기 · 촬영 지시 찾기</small></div></li>
+            <li data-stage="3"><span class="pl-dot"></span><div><b>장면 묶기</b><small>장소 → 일 → 상황 → 대사</small></div></li>
+            <li data-stage="4"><span class="pl-dot"></span><div><b>편집 결과 만들기</b><small>단어 중간을 자르지 않게 맞추기</small></div></li>
+          </ol>
+          <div class="analyze-progress hidden" id="analyze-progress">
+            <div class="progress-bar-track"><div class="progress-bar-fill" id="progress-bar-fill"></div></div>
+            <div class="progress-row"><span id="progress-stage"></span><span id="progress-message"></span></div>
           </div>
-          <button class="btn-start-edit" id="btn-start-edit">AI 가편집하기</button>
-          <button class="btn-ss-reset" id="btn-select-all" type="button">전체 장면 사용</button>
-          <div class="setup-status is-empty" id="setup-status"></div>
-        </div>
-        <div class="ai-setup-divider"></div>
-        <div class="ai-setup-bottom">
-          <div class="setup-section-label">제목·촬영지 자막</div>
-          <div class="setup-extra">
-            <div class="setup-extra-row">
-              <span>제목</span>
-              <input type="text" id="setup-title-text" maxlength="60" placeholder="처음 3초에 보일 제목 (비우면 없음)">
+
+          <details class="profile-box" id="profile-box">
+            <summary>내 편집 스타일 <span class="muted">(선택 · 이 브라우저에 저장)</span></summary>
+            <div class="profile-form">
+              <label class="field">
+                <span>컷 빠르기 <small>한 컷이 평균 몇 초쯤인 영상을 만드나요?</small></span>
+                <select id="profile-cut-tempo">
+                  <option value="">고르지 않음</option>
+                  <option value="느림 (평균 10초 이상)">느긋하게 (한 컷 10초 이상)</option>
+                  <option value="보통 (평균 6~9초)">보통 (한 컷 6~9초)</option>
+                  <option value="빠름 (평균 3~5초)">빠르게 (한 컷 3~5초)</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>군말 빼기 강도 <small>음, 어, 그니까 같은 말</small></span>
+                <select id="profile-filler-removal">
+                  <option value="">고르지 않음</option>
+                  <option value="약 (크게 거슬리는 것만)">약하게 (크게 거슬리는 것만)</option>
+                  <option value="중">보통</option>
+                  <option value="강 (음, 어, 그니까 전부 제거)">강하게 (전부 빼기)</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>자주 쓰는 단어 <small>쉼표로 구분 · 받아쓰기 힌트와 강조 후보</small></span>
+                <input type="text" id="profile-frequent-words" placeholder="예: 꿀팁, 레전드, 결론부터">
+              </label>
+              <div class="field-note" id="profile-save-status"></div>
             </div>
-            <div class="setup-extra-row">
-              <span>장소가 바뀔 때 촬영지 자막</span>
-              <button class="ss-toggle off" id="setup-location-toggle"></button>
+          </details>
+        </div>
+        <div class="pane-footer">
+          <p class="pane-hint" id="analyze-hint"></p>
+          <button class="btn-next hidden" id="btn-step2-next" data-go="3">다음: 분량·장면 →</button>
+          <button class="btn-next" id="btn-analyze" disabled>AI 분석 시작</button>
+          <button class="btn-ghost hidden" id="btn-analyze-cancel">분석 멈추기</button>
+        </div>
+      </section>
+
+      <!-- ③ 분량·장면 -->
+      <section class="step-pane" data-step="3">
+        <div class="pane-scroll">
+          <h2 class="pane-title"><span class="pane-num">3</span>분량·장면 정하기</h2>
+          <div class="needs-analysis" data-needs="analysis">
+            먼저 AI 분석을 해 주세요. 분석이 끝나면 장면 목록이 생깁니다.
+            <button class="btn-ghost" data-go="2">② AI 분석으로</button>
+          </div>
+          <div data-when="analysis">
+            <div class="card">
+              <div class="card-title">AI 가편집 <small>목표 길이만 정하면 AI가 좋은 장면을 골라 맞춰요</small></div>
+              <div class="target-row">
+                <span class="target-label">목표 길이</span>
+                <input type="range" id="setup-target-range" min="0.5" max="10" step="0.5" value="3">
+                <input type="number" id="setup-target-minutes" min="0.1" step="0.1" value="3">
+                <span class="target-unit">분</span>
+              </div>
+              <label class="field">
+                <span>AI에게 바라는 점 <small>(선택)</small></span>
+                <textarea id="setup-user-prompt" rows="2"
+                  placeholder="예: 카페 장면 위주로, 친구 얼굴 나오는 부분은 빼줘"></textarea>
+              </label>
+              <button class="btn-primary btn-block" id="btn-start-edit">AI로 목표 길이 맞추기</button>
+              <div class="duration-meter" id="duration-meter"></div>
+              <div class="setup-status is-empty" id="setup-status"></div>
+            </div>
+
+            <div class="card">
+              <div class="card-title">장면 직접 고르기
+                <button class="btn-mini" id="btn-select-all" type="button">전체 장면 쓰기</button>
+              </div>
+              <p class="card-note">체크하면 바로 반영돼요 · 📌 고정한 장면은 AI가 꼭 넣어요 · 이름을 누르면 미리보기</p>
+              <div class="scene-tabs" id="scene-tabs"></div>
+              <div class="scene-list" id="scene-list"></div>
+            </div>
+
+            <div class="card">
+              <div class="card-title">제목·장소 자막</div>
+              <label class="field">
+                <span>영상 제목 <small>처음 3초에 크게 보여요 (비우면 없음)</small></span>
+                <input type="text" id="setup-title-text" maxlength="60" placeholder="예: 성수동 카페 투어">
+              </label>
+              <div class="switch-row">
+                <span>장소가 바뀔 때 장소 이름 자막 띄우기</span>
+                <button class="ss-toggle off" id="setup-location-toggle" aria-label="장소 이름 자막"></button>
+              </div>
             </div>
           </div>
-          <div class="setup-section-label">스타일 목록</div>
-          <div class="style-list" id="style-list"></div>
         </div>
-      </div>
+        <div class="pane-footer">
+          <button class="btn-next" data-go="4">다음: 확인·수정 →</button>
+        </div>
+      </section>
 
-      <!-- Stage: review -->
-      <div class="ai-stage hidden" id="ai-review">
-        <div class="review-scroll" id="review-scroll">
-          <div class="review-card" id="review-card"></div>
-          <div>
-            <div class="review-sec-label">
-              인식된 문장 · <span class="seg-count-badge" id="review-seg-count">0</span>개
-              <span class="label-note"> (남김/자름·자막 글자 수정, 바로 반영)</span>
-            </div>
-            <div class="review-filters" id="review-filters">
-              <button data-filter="all" class="active">전체</button>
-              <button data-filter="cut">자른 문장</button>
-              <button data-filter="emph">강조</button>
-              <button data-filter="user">내가 바꾼 것</button>
-            </div>
-            <div class="review-segs-list" id="review-segs-list"></div>
+      <!-- ④ 확인·수정 -->
+      <section class="step-pane step-pane-fill" data-step="4">
+        <div class="pane-top">
+          <h2 class="pane-title"><span class="pane-num">4</span>확인·수정</h2>
+          <div class="needs-analysis" data-needs="analysis">
+            먼저 AI 분석을 해 주세요.
+            <button class="btn-ghost" data-go="2">② AI 분석으로</button>
+          </div>
+          <div class="result-card" id="result-card" data-when="analysis"></div>
+          <div class="tabs" id="review-tabs" data-when="analysis">
+            <button data-tab="lines" class="active">문장 목록</button>
+            <button data-tab="chat">AI에게 요청</button>
+            <button data-tab="style">자막 모양</button>
           </div>
         </div>
-        <div class="review-footer">
-          <button class="btn-apply" id="btn-apply">검토 끝 → 수정 요청하기</button>
-        </div>
-      </div>
 
-      <!-- Stage: chat -->
-      <div class="ai-stage hidden" id="ai-chat">
-        <div class="quick-wrap">
-          <div class="quick-label">빠른 명령</div>
+        <div class="tab-body" data-tab-body="lines" data-when="analysis">
+          <div class="review-filters" id="review-filters"></div>
+          <div class="review-segs-list" id="review-segs-list"></div>
+        </div>
+
+        <div class="tab-body tab-body-chat hidden" data-tab-body="chat" data-when="analysis">
           <div class="quick-btns">
-            <button class="btn-quick" data-cmd="말더듬, 침묵, 불필요한 반복 구간을 모두 컷해줘">군더더기 컷</button>
-            <button class="btn-quick" data-cmd="같은 말을 다시 한 NG 장면은 마지막 것만 남겨줘">NG 정리</button>
-            <button class="btn-quick" data-cmd="자르지 않고 전체 구간을 모두 살려줘">전체 살리기</button>
-            <button class="btn-quick" data-review="1">문장 목록 보기</button>
+            <button class="btn-quick" data-cmd="말더듬, 침묵, 불필요한 반복 구간을 모두 컷해줘">군더더기 빼기</button>
+            <button class="btn-quick" data-cmd="같은 말을 다시 한 NG 장면은 마지막 것만 남겨줘">NG는 마지막 것만</button>
+            <button class="btn-quick" data-cmd="자르지 않고 전체 구간을 모두 살려줘">전부 살리기</button>
+          </div>
+          <div class="chat-messages" id="chat-messages">
+            <div class="msg msg-hint">원하는 수정을 말로 적어 보세요.<br>예: "3번째 문장 살려줘", "카페에서 한 말 중 지루한 건 빼줘"</div>
+          </div>
+          <form class="chat-form" id="chat-form">
+            <textarea class="chat-input" id="chat-input" rows="2" placeholder="AI에게 수정 요청 (Enter로 보내기)"></textarea>
+            <button type="submit" class="btn-primary">보내기</button>
+          </form>
+        </div>
+
+        <div class="tab-body hidden" data-tab-body="style" data-when="analysis">
+          <div class="seg-switch seg-switch-block" id="style-target"></div>
+          <div id="sub-style-pane">
+            <div class="ss-preview-box">
+              <div class="ss-preview-stage" id="ss-preview-stage"></div>
+            </div>
+
+            <div class="field-label">빠른 모양</div>
+            <div class="ss-preset-row">
+              <button class="ss-preset-btn" data-preset="매운맛"><b>매운맛</b><small>노란 글자 · 박스</small></button>
+              <button class="ss-preset-btn" data-preset="순한맛"><b>순한맛</b><small>얇고 깔끔하게</small></button>
+              <button class="ss-preset-btn" data-preset="정석맛"><b>정석맛</b><small>흰 글자 · 외곽선</small></button>
+            </div>
+
+            <details class="ss-detail">
+              <summary>자세히 바꾸기</summary>
+              <div class="ss-row">
+                <span class="ss-row-label">글꼴</span>
+                <div class="ss-row-ctrl">
+                  <select class="ss-select" id="ss-font">
+                    <option value="Malgun Gothic">맑은 고딕</option>
+                    <option value="NanumGothic">나눔고딕</option>
+                    <option value="NanumMyeongjo">나눔명조</option>
+                    <option value="Noto Sans KR">본고딕</option>
+                    <option value="Arial">Arial</option>
+                  </select>
+                </div>
+              </div>
+              <div class="ss-row">
+                <span class="ss-row-label" title="결과 영상의 짧은 변이 1080px일 때 기준">크기</span>
+                <div class="ss-row-ctrl">
+                  <input type="range" class="ss-slider" id="ss-size" min="24" max="140" step="1" value="54">
+                  <span class="ss-slider-val" id="ss-size-val">54</span>
+                </div>
+              </div>
+              <div class="ss-row">
+                <span class="ss-row-label">굵기</span>
+                <div class="ss-row-ctrl">
+                  <select class="ss-select" id="ss-weight">
+                    <option value="normal">보통</option>
+                    <option value="bold">굵게</option>
+                    <option value="extra-bold">아주 굵게</option>
+                  </select>
+                </div>
+              </div>
+              <div class="ss-row">
+                <span class="ss-row-label">기울임</span>
+                <div class="ss-row-ctrl"><button class="ss-toggle off" id="ss-italic"></button></div>
+              </div>
+              <div class="ss-row">
+                <span class="ss-row-label">글자 색</span>
+                <div class="ss-row-ctrl"><input type="color" class="ss-color" id="ss-color" value="#ffffff"></div>
+              </div>
+              <div class="ss-row">
+                <span class="ss-row-label">외곽선</span>
+                <div class="ss-row-ctrl"><button class="ss-toggle on" id="ss-outline"></button></div>
+              </div>
+              <div class="ss-row" id="ss-outline-color-row">
+                <span class="ss-row-label ss-row-label-sub">외곽선 색</span>
+                <div class="ss-row-ctrl"><input type="color" class="ss-color" id="ss-outline-color" value="#000000"></div>
+              </div>
+              <div class="ss-row" id="ss-outline-row">
+                <span class="ss-row-label ss-row-label-sub">외곽선 두께</span>
+                <div class="ss-row-ctrl">
+                  <input type="range" class="ss-slider" id="ss-outline-w" min="0" max="10" step="0.5" value="3">
+                  <span class="ss-slider-val" id="ss-outline-w-val">3</span>
+                </div>
+              </div>
+              <div class="ss-row">
+                <span class="ss-row-label">그림자</span>
+                <div class="ss-row-ctrl"><button class="ss-toggle off" id="ss-shadow"></button></div>
+              </div>
+              <div class="ss-row" id="ss-shadow-dist-row">
+                <span class="ss-row-label ss-row-label-sub">그림자 거리</span>
+                <div class="ss-row-ctrl">
+                  <input type="range" class="ss-slider" id="ss-shadow-dist" min="0" max="20" step="1" value="4">
+                  <span class="ss-slider-val" id="ss-shadow-dist-val">4</span>
+                </div>
+              </div>
+              <div class="ss-row">
+                <span class="ss-row-label">배경 상자</span>
+                <div class="ss-row-ctrl"><button class="ss-toggle off" id="ss-bg-box"></button></div>
+              </div>
+              <div class="ss-row" id="ss-bg-color-row">
+                <span class="ss-row-label ss-row-label-sub">상자 색</span>
+                <div class="ss-row-ctrl"><input type="color" class="ss-color" id="ss-bg-color" value="#000000"></div>
+              </div>
+              <div class="ss-row" id="ss-bg-opacity-row">
+                <span class="ss-row-label ss-row-label-sub">상자 진하기</span>
+                <div class="ss-row-ctrl">
+                  <input type="range" class="ss-slider" id="ss-bg-opacity" min="0" max="100" step="5" value="60">
+                  <span class="ss-slider-val" id="ss-bg-opacity-val">60%</span>
+                </div>
+              </div>
+              <div class="ss-row">
+                <span class="ss-row-label">위치</span>
+                <div class="ss-row-ctrl">
+                  <select class="ss-select" id="ss-position">
+                    <option value="top">위</option>
+                    <option value="center">가운데</option>
+                    <option value="bottom" selected>아래</option>
+                  </select>
+                </div>
+              </div>
+              <div class="ss-row">
+                <span class="ss-row-label">위·아래 여백</span>
+                <div class="ss-row-ctrl">
+                  <input type="range" class="ss-slider" id="ss-bottom-margin" min="0" max="300" step="5" value="60">
+                  <span class="ss-slider-val" id="ss-bottom-margin-val">60</span>
+                </div>
+              </div>
+              <div class="ss-row">
+                <span class="ss-row-label">한 줄 최대 글자</span>
+                <div class="ss-row-ctrl">
+                  <input type="range" class="ss-slider" id="ss-max-chars" min="5" max="40" step="1" value="20">
+                  <span class="ss-slider-val" id="ss-max-chars-val">20</span>
+                </div>
+              </div>
+              <div class="ss-row">
+                <span class="ss-row-label">말하는 단어 색 바꾸기 (카라오케)</span>
+                <div class="ss-row-ctrl"><button class="ss-toggle off" id="ss-karaoke"></button></div>
+              </div>
+              <div class="ss-row">
+                <span class="ss-row-label">천천히 나타나고 사라지기</span>
+                <div class="ss-row-ctrl"><button class="ss-toggle off" id="ss-fade"></button></div>
+              </div>
+            </details>
+            <div class="ss-actions">
+              <button class="btn-secondary" id="btn-ss-reset" type="button">처음 모양으로</button>
+              <button class="btn-secondary" id="btn-ss-save-default" type="button" title="새 프로젝트를 만들 때 이 자막 모양으로 시작">내 기본 모양으로 저장</button>
+            </div>
           </div>
         </div>
-        <div class="chat-messages" id="chat-messages">
-          <div class="msg msg-hint">편집 결과를 확인하고<br>추가 수정을 요청하세요.</div>
+
+        <div class="pane-footer">
+          <button class="btn-next" data-go="5">다음: 내보내기 →</button>
         </div>
-        <form class="chat-form" id="chat-form">
-          <textarea class="chat-input" id="chat-input" rows="2" placeholder="AI에게 추가 수정 지시… (Enter=전송)"></textarea>
-          <button type="submit" class="btn-send">보내기</button>
-        </form>
-      </div>
+      </section>
+
+      <!-- ⑤ 내보내기 -->
+      <section class="step-pane" data-step="5">
+        <div class="pane-scroll">
+          <h2 class="pane-title"><span class="pane-num">5</span>내보내기</h2>
+          <p class="pane-lead" id="export-summary"></p>
+
+          <div class="card">
+            <div class="card-title">만들기 전 확인</div>
+            <div id="export-issues"></div>
+          </div>
+
+          <div class="card">
+            <div class="card-title">영상 설정</div>
+            <div class="export-settings">
+              <label class="field-inline">화질
+                <select id="exp-resolution"><option value="720">720p</option><option value="1080">1080p</option></select>
+              </label>
+              <label class="field-inline">초당 프레임
+                <select id="exp-fps"><option value="24">24</option><option value="30">30</option><option value="60">60</option></select>
+              </label>
+              <label class="field-inline" title="남긴 문장 사이의 긴 쉼을 짧게 줄입니다">말 사이 쉼 줄이기
+                <select id="exp-tempo">
+                  <option value="1.5">조금 (1.5초 넘는 쉼만)</option>
+                  <option value="0.8">보통 (0.8초 넘는 쉼)</option>
+                  <option value="0.4">많이 (0.4초 넘는 쉼)</option>
+                  <option value="">줄이지 않음</option>
+                </select>
+              </label>
+              <div class="switch-row">소리 크기 고르게 <button class="ss-toggle" id="exp-loudness"></button></div>
+              <div class="switch-row">강조 문장에서 살짝 확대 <button class="ss-toggle" id="exp-punch"></button></div>
+              <div class="switch-row">자막 넣기 <button class="ss-toggle" id="exp-subtitles"></button></div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-title">영상 만들기</div>
+            <div class="render-actions">
+              <button class="btn-primary btn-block btn-lg" id="btn-render">최종 영상 만들기</button>
+              <button class="btn-secondary btn-block" id="btn-render-preview" title="540p로 빠르게 만들어 확인">빠른 확인용 (540p)</button>
+            </div>
+            <div class="render-progress" id="render-progress" style="display:none">
+              <span id="render-stage">만드는 중</span>
+              <div class="progress-bar-track"><div class="progress-bar-fill" id="render-bar"></div></div>
+              <button class="btn-ghost" id="btn-render-cancel">멈추기</button>
+            </div>
+            <div class="modal-status" id="modal-status"></div>
+            <div class="render-list" id="render-list"></div>
+          </div>
+
+          <button class="btn-report" id="btn-report">
+            <b>결과 리포트 보기</b>
+            <small>얼마나 줄었는지, AI 판단을 얼마나 그대로 썼는지, 컷이 얼마나 정확한지</small>
+          </button>
+        </div>
+      </section>
     </aside>
-
-  </div><!-- end .main-area -->
-</div><!-- end .app -->
-
-<div class="tl-zoom-hint" id="zoom-hint"></div>
-<div class="toast-area" id="toast-area"></div>
-
-<!-- 내 프로필 (브라우저 localStorage) -->
-<div class="modal hidden" id="profile-modal">
-  <div class="modal-backdrop" id="profile-modal-backdrop"></div>
-  <div class="modal-panel modal-panel-sm">
-    <div class="modal-header">
-      <div>
-        <div class="modal-title">내 프로필</div>
-        <div class="modal-sub">분석·AI 가편집에 반영됩니다 (이 브라우저에 저장)</div>
-      </div>
-      <button class="modal-close" id="profile-modal-close">×</button>
-    </div>
-    <div class="profile-form">
-      <label class="setup-field">
-        <span>컷 템포 (남기는 문장 사이 쉼)</span>
-        <select id="profile-cut-tempo">
-          <option value="">(선택 없음)</option>
-          <option>느림 (평균 10초 이상)</option>
-          <option>보통 (평균 6~9초)</option>
-          <option>빠름 (평균 3~5초)</option>
-        </select>
-      </label>
-      <label class="setup-field">
-        <span>군말 제거 강도</span>
-        <select id="profile-filler-removal">
-          <option value="">(선택 없음)</option>
-          <option>약 (크게 거슬리는 것만)</option>
-          <option>중</option>
-          <option>강 (음, 어, 그니까 전부 제거)</option>
-        </select>
-      </label>
-      <label class="setup-field">
-        <span>자주 쓰는 단어 (쉼표로 구분 — 받아쓰기 힌트·강조 후보)</span>
-        <input type="text" id="profile-frequent-words" placeholder="예: 꿀팁, 레전드, 결론부터">
-      </label>
-    </div>
-    <div class="modal-footer">
-      <div class="modal-status" id="profile-save-status"></div>
-      <button class="btn-secondary" id="btn-profile-cancel">닫기</button>
-      <button class="btn-primary" id="btn-profile-save">저장</button>
-    </div>
   </div>
 </div>
 
-<!-- 내보내기 -->
-<div class="modal hidden" id="export-modal">
-  <div class="modal-backdrop" id="modal-backdrop"></div>
+<div class="toast-area" id="toast-area"></div>
+
+<!-- 결과 리포트 -->
+<div class="modal hidden" id="report-modal">
+  <div class="modal-backdrop" data-close="report-modal"></div>
   <div class="modal-panel modal-panel-wide">
     <div class="modal-header">
-      <div><div class="modal-title">내보내기</div><div class="modal-sub" id="modal-sub"></div></div>
-      <button class="modal-close" id="modal-close">×</button>
+      <div><div class="modal-title">결과 리포트</div><div class="modal-sub" id="report-sub"></div></div>
+      <button class="modal-close" data-close="report-modal" aria-label="닫기">×</button>
     </div>
-    <div class="export-body">
-      <div>
-        <div class="export-section-label">렌더 전 검사</div>
-        <div id="export-issues"></div>
-      </div>
-      <div>
-        <div class="export-section-label">설정</div>
-        <div class="export-settings">
-          <label>해상도
-            <select id="exp-resolution"><option value="720">720p</option><option value="1080">1080p</option></select>
-          </label>
-          <label>프레임
-            <select id="exp-fps"><option value="24">24</option><option value="30">30</option><option value="60">60</option></select>
-          </label>
-          <label>컷 템포
-            <select id="exp-tempo">
-              <option value="1.5">느림 (1.5초 넘는 쉼만 줄임)</option>
-              <option value="0.8">보통 (0.8초)</option>
-              <option value="0.4">빠름 (0.4초)</option>
-              <option value="">쉼 그대로</option>
-            </select>
-          </label>
-          <label>음량 고르게 <button class="ss-toggle" id="exp-loudness"></button></label>
-          <label>강조 문장 줌인 <button class="ss-toggle" id="exp-punch"></button></label>
-          <label>자막 넣기 <button class="ss-toggle" id="exp-subtitles"></button></label>
-        </div>
-      </div>
-      <div>
-        <div class="export-section-label">렌더</div>
-        <div class="render-progress" id="render-progress" style="display:none">
-          <span id="render-stage">렌더링</span>
-          <div class="progress-bar-track"><div class="progress-bar-fill" id="render-bar"></div></div>
-          <button class="btn-cancel btn-cancel-inline" id="btn-render-cancel">취소</button>
-        </div>
-        <div class="render-list" id="render-list"></div>
-      </div>
-      <div>
-        <div class="export-section-label">평가 지표</div>
-        <table class="metrics-table" id="metrics-table"></table>
-      </div>
-      <details>
-        <summary class="export-section-label">편집 계획 JSON</summary>
+    <div class="report-body">
+      <div class="report-grid" id="report-grid"></div>
+      <details class="dev-info">
+        <summary>개발자 정보 (편집 결과 원본 데이터)</summary>
+        <div class="dev-info-actions"><button class="btn-secondary" id="btn-copy-json">JSON 복사</button></div>
         <pre class="plan-json" id="plan-json"></pre>
       </details>
-    </div>
-    <div class="modal-footer">
-      <div class="modal-status" id="modal-status"></div>
-      <button class="btn-secondary" id="btn-copy-json">JSON 복사</button>
-      <button class="btn-secondary" id="btn-render-preview">미리보기 렌더 (540p)</button>
-      <button class="btn-primary" id="btn-render">최종 렌더</button>
     </div>
   </div>
 </div>

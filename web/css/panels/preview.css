@@ -1,54 +1,41 @@
-/* 미리보기: 출력 비율 상자·자막 오버레이 (자막 모양은 js/subtitle/draw.js가 정한다) */
+/* 가운데 미리보기: 원본/편집 결과 전환·출력 비율 상자·자막 오버레이 (자막 모양은 js/subtitle/draw.js가 정한다) */
 
-/* ③ Preview */
-.preview-col{flex:1 1 auto;display:flex;flex-direction:column;background:var(--bg);
-  padding:12px;min-width:0}
+.preview-col{flex:1 1 auto;display:flex;flex-direction:column;background:var(--bg);padding:12px 16px;min-width:0;gap:10px}
+.preview-head{flex:0 0 auto;display:flex;align-items:center;gap:12px}
+/* 안내 글: 좁으면 두 줄까지 (버튼 높이 안이라 영상 크기는 그대로) */
+.preview-hint{flex:1 1 auto;min-width:0;font-size:13px;line-height:1.3;color:var(--muted);overflow:hidden;
+  display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;word-break:keep-all}
+/* 버튼은 줄어들거나 두 줄로 꺾이지 않게 (옆 안내 글 길이가 모드마다 달라도 크기가 그대로) */
+.preview-mode{flex:0 0 auto}
+.preview-mode button{padding:7px 18px;font-size:14px;white-space:nowrap}
+.aspect-switch button{white-space:nowrap}
+.preview-mode button.active{background:var(--accent);color:#fff}
+.aspect-switch{flex:0 0 auto;padding:2px}
+.aspect-switch button{display:flex;align-items:center;gap:6px;padding:5px 10px;font-size:12px}
+.ar{display:inline-block;border:2px solid currentColor;border-radius:2px}
+.ar-wide{width:18px;height:11px}
+.ar-tall{width:10px;height:16px}
 .preview-area{flex:1 1 auto;min-height:0;display:flex;align-items:center;justify-content:center}
-.preview-box{width:100%;max-height:100%;aspect-ratio:16/9;background:#0a0d12;
-  border-radius:var(--radius);overflow:hidden;position:relative;
-  display:flex;align-items:center;justify-content:center}
-#video{width:100%;height:100%;object-fit:contain}
-.preview-empty{position:absolute;inset:0;display:flex;flex-direction:column;
-  align-items:center;justify-content:center;color:var(--muted);font-size:12px;
-  text-align:center;line-height:1.8;pointer-events:none}
-.preview-empty.hidden{display:none}
+.preview-box{max-width:100%;max-height:100%;flex:0 0 auto;background:#07090c;border-radius:var(--radius);overflow:hidden;
+  position:relative;display:flex;align-items:center;justify-content:center}   /* 크기는 preview.js가 출력 비율에 맞춰 정한다 */
+#video{width:100%;height:100%;object-fit:cover;transform-origin:50% 50%;transition:transform .12s}
+.preview-empty{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--muted);
+  font-size:15px;text-align:center;line-height:1.8;pointer-events:none}
 
-/* Subtitle overlay */
-.sub-overlay{position:absolute;bottom:10%;left:0;right:0;
-  text-align:center;pointer-events:none;z-index:5;padding:0 8%}
-.sub-overlay-text{display:inline-block;color:#fff;font-size:15px;font-weight:600;
-  background:rgba(0,0,0,.65);padding:4px 14px;border-radius:4px;
-  line-height:1.55;text-shadow:0 1px 3px rgba(0,0,0,.9);max-width:100%;
-  white-space:pre-wrap;word-break:break-word}
-.sub-overlay-cut .sub-overlay-text{color:rgba(255,130,130,.9);
-  text-decoration:line-through;background:rgba(60,0,0,.65)}
-.sub-overlay-badge{font-size:9px;font-weight:700;padding:1px 4px;
-  border-radius:3px;margin-left:6px;vertical-align:middle;
-  background:rgba(255,92,92,.8);color:#fff;text-decoration:none;display:inline-block}
-.preview-controls{flex:0 0 auto;display:flex;align-items:center;gap:10px;padding-top:10px}
-.btn-play{flex:0 0 32px;height:32px;background:var(--panel);border:1px solid var(--border);
-  border-radius:50%;display:grid;place-items:center;cursor:pointer;transition:background .15s}
-.btn-play:hover{background:var(--panel2)}
+.preview-controls{flex:0 0 auto;display:flex;align-items:center;gap:12px}
+.btn-play{flex:0 0 40px;height:40px;background:var(--panel2);border:1px solid var(--border);border-radius:50%;
+  display:grid;place-items:center;cursor:pointer;color:var(--text)}
+.btn-play:hover:not(:disabled){border-color:var(--muted)}
 .btn-play:disabled{opacity:.3;cursor:not-allowed}
-.preview-time{flex:0 0 auto;font-size:11px;color:var(--muted);white-space:nowrap}
-.preview-progress{flex:1 1 auto;height:4px;background:var(--border);border-radius:2px;cursor:pointer}
-.preview-progress-fill{height:100%;background:var(--accent);border-radius:2px;width:0}
-
-
-/* 미리보기: 출력 비율 그대로 (가운데를 잘라 채우는 렌더와 같은 화면) */
-.preview-box{max-width:100%;max-height:100%;flex:0 0 auto;aspect-ratio:auto}   /* 크기는 preview.js가 출력 비율에 맞춰 정한다 */
-#video{object-fit:cover;transform-origin:50% 50%;transition:transform .12s}
-.preview-mode{display:flex;gap:3px;flex:0 0 auto}
-.preview-mode button{padding:4px 10px;font-size:10px;font-weight:600;border:1px solid var(--border);background:none;
-  color:var(--muted);border-radius:5px;cursor:pointer}
-.preview-mode button.active{border-color:var(--accent);color:var(--accent);background:rgba(139,92,246,.1)}
-.preview-mode button:disabled{opacity:.35;cursor:not-allowed}
+.preview-time{flex:0 0 auto;font-size:13px;color:var(--muted);white-space:nowrap;font-variant-numeric:tabular-nums}
+.preview-progress{flex:1 1 auto;height:6px;background:var(--border);border-radius:3px;cursor:pointer}
+.preview-progress-fill{height:100%;background:var(--accent);border-radius:3px;width:0}
 
 /* 자막 오버레이 (렌더와 같은 규칙으로 그린다: web/js/subtitle/draw.js) */
-.sub-overlay{position:absolute;inset:0;padding:0;text-align:initial;pointer-events:none;z-index:5}
+.sub-overlay{position:absolute;inset:0;pointer-events:none;z-index:5}
 .sub-block{position:absolute;left:5%;right:5%;text-align:center}
 .sub-text{display:inline-block;white-space:pre;text-align:center}
 .sub-text .kw.spoken{color:var(--kw-hl,#ffe600)}
-.sub-cut-mark{display:inline-block;margin-left:6px;padding:1px 5px;border-radius:3px;font-size:10px;font-weight:700;
-  background:rgba(255,92,92,.85);color:#fff;vertical-align:middle}
+.sub-cut-mark{display:inline-block;margin-left:6px;padding:1px 6px;border-radius:4px;font-size:11px;font-weight:700;
+  background:rgba(255,100,100,.9);color:#fff;vertical-align:middle}
 .sub-block.is-cut .sub-text{opacity:.55;text-decoration:line-through}

@@ -1,39 +1,22 @@
-/* 편집 설정 화면 (신정빈 화면을 모듈로 옮기고 서버 편집 계획에 연결).
-   - 장면 트리(장소/일/상황/대사 탭)에서 체크 → 그 장면만 쓰는 '직접 고르기'(manual)로 바로 반영
-   - 📌 고정: AI 가편집이 반드시 넣는 장면
-   - AI 가편집: 목표 분량 + 요청 → 서버가 장면 점수(Gemini/규칙)로 고르고 분량은 코드가 맞춘다
-   - 요약: '고른 장면 길이'(트리 구간 합)와 '실제 결과 길이'(자른 문장·쉼을 뺀 편집 계획 길이)를 함께 보여 준다
-   - 분석 전에는 예시 트리를 보여 준다 (서버에 보내지 않음) */
+/* ③ 분량·장면 (신정빈 님의 편집 설정 화면을 단계 패널로 옮김).
+   - AI 가편집: 목표 길이 + 바라는 점 → 서버가 장면 점수(Gemini/규칙)로 고르고 길이는 코드가 맞춘다 (목표 ±5%)
+   - 장면 직접 고르기: 4단 트리(장소/일/상황/대사 탭)에서 체크 → 그 장면만 쓰는 '직접 고르기'(manual)로 바로 반영
+     📌 고정: AI 가편집이 반드시 넣는 장면 · 장면 이름을 누르면 미리보기
+   - 길이 비교: '고른 장면 길이'(트리 구간 합) · '실제 결과 길이'(뺀 문장·쉼을 뺀 길이) · 목표
+   - 제목·장소 이름 자막 (영상 비율은 어느 단계에서나 보이게 미리보기 재생 줄에 있다: preview.js) */
 
 import { api } from "../core/api.js";
 import { $, el, setToggle, toast } from "../core/dom.js";
-import { debounce } from "../core/format.js";
-import { analysisReady, globalToClip, mutatePlan, on, pid, state } from "../core/store.js";
-import { setAiStage } from "./analysis.js";
-import { showSource } from "./preview.js";
+import { debounce, fmt } from "../core/format.js";
+import { analysisReady, globalToClip, mutatePlan, on, pid, sourceDuration, state } from "../core/store.js";
+import { showPlan, showSource } from "./preview.js";
 import { loadProfile } from "./profile.js";
-import { attachPane, detachPane, STYLE_ITEMS } from "./style-panel.js";
+import { goStep } from "./steps.js";
 
 const DEPTH_LABELS = ["장소", "일", "상황", "대사"];
-const tolerance = () => state.config?.target_tolerance ?? 0.05;   // AI 가편집 목표 분량 허용 오차 (서버 설정)
+const tolerance = () => state.config?.target_tolerance ?? 0.05;   // AI 가편집 목표 길이 허용 오차 (서버 설정)
 
-/* 분석 전 화면 확인용 예시 트리 (서버에 보내지 않는다) */
-const EXAMPLE_TREE = [
-  { id: "intro", title: "오프닝", start: 0, end: 30, children: [
-    { id: "intro-hook", title: "훅 멘트", start: 0, end: 10, children: [] },
-    { id: "intro-topic", title: "오늘 주제", start: 10, end: 30, children: [] }] },
-  { id: "body", title: "본론: 영상편집 꿀팁 3가지", start: 30, end: 330, children: [
-    { id: "tip-1", title: "꿀팁 1 - 컷편집", start: 30, end: 120, children: [
-      { id: "tip-1-demo", title: "데모", start: 60, end: 100, children: [] }] },
-    { id: "tip-2", title: "꿀팁 2 - 자막", start: 120, end: 220, children: [] },
-    { id: "tip-3", title: "꿀팁 3 - 색보정", start: 220, end: 330, children: [] }] },
-  { id: "outro", title: "엔딩", start: 330, end: 390, children: [
-    { id: "outro-cta", title: "구독 유도", start: 330, end: 360, children: [] },
-    { id: "outro-next", title: "다음 영상 예고", start: 360, end: 390, children: [] }] },
-];
-
-const setup = { open: false, example: true, tree: [], checked: new Set(), locked: new Set(), reasons: {}, depth: 0,
-                prevStage: "idle", expandedStyle: null, pending: false };
+const setup = { tree: [], checked: new Set(), locked: new Set(), reasons: {}, depth: 0, pending: false, targetFor: null };
 
 /* ---------------------------------------------------------------- 트리 도구 */
 
@@ -88,27 +71,33 @@ function expandDown(nodes, ids) {
 /* ---------------------------------------------------------------- 상태 */
 
 function loadState() {
-  const real = analysisReady() && state.analysis.tree.length;
-  setup.example = !real;
-  setup.tree = real ? state.analysis.tree : EXAMPLE_TREE;
+  setup.tree = analysisReady() ? state.analysis.tree || [] : [];
   const sel = state.plan?.selection;
-  if (!real) {
-    setup.checked = new Set();
-    setup.locked = new Set();
-    setup.reasons = {};
-    return;
-  }
   setup.checked = sel?.mode === "all" ? new Set(allIds(setup.tree)) : expandDown(setup.tree, sel?.node_ids || []);
   setup.locked = new Set(sel?.locked_ids || []);
   setup.reasons = sel?.reasons || {};
 }
 
-function totalSeconds() {
-  return setup.tree.reduce((a, n) => a + nodeDuration(n), 0);
-}
-
 function targetMinutes() {
   return Number($("setup-target-minutes").value) || 0;
+}
+
+/* 목표 길이 입력: 프로젝트를 처음 볼 때 한 번만 채운다 (저장된 목표 → 원본의 절반) */
+function initTarget() {
+  const key = `${pid()}|${state.analysis?.created_at}`;
+  const sourceMin = sourceDuration() / 60;
+  $("setup-target-range").max = String(Math.max(1, Math.ceil(sourceMin)));
+  if (setup.targetFor === key) return;
+  setup.targetFor = key;
+  const sel = state.plan?.selection;
+  const minutes = sel?.target_sec ? sel.target_sec / 60 : Math.max(0.5, Math.round(sourceMin / 2 * 2) / 2);
+  setTarget(Math.round(minutes * 10) / 10);
+  $("setup-user-prompt").value = sel?.user_prompt || "";
+}
+
+function setTarget(minutes) {
+  $("setup-target-minutes").value = String(minutes);
+  $("setup-target-range").value = String(minutes);
 }
 
 function setStatus(text, kind = "info") {
@@ -117,20 +106,19 @@ function setStatus(text, kind = "info") {
   node.className = `setup-status is-${text ? kind : "empty"}`;
 }
 
-function updateSummary() {
-  const selected = selectedDuration(setup.tree);
+function renderMeter() {
+  const box = $("duration-meter");
+  box.innerHTML = "";
+  if (!state.plan) return;
   const target = targetMinutes() * 60;
-  const selEl = $("setup-selected-duration");
-  const planEl = $("setup-plan-duration");
-  selEl.textContent = `${selected.toFixed(1)}초`;
-  const actual = setup.example ? selected : (state.plan?.duration || 0);
-  planEl.textContent = setup.example ? "(예시 트리)" : `${actual.toFixed(1)}초`;
-  $("setup-target-display").textContent = `${targetMinutes()}분 (${target.toFixed(1)}초)`;
-  planEl.className = "";
-  if (target > 0 && !setup.example) {
-    const r = actual / target;
-    planEl.className = Math.abs(r - 1) <= tolerance() ? "duration-ok" : "duration-off";
-  }
+  const actual = state.plan.duration || 0;
+  const ok = target > 0 && Math.abs(actual / target - 1) <= tolerance();
+  box.append(
+    el("div", { class: "dm-row" }, el("span", {}, "원본 전체"), el("b", {}, fmt(sourceDuration()))),
+    el("div", { class: "dm-row" }, el("span", {}, "고른 장면"), el("b", {}, fmt(selectedDuration(setup.tree)))),
+    el("div", { class: "dm-row", title: "고른 장면에서 뺀 문장과 긴 쉼을 덜어 낸 실제 결과 길이" },
+       el("span", {}, "실제 결과 길이"), el("b", { class: target > 0 ? (ok ? "ok" : "off") : "" },
+         `${fmt(actual)}${target > 0 ? ` (목표 ${fmt(target)}${ok ? " ✓" : ""})` : ""}`)));
 }
 
 /* ---------------------------------------------------------------- 그리기 */
@@ -140,8 +128,7 @@ function renderTabs() {
   tabs.innerHTML = "";
   DEPTH_LABELS.forEach((label, depth) => {
     tabs.appendChild(el("button", { type: "button", class: `scene-tab${depth === setup.depth ? " active" : ""}`,
-                                    onclick: () => { setup.depth = depth; renderTabs(); renderList(); } },
-                        `${depth + 1}. ${label}`));
+                                    onclick: () => { setup.depth = depth; renderTabs(); renderList(); } }, label));
   });
 }
 
@@ -152,7 +139,7 @@ function nodesAtDepth(depth) {
 }
 
 function row(node) {
-  const check = el("input", { type: "checkbox", class: "scene-row-check" });
+  const check = el("input", { type: "checkbox", class: "scene-row-check", title: "체크: 이 장면을 결과에 넣기" });
   const s = checkState(node);
   check.checked = s === "checked";
   check.indeterminate = s === "indeterminate";
@@ -171,11 +158,10 @@ function row(node) {
     changed();
   });
   const items = [check, pin, el("span", { class: "scene-row-title", title: node.summary || node.title }, node.title || "(제목 없음)"),
-                 el("span", { class: "scene-row-dur" }, `${nodeDuration(node).toFixed(1)}초`)];
+                 el("span", { class: "scene-row-dur" }, fmt(nodeDuration(node)))];
   if (setup.reasons[node.id]) items.push(el("div", { class: "scene-row-reason" }, `💡 ${setup.reasons[node.id]}`));
-  const div = el("div", { class: `scene-row${setup.locked.has(node.id) ? " is-locked" : ""}` }, ...items);
+  const div = el("div", { class: `scene-row${setup.locked.has(node.id) ? " is-locked" : ""}`, title: "눌러서 이 장면 보기" }, ...items);
   div.addEventListener("click", () => {
-    if (setup.example) return;
     const pos = globalToClip(node.start);
     if (pos) showSource(pos.clipId, pos.time);
   });
@@ -187,36 +173,10 @@ function renderList() {
   list.innerHTML = "";
   const nodes = nodesAtDepth(setup.depth);
   if (!nodes.length) {
-    list.appendChild(el("div", { class: "scene-list-empty" }, "이 단계의 장면이 없습니다"));
+    list.appendChild(el("div", { class: "scene-list-empty" }, "이 단계의 장면이 없어요"));
     return;
   }
   for (const n of nodes) list.appendChild(row(n));
-}
-
-function renderStyleList() {
-  const list = $("style-list");
-  detachPane();
-  list.innerHTML = "";
-  STYLE_ITEMS.forEach((item, i) => {
-    const open = setup.expandedStyle === item.key;
-    const head = el("div", { class: "style-item-head" },
-      el("span", { class: "style-item-caret" }, open ? "▼" : "▶"),
-      el("span", { class: "style-item-num" }, `${i + 1}.`),
-      el("span", { class: "style-item-name" }, item.name));
-    head.addEventListener("click", () => {
-      setup.expandedStyle = open ? null : item.key;
-      renderStyleList();
-    });
-    const node = el("div", { class: `style-item${open ? " open" : ""}` }, head);
-    if (open) {
-      const body = el("div", { class: "style-item-body" });
-      node.appendChild(body);
-      list.appendChild(node);
-      attachPane(body, item.key);
-    } else {
-      list.appendChild(node);
-    }
-  });
 }
 
 function renderExtras() {
@@ -227,9 +187,13 @@ function renderExtras() {
 }
 
 function renderAll() {
+  if (state.ui.step !== 3) return;
+  if (!analysisReady()) { renderExtras(); return; }
+  initTarget();
+  if (!setup.pending) loadState();
   renderTabs();
   renderList();
-  updateSummary();
+  renderMeter();
   renderExtras();
 }
 
@@ -237,33 +201,32 @@ function renderAll() {
 
 const applyManual = debounce(async () => {
   setup.pending = false;
-  if (setup.example) { setStatus("예시 트리입니다. 영상을 AI 분석하면 실제 장면으로 바뀝니다.", "info"); return; }
   try {
     await mutatePlan(() => api.select(pid(), {
       mode: "manual", node_ids: topMostChecked(setup.tree), locked_ids: [...setup.locked],
       target_sec: targetMinutes() * 60 || null, user_prompt: $("setup-user-prompt").value,
     }));
-    setStatus(`직접 고른 장면으로 편집 계획을 바꿨습니다 (결과 ${state.plan.duration.toFixed(1)}초).`, "ok");
+    setStatus(`고른 장면으로 바꿨어요 (결과 ${fmt(state.plan.duration)}).`, "ok");
   } catch (err) {
-    setStatus(`반영 실패: ${err.message}`, "error");
+    setStatus(`반영하지 못했어요: ${err.message}`, "error");
   }
 }, 500);
 
 function changed() {
   setup.pending = true;
   renderList();
-  updateSummary();
+  renderMeter();
   applyManual();
 }
 
 async function runAiAutoEdit() {
-  if (setup.example) { setStatus("먼저 영상을 AI 분석하세요. 지금은 예시 트리입니다.", "error"); return; }
+  if (!analysisReady()) { goStep(2); return; }
   const target = targetMinutes() * 60;
-  if (target <= 0) { setStatus("목표 분량을 입력하세요.", "error"); return; }
+  if (target <= 0) { setStatus("목표 길이를 넣어 주세요.", "error"); return; }
   const btn = $("btn-start-edit");
   btn.disabled = true;
-  btn.textContent = "AI가 장면을 고르는 중...";
-  setStatus("장면 점수를 매기고 목표 분량에 맞추는 중...", "info");
+  btn.textContent = "AI가 장면을 고르는 중…";
+  setStatus("장면마다 점수를 매기고 목표 길이에 맞추는 중이에요…", "info");
   try {
     const view = await mutatePlan(() => api.select(pid(), {
       mode: "auto", target_sec: target, user_prompt: $("setup-user-prompt").value.trim(),
@@ -271,20 +234,24 @@ async function runAiAutoEdit() {
     }));
     loadState();
     renderAll();
-    const ratio = view.plan.duration / target;
-    const lines = [`${view.engine === "ai" ? "Gemini" : "규칙(오프라인)"} 점수로 ${view.plan.selection.node_ids.length}개 장면을 골랐습니다.`,
-                   `결과 ${view.plan.duration.toFixed(1)}초 / 목표 ${target.toFixed(0)}초 (${(ratio * 100).toFixed(0)}%)`,
+    const diff = view.plan.duration / target - 1;
+    const ok = Math.abs(diff) <= tolerance();
+    const lines = [`${view.engine === "ai" ? "Gemini" : "규칙(오프라인)"} 점수로 장면 ${view.plan.selection.node_ids.length}개를 골랐어요.`,
+                   `결과 ${fmt(view.plan.duration)} / 목표 ${fmt(target)} (차이 ${diff >= 0 ? "+" : ""}${(diff * 100).toFixed(1)}%)`,
                    ...(view.warnings || []).map(w => `! ${w}`)];
-    setStatus(lines.join("\n"), Math.abs(ratio - 1) <= tolerance() ? "ok" : "info");
+    setStatus(lines.join("\n"), ok ? "ok" : "info");
+    toast(`AI 가편집 완료: ${fmt(view.plan.duration)} (목표 ${fmt(target)})`, "ok");
+    goStep(4);
+    showPlan(0, false);
   } catch (err) {
-    setStatus(`AI 가편집 실패: ${err.message}`, "error");
+    setStatus(`AI 가편집에 실패했어요: ${err.message}`, "error");
   } finally {
     btn.disabled = false;
-    btn.textContent = "AI 가편집하기";
+    btn.textContent = "AI로 목표 길이 맞추기";
   }
 }
 
-/* 0.5초 안에 여러 옵션을 바꾸면 모아서 한 번에 보낸다 (디바운스는 마지막 인자만 넘겨 앞의 변경이 사라졌다) */
+/* 0.5초 안에 여러 옵션을 바꾸면 모아서 한 번에 보낸다 */
 let pendingOptions = {};
 const flushOptions = debounce(async () => {
   const changes = pendingOptions;
@@ -297,53 +264,16 @@ const flushOptions = debounce(async () => {
 }, 500);
 const saveOptions = changes => { Object.assign(pendingOptions, changes); flushOptions(); };
 
-/* ---------------------------------------------------------------- 열기·닫기 */
-
-function openEditSetup() {
-  if (setup.open) return;
-  setup.open = true;
-  setup.prevStage = state.ui.aiStage === "setup" ? "idle" : state.ui.aiStage;
-  document.querySelectorAll(".icon-btn").forEach(b => b.classList.remove("icon-active"));
-  $("btn-editsetup-icon").classList.add("icon-active");
-  document.body.classList.add("setup-active");
-  loadState();
-  const sel = state.plan?.selection;
-  const minutes = sel?.target_sec ? sel.target_sec / 60 : setup.example ? 3 : Math.max(0.1, totalSeconds() / 2 / 60);
-  $("setup-target-minutes").value = String(Math.round(minutes * 10) / 10);
-  $("setup-user-prompt").value = sel?.user_prompt || "";
-  setup.depth = 0;
-  setStatus(setup.example ? "아직 분석한 영상이 없어 예시 트리를 보여 줍니다. 영상을 AI 분석하면 실제 장면 트리로 바뀝니다."
-    : `${sel?.mode === "all" ? "지금은 전체 장면을 씁니다." : sel?.mode === "auto" ? "AI 가편집 결과입니다." : "직접 고른 장면입니다."}`
-      + " 체크를 바꾸면 바로 반영됩니다.", "info");
-  setup.expandedStyle = null;
-  renderAll();
-  renderStyleList();
-  setAiStage("setup");
-}
-
-export function closeEditSetup() {
-  if (!setup.open) return;
-  setup.open = false;
-  document.body.classList.remove("setup-active");
-  document.querySelectorAll(".icon-btn").forEach(b => b.classList.remove("icon-active"));
-  document.querySelector('.icon-btn[data-panel="media"]').classList.add("icon-active");
-  setup.expandedStyle = null;
-  detachPane();
-  setAiStage(setup.prevStage || "idle");
-}
-
 export function initSetup() {
-  $("btn-editsetup-icon").addEventListener("click", () => (setup.open ? closeEditSetup() : openEditSetup()));
-  document.querySelector('.icon-btn[data-panel="media"]').addEventListener("click", closeEditSetup);
-  $("setup-target-minutes").addEventListener("input", updateSummary);
+  $("setup-target-minutes").addEventListener("input", e => { $("setup-target-range").value = e.target.value; renderMeter(); });
+  $("setup-target-range").addEventListener("input", e => { $("setup-target-minutes").value = e.target.value; renderMeter(); });
   $("btn-start-edit").addEventListener("click", runAiAutoEdit);
   $("btn-select-all").addEventListener("click", async () => {
-    if (setup.example) return;
     try {
       await mutatePlan(() => api.select(pid(), { mode: "all" }));
       loadState();
       renderAll();
-      setStatus("전체 장면을 씁니다.", "ok");
+      setStatus("전체 장면을 써요.", "ok");
     } catch (err) { setStatus(err.message, "error"); }
   });
   $("setup-title-text").addEventListener("input", e => saveOptions({ title_text: e.target.value }));
@@ -352,11 +282,7 @@ export function initSetup() {
     setToggle("setup-location-toggle", on);
     saveOptions({ location_captions: on });
   });
-  on("plan", () => {
-    if (!setup.open) return;
-    if (!setup.pending) { loadState(); renderList(); }
-    updateSummary();
-    renderExtras();
-  });
-  on("analysis", () => { if (setup.open) { loadState(); renderAll(); } });
+  on("plan", renderAll);
+  on("analysis", () => { setup.targetFor = null; renderAll(); });
+  on("step", renderAll);
 }
