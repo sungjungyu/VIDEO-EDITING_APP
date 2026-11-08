@@ -13,7 +13,7 @@
 | T4 화면 품질 → B롤 구간 | ✅ 구현 (numpy만, 60초 720p에 약 0.7초) | `analysis/quality.py` |
 | 결과 비율 자동 (찍은 방향대로) | ✅ 구현 (리프레이밍 대신) | `editing/planner.py` `auto_aspect`, `OutputSpec.aspect_source` |
 | T5 점프컷 확대 · 목소리 다듬기 | ✅ 구현 (⑤에서 켜고 끔) | `editing/planner.py` `_jump_cut_effects`, `render/renderer.py` |
-| T5 배경음악 (말할 때 미리 줄이기) | ✅ 구현 — 기본 곡은 아직 없음 (내 음악으로 시험 가능) | `domain/mix.py` = `web/js/core/mix.js`, `assets/music/` |
+| T5 배경음악 (말할 때 미리 줄이기) | ✅ 구현 — 기본 곡 6곡 (FreePD CC0) | `domain/mix.py` = `web/js/core/mix.js`, `assets/music/` |
 
 ## 1. 목표
 
@@ -189,7 +189,8 @@
 | Pixabay Music | 무료, 단 원본 그대로 단독 배포 금지 | ⚠️ 사용자가 직접 올리는 용도로만 |
 | YouTube 오디오 보관함 | 대부분 유튜브 안에서만 | ❌ |
 
-- FreePD에서 분위기별(잔잔·경쾌·감성) 4~6곡을 고르고 `assets/music/LICENSE.md`에 곡별 출처를 기록한다.
+- FreePD에서 분위기별(잔잔·경쾌·감성) 2곡씩 6곡을 넣었다 (`assets/music/`, 곡별 출처는 `LICENSE.md`).
+  FreePD는 2025년에 사이트를 닫아 공개 보관 사본에서 받았다 (CC0는 그대로).
 - 무료 음원도 남이 Content ID에 잘못 등록한 경우가 있으므로 고른 곡은 유튜브에 한 번 올려 확인한다.
 
 ---

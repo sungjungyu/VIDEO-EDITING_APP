@@ -1,1 +1,56 @@
-[]
+[
+ {
+  "id": "kalimba-relaxation",
+  "title": "칼림바 휴식",
+  "mood": "잔잔",
+  "file": "kalimba-relaxation.mp3",
+  "source": "FreePD \"Kalimba Relaxation Music\" (chill)",
+  "license": "CC0 1.0",
+  "url": "https://a.ocv.me/pub/stuff/music/freepd/chill/Kalimba%20Relaxation%20Music.mp3"
+ },
+ {
+  "id": "study-and-relax",
+  "title": "공부하며 쉬기",
+  "mood": "잔잔",
+  "file": "study-and-relax.mp3",
+  "source": "FreePD \"Study and Relax\" (chill)",
+  "license": "CC0 1.0",
+  "url": "https://a.ocv.me/pub/stuff/music/freepd/chill/Study%20and%20Relax.mp3"
+ },
+ {
+  "id": "happy-whistling-ukulele",
+  "title": "휘파람 우쿨렐레",
+  "mood": "경쾌",
+  "file": "happy-whistling-ukulele.mp3",
+  "source": "FreePD \"Happy Whistling Ukulele\" (upbeat)",
+  "license": "CC0 1.0",
+  "url": "https://a.ocv.me/pub/stuff/music/freepd/upbeat/Happy%20Whistling%20Ukulele.mp3"
+ },
+ {
+  "id": "city-sunshine",
+  "title": "도시의 햇살",
+  "mood": "경쾌",
+  "file": "city-sunshine.mp3",
+  "source": "FreePD \"City Sunshine\" (upbeat)",
+  "license": "CC0 1.0",
+  "url": "https://a.ocv.me/pub/stuff/music/freepd/upbeat/City%20Sunshine.mp3"
+ },
+ {
+  "id": "lovely-piano-song",
+  "title": "사랑스러운 피아노",
+  "mood": "감성",
+  "file": "lovely-piano-song.mp3",
+  "source": "FreePD \"Lovely Piano Song\" (romantic)",
+  "license": "CC0 1.0",
+  "url": "https://a.ocv.me/pub/stuff/music/freepd/romantic/Lovely%20Piano%20Song.mp3"
+ },
+ {
+  "id": "nostalgic-piano",
+  "title": "그리운 피아노",
+  "mood": "감성",
+  "file": "nostalgic-piano.mp3",
+  "source": "FreePD \"Nostalgic Piano\" (romantic)",
+  "license": "CC0 1.0",
+  "url": "https://a.ocv.me/pub/stuff/music/freepd/romantic/Nostalgic%20Piano.mp3"
+ }
+]

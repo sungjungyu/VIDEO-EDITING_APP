@@ -96,7 +96,7 @@ def compile_render(plan: EditPlan, clips: dict[str, ClipInfo], files: dict[str, 
             args += ["-ss", _seconds(seek)]
         args += ["-t", _seconds(length), "-i", str(files[clip_id])]
     if music_file is not None:
-        args += ["-stream_loop", "-1", "-i", str(music_file)]          # 영상보다 짧으면 반복
+        args += ["-stream_loop", "-1", "-i", str(Path(music_file).resolve())]   # 짧으면 반복 (작업 폴더에서 실행)
 
     graph: list[str] = []
     pairs: list[str] = []
