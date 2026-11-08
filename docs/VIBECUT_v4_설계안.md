@@ -12,7 +12,8 @@
 | T3 비트 + 동적계획법 | ✅ 구현 (4단 트리 제거, ADR 0004) | `analysis/beats.py`, `editing/select.py` |
 | T4 화면 품질 → B롤 구간 | ✅ 구현 (numpy만, 60초 720p에 약 0.7초) | `analysis/quality.py` |
 | 결과 비율 자동 (찍은 방향대로) | ✅ 구현 (리프레이밍 대신) | `editing/planner.py` `auto_aspect`, `OutputSpec.aspect_source` |
-| T5 오디오·연출 후처리 | ⬜ | |
+| T5 점프컷 확대 · 목소리 다듬기 | ✅ 구현 (⑤에서 켜고 끔) | `editing/planner.py` `_jump_cut_effects`, `render/renderer.py` |
+| T5 배경음악 | ⬜ 곡 선택 필요 | |
 
 ## 1. 목표
 

@@ -199,6 +199,23 @@ def _effects(keep: list[KeepRange], lines_by_clip: dict[str, list[Line]], decisi
     return chosen
 
 
+JUMP_GAP = 0.3     # 같은 클립에서 이만큼 넘게 잘라 냈으면 점프컷
+
+
+def _jump_cut_effects(keep: list[KeepRange], opts: PlanOptions) -> list[Effect]:
+    """같은 클립을 잘라 이은 곳(점프컷)마다 화면 크기를 1배 ↔ jump_scale배로 번갈아 바꾼다.
+    카메라를 바꿔 찍은 것처럼 보여 컷이 튀어 보이지 않는다. 다른 클립으로 넘어가면 1배부터 다시."""
+    if not opts.jump_zoom:
+        return []
+    out, zoomed = [], False
+    for prev, k in zip([None, *keep], keep):
+        jump = prev is not None and prev.clip_id == k.clip_id and k.start - prev.end > JUMP_GAP
+        zoomed = (not zoomed) if jump else False
+        if zoomed:
+            out.append(Effect(type="jump_cut", clip_id=k.clip_id, start=k.start, end=k.end, scale=opts.jump_scale))
+    return out
+
+
 # ---------------------------------------------------------------- 전체
 
 def clip_orientation(clip: ClipInfo) -> str | None:
@@ -269,7 +286,7 @@ def compile_plan(plan: EditPlan, clips: list[ClipInfo], analysis: Analysis | Non
 
     plan.keep = keep
     plan.duration = round(cursor, 3)
-    plan.effects = _effects(keep, lines_by_clip, decisions, opts)
+    plan.effects = _effects(keep, lines_by_clip, decisions, opts) + _jump_cut_effects(keep, opts)
     style = plan.styles.get("subtitle") or StyleSpec()
     events = build_subtitle_events(keep, lines_by_clip, decisions, style, cursor) if opts.subtitles else []
     events += build_overlay_events(keep, analysis.scenes if analysis else [], plan.styles, opts, cursor)

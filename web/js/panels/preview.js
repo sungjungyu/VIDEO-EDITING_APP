@@ -169,9 +169,10 @@ function drawOverlay() {
   }
   if (mode === "plan") {
     const k = keep()[planIndex];
-    const fx = (state.plan?.effects || []).find(e => k && e.clip_id === k.clip_id && v.currentTime >= e.start
-                                                     && v.currentTime < e.end);
-    v.style.transform = fx ? `scale(${fx.scale})` : "none";
+    const scale = Math.max(1, ...(state.plan?.effects || [])        // 렌더와 같이: 겹치면 가장 큰 배율
+      .filter(e => k && e.clip_id === k.clip_id && v.currentTime >= e.start && v.currentTime < e.end)
+      .map(e => e.scale));
+    v.style.transform = scale > 1 ? `scale(${scale})` : "none";
   }
 }
 

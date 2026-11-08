@@ -74,6 +74,8 @@
   ],
   "PlanOptions": [
    "fade_ms",
+   "jump_scale",
+   "jump_zoom",
    "location_captions",
    "loudness",
    "max_pause",
@@ -87,7 +89,8 @@
    "snap_to_silence",
    "subtitles",
    "swallow_pause",
-   "title_text"
+   "title_text",
+   "voice_clean"
   ],
   "PlanUpdate": [
    "lines",

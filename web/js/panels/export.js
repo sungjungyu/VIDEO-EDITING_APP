@@ -31,6 +31,8 @@ function renderSettings() {
   $("exp-tempo").value = plan.options.max_pause === null ? "" : String(plan.options.max_pause);
   setToggle("exp-loudness", plan.options.loudness);
   setToggle("exp-punch", plan.options.punch_in);
+  setToggle("exp-jump", plan.options.jump_zoom);
+  setToggle("exp-voice", plan.options.voice_clean);
   setToggle("exp-subtitles", plan.options.subtitles);
 }
 
@@ -177,7 +179,8 @@ export function initExport() {
   $("exp-fps").addEventListener("change", e => savePlan({ output: { ...state.plan.output, fps: Number(e.target.value) } }));
   $("exp-tempo").addEventListener("change", e => savePlan({ options: { ...state.plan.options,
                                                                      max_pause: e.target.value === "" ? null : Number(e.target.value) } }));
-  for (const [id, key] of [["exp-loudness", "loudness"], ["exp-punch", "punch_in"], ["exp-subtitles", "subtitles"]]) {
+  for (const [id, key] of [["exp-loudness", "loudness"], ["exp-punch", "punch_in"], ["exp-jump", "jump_zoom"],
+                           ["exp-voice", "voice_clean"], ["exp-subtitles", "subtitles"]]) {
     $(id).addEventListener("click", () => {
       const value = !state.plan.options[key];
       setToggle(id, value);

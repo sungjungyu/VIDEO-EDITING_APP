@@ -149,6 +149,9 @@ class PlanOptions(BaseModel):
     loudness: bool = True           # 클립마다 다른 음량을 고르게 (EBU R128, -16 LUFS)
     punch_in: bool = True           # 강조 문장에 살짝 줌인
     punch_scale: float = 1.08
+    jump_zoom: bool = True          # 같은 클립을 잘라 이은 곳(점프컷)마다 화면 크기를 번갈아 → 컷이 덜 튄다
+    jump_scale: float = 1.1
+    voice_clean: bool = True        # 목소리 다듬기: 낮은 웅웅거림 거르기(highpass) + 배경 잡음 줄이기(afftdn)
     subtitles: bool = True
     location_captions: bool = False  # 장소가 바뀔 때 '촬영지 자막'
     title_text: str = ""            # 처음 3초 '제목' 자막
@@ -163,7 +166,7 @@ class PlanOptions(BaseModel):
     def _fade(cls, v: int) -> int:
         return int(_clamp(v, 0, 500))
 
-    @field_validator("punch_scale")
+    @field_validator("punch_scale", "jump_scale")
     @classmethod
     def _punch(cls, v: float) -> float:
         """1보다 작으면 줌 사본이 출력 크기보다 작아져 crop이 실패한다."""
@@ -184,7 +187,9 @@ class KeepRange(BaseModel):
 
 
 class Effect(BaseModel):
-    type: Literal["punch_in"] = "punch_in"
+    """화면 확대 (클립 초 구간). punch_in: 강조 문장 · jump_cut: 점프컷을 가리려고 번갈아 확대한 구간.
+    렌더와 미리보기 모두 겹치는 효과 중 가장 큰 배율을 쓴다."""
+    type: Literal["punch_in", "jump_cut"] = "punch_in"
     clip_id: str
     start: float
     end: float

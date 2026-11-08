@@ -16,6 +16,7 @@ from vibecut.domain.models import (
     Selection,
     Word,
 )
+from vibecut.editing import planner as planner_mod
 from vibecut.editing.planner import compile_plan, count_word_cuts, plan_clip, validate_plan
 
 FPS = 30
@@ -128,7 +129,10 @@ def test_compile_plan_multi_clip_selection_events_and_effects():
     texts = [e.text.replace("\n", " ") for e in out.events]
     assert "음" not in texts                                                  # 자른 문장은 자막도 없다
     assert any("두 번째 클립" in t for t in texts)
-    assert len(out.effects) == 1 and out.effects[0].seg_id == "t0003"
+    punch = [fx for fx in out.effects if fx.type == "punch_in"]
+    assert len(punch) == 1 and punch[0].seg_id == "t0003"
+    jumps = [fx for fx in out.effects if fx.type == "jump_cut"]                # '음'을 잘라 이은 곳 뒤는 확대
+    assert len(jumps) == 1 and jumps[0].clip_id == "c01" and jumps[0].start > 3.8
     assert not [i for i in validate_plan(out, clips, analysis) if i["level"] == "error"]
 
 
@@ -191,3 +195,14 @@ def test_output_aspect_follows_clip_orientation_until_user_picks_one():
     assert out.output.aspect == "16:9" and any("위아래" in w for w in out.warnings)
     unknown = clip("c03", 5.0)                                                       # 크기를 모르면 그대로
     assert compile_plan(EditPlan(), [unknown], None).output.aspect == "16:9"
+
+
+
+def test_jump_cut_zoom_alternates_within_a_clip_and_resets_on_new_clip():
+    ranges = [("c01", 0, 2), ("c01", 3, 5), ("c01", 6, 8), ("c01", 8.1, 9), ("c02", 0, 2), ("c02", 4, 6)]
+    keep = [KeepRange(clip_id=c, start=s, end=e, out_start=0) for c, s, e in ranges]
+    fx = planner_mod._jump_cut_effects(keep, PlanOptions())
+    # 0~2 원래 크기 → (컷) 3~5 확대 → (컷) 6~8 원래 → (0.1초는 이어진 것) 8.1~9 원래 → 새 클립 원래 → (컷) 확대
+    assert [(e.clip_id, e.start) for e in fx] == [("c01", 3), ("c02", 4)]
+    assert all(e.type == "jump_cut" and e.scale == 1.1 for e in fx)
+    assert planner_mod._jump_cut_effects(keep, PlanOptions(jump_zoom=False)) == []

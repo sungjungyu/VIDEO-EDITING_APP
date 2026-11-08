@@ -148,6 +148,22 @@
      "seg_id": "t0001",
      "start": 0.8,
      "type": "punch_in"
+    },
+    {
+     "clip_id": "c01",
+     "end": 9.3333,
+     "scale": 1.1,
+     "seg_id": null,
+     "start": 6.9333,
+     "type": "jump_cut"
+    },
+    {
+     "clip_id": "c02",
+     "end": 22.0,
+     "scale": 1.1,
+     "seg_id": null,
+     "start": 9.6667,
+     "type": "jump_cut"
     }
    ],
    "events": [
@@ -433,6 +449,8 @@
    "lines": {},
    "options": {
     "fade_ms": 25,
+    "jump_scale": 1.1,
+    "jump_zoom": true,
     "location_captions": false,
     "loudness": true,
     "max_pause": 0.8,
@@ -446,7 +464,8 @@
     "snap_to_silence": true,
     "subtitles": true,
     "swallow_pause": 1.5,
-    "title_text": ""
+    "title_text": "",
+    "voice_clean": true
    },
    "output": {
     "aspect": "16:9",
@@ -538,7 +557,24 @@
   "ass_extras": "[Script Info]\nScriptType: v4.00+\nPlayResX: 1080\nPlayResY: 1920\nScaledBorderAndShadow: yes\nWrapStyle: 2\nYCbCr Matrix: TV.709\n\n[V4+ Styles]\nFormat: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding\nStyle: S_location,Malgun Gothic,58.52,&H00FFFFFF,&H00FFFFFF,&H00000000,&H73000000,0,0,0,0,100,100,0,0,4,0.0,8.8,8,54,54,50,1\nStyle: Default,Malgun Gothic,71.82,&H0000E6FF,&H00FFFFFF,&H00000000,&H40000000,0,0,0,0,100,100,0,0,1,3.0,0.0,2,54,54,60,1\nStyle: S_title,Malgun Gothic,111.73,&H00FFFFFF,&H00FFFFFF,&H00000000,&H40000000,-1,0,0,0,100,100,0,0,1,3.0,0.0,8,54,54,80,1\n\n[Events]\nFormat: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\nDialogue: 1,0:00:00.00,0:00:02.50,S_location,,0,0,0,,{\\fad(150,150)}카페\nDialogue: 1,0:00:00.00,0:00:03.00,S_title,,0,0,0,,{\\fad(150,150)}성수동 카페 브이로그\nDialogue: 0,0:00:00.80,0:00:02.45,Default,,0,0,0,,{\\k53}안녕하세요\\N{\\k2}{\\k53}오늘은 {\\k2}{\\k53}성수동에\nDialogue: 0,0:00:02.45,0:00:03.20,Default,,0,0,0,,{\\k53}왔어요\nDialogue: 0,0:00:03.20,0:00:04.96,Default,,0,0,0,,{\\k42}여기 {\\k2}{\\k42}라떼가\\N{\\k2}{\\k42}유명하다고 {\\k2}{\\k42}해서\nDialogue: 0,0:00:04.96,0:00:05.66,Default,,0,0,0,,{\\k42}와봤어요\nDialogue: 0,0:00:08.47,0:00:11.65,Default,,0,0,0,,{\\k78}와 {\\k2}{\\k78}진짜 {\\k2}{\\k78}대박\\N{\\k2}{\\k78}맛있다!\nDialogue: 0,0:00:19.47,0:00:22.95,Default,,0,0,0,,{\\k86}창가 {\\k2}{\\k86}자리가\\N{\\k2}{\\k86}정말 {\\k2}{\\k86}예쁘네요\nDialogue: 1,0:00:33.47,0:00:35.97,S_location,,0,0,0,,{\\fad(150,150)}거리\nDialogue: 0,0:00:34.47,0:00:36.95,Default,,0,0,0,,{\\k81}이제 {\\k2}{\\k81}거리를\\N{\\k2}{\\k81}걸어볼게요\nDialogue: 0,0:00:43.73,0:00:46.93,Default,,0,0,0,,{\\k78}오늘 {\\k2}{\\k78}브이로그는\\N{\\k2}{\\k78}여기까지 {\\k2}{\\k78}구독\nDialogue: 0,0:00:46.93,0:00:47.71,Default,,0,0,0,,{\\k78}부탁드려요\n",
   "extras": {
    "duration": 53.733,
-   "effects": [],
+   "effects": [
+    {
+     "clip_id": "c01",
+     "end": 9.3333,
+     "scale": 1.1,
+     "seg_id": null,
+     "start": 6.9333,
+     "type": "jump_cut"
+    },
+    {
+     "clip_id": "c02",
+     "end": 22.0,
+     "scale": 1.1,
+     "seg_id": null,
+     "start": 9.6667,
+     "type": "jump_cut"
+    }
+   ],
    "events": [
     {
      "end": 2.45,
@@ -882,6 +918,8 @@
    "lines": {},
    "options": {
     "fade_ms": 25,
+    "jump_scale": 1.1,
+    "jump_zoom": true,
     "location_captions": true,
     "loudness": true,
     "max_pause": null,
@@ -895,7 +933,8 @@
     "snap_to_silence": false,
     "subtitles": true,
     "swallow_pause": 1.5,
-    "title_text": "성수동 카페 브이로그"
+    "title_text": "성수동 카페 브이로그",
+    "voice_clean": true
    },
    "output": {
     "aspect": "9:16",
@@ -1000,6 +1039,14 @@
      "seg_id": "t0001",
      "start": 0.8,
      "type": "punch_in"
+    },
+    {
+     "clip_id": "c01",
+     "end": 9.3333,
+     "scale": 1.1,
+     "seg_id": null,
+     "start": 6.9333,
+     "type": "jump_cut"
     }
    ],
    "events": [
@@ -1108,6 +1155,8 @@
    "lines": {},
    "options": {
     "fade_ms": 25,
+    "jump_scale": 1.1,
+    "jump_zoom": true,
     "location_captions": false,
     "loudness": true,
     "max_pause": 0.8,
@@ -1121,7 +1170,8 @@
     "snap_to_silence": true,
     "subtitles": true,
     "swallow_pause": 1.5,
-    "title_text": ""
+    "title_text": "",
+    "voice_clean": true
    },
    "output": {
     "aspect": "16:9",
@@ -1317,6 +1367,30 @@
      "seg_id": "t0001",
      "start": 0.8,
      "type": "punch_in"
+    },
+    {
+     "clip_id": "c01",
+     "end": 9.3333,
+     "scale": 1.1,
+     "seg_id": null,
+     "start": 6.9333,
+     "type": "jump_cut"
+    },
+    {
+     "clip_id": "c01",
+     "end": 40.0,
+     "scale": 1.1,
+     "seg_id": null,
+     "start": 29.5333,
+     "type": "jump_cut"
+    },
+    {
+     "clip_id": "c02",
+     "end": 22.0,
+     "scale": 1.1,
+     "seg_id": null,
+     "start": 9.6667,
+     "type": "jump_cut"
     }
    ],
    "events": [
@@ -1589,6 +1663,8 @@
    },
    "options": {
     "fade_ms": 25,
+    "jump_scale": 1.1,
+    "jump_zoom": true,
     "location_captions": false,
     "loudness": true,
     "max_pause": 0.8,
@@ -1602,7 +1678,8 @@
     "snap_to_silence": true,
     "subtitles": true,
     "swallow_pause": 1.5,
-    "title_text": ""
+    "title_text": "",
+    "voice_clean": true
    },
    "output": {
     "aspect": "16:9",

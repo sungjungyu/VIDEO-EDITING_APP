@@ -8,7 +8,7 @@
       → 구간마다: trim(반 프레임 앞으로 당겨 경계 프레임이 확실하게) · 화면 채우기(scale+crop) · 펀치인(overlay)
                   atrim · 48kHz 스테레오 · 앞뒤 25ms 페이드 (소리 없는 클립은 무음 생성)
       → concat (구간마다 영상·소리 길이를 맞춰 이어 붙임) → fps 통일 → 자막(libass) → yuv420p
-      → 음량 고르게(loudnorm)
+      → 목소리 다듬기(highpass 80Hz + afftdn 잡음 줄이기) → 음량 고르게(loudnorm)
 """
 
 from __future__ import annotations
@@ -135,10 +135,11 @@ def compile_render(plan: EditPlan, clips: dict[str, ClipInfo], files: dict[str, 
     graph.append(f"{post},format=yuv420p[vout]")
     # 소리 끝을 계획 길이에 맞춘다 (loudnorm은 마지막 패킷을 길게 기록해 결과 길이가 40ms쯤 늘어난다)
     end = f"atrim=duration={_seconds(plan.duration)}"
+    voice = "highpass=f=80,afftdn=nr=12:nf=-40," if opts.voice_clean else ""
     if opts.loudness:
-        graph.append(f"[ac]loudnorm=I=-16:TP=-1.5:LRA=11,aresample=48000,{end}[aout]")
+        graph.append(f"[ac]{voice}loudnorm=I=-16:TP=-1.5:LRA=11,aresample=48000,{end}[aout]")
     else:
-        graph.append(f"[ac]{end}[aout]")
+        graph.append(f"[ac]{voice}{end}[aout]")
 
     if quality == "preview":
         encode = ["-c:v", "libx264", "-preset", "veryfast", "-crf", "27", "-c:a", "aac", "-b:a", "128k"]

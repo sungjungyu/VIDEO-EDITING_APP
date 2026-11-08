@@ -95,3 +95,19 @@ def test_vertical_output_and_cancel(sources, tmp_path):
         render_plan(plan, clips, {"c01": sources["c01"]}, "final", tmp_path / "never.mp4", tmp_path / "work4",
                     cancel=cancel)
     assert not (tmp_path / "never.mp4").exists()
+
+
+def test_jump_cut_zoom_and_voice_clean_keep_frames_and_sync(sources, tmp_path):
+    """점프컷 확대(overlay)와 목소리 다듬기(highpass·afftdn)를 켜도 컷이 프레임 단위로 맞고 소리 길이가 같다."""
+    from vibecut.editing.planner import _jump_cut_effects
+    clips = {"c01": clip_info("c01", sources["c01"])}
+    plan = keep_plan([("c01", 1.0, 3.0), ("c01", 5.0, 7.0), ("c01", 9.0, 10.0)])
+    plan.options.voice_clean = True
+    plan.effects = _jump_cut_effects(plan.keep, plan.options)
+    assert [fx.start for fx in plan.effects] == [5.0]                       # 가운데 조각만 확대
+    out = tmp_path / "jump.mp4"
+    result = render_plan(plan, clips, {"c01": sources["c01"]}, "preview", out, tmp_path / "work")
+    assert abs(result["duration"] - 5.0) <= 1 / 30 + 1e-3
+    video_sec, audio_sec = stream_durations(out)
+    assert abs(video_sec / 30 - 5.0) <= 1 / 30 + 1e-3 and abs(audio_sec - 5.0) <= 0.03
+    assert abs(frame_lumas(out, [2.0 + 0.5 / 30], 30)[0] - 150) <= 2          # 확대한 조각 첫 프레임 = 원본 150번
