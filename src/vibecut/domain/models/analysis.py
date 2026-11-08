@@ -54,6 +54,7 @@ class Beat(BaseModel):
     place: str = ""
     title: str = ""
     summary: str = ""
+    quality: float | None = None      # B롤: 고른 구간의 화면 품질 평균 0~1 (analysis/quality.py), 모르면 None
 
 
 class ClipSpan(BaseModel):

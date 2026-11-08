@@ -2,7 +2,7 @@
 
 점수 (score_beats)
     말 비트  : 남는 말 비중, 강조할 말, 사용자 요청 단어 일치, 처음·끝 위치
-    B롤 비트 : 기본 점수 + 요청 단어 일치 (장면 설명 기준)
+    B롤 비트 : 화면 품질(선명·노출·안정, 모르면 보통) + 요청 단어 일치 (장면 설명 기준)
     중복     : 앞에서 고른 것과 같은 내용(글자 2개 묶음 유사도 ≥ REDUNDANT)을 말하는 비트는 점수를 깎는다
     Gemini를 쓸 수 있으면 비트마다 점수·꼭 넣기(must)·빼기(never)·이유를 받아 덮어쓴다 (분량은 묻지 않는다)
 
@@ -139,8 +139,11 @@ def score_beats(beats: list[Beat], analysis: Analysis, decisions: dict[str, Line
                 reasons.append("말이 많은 장면")
             texts[b.beat_id] = _beat_text(b, lines, decisions)
         else:
-            score = 0.4
-            reasons.append("말 없는 장면")
+            quality = 0.5 if b.quality is None else b.quality
+            score = 0.25 + 0.3 * quality
+            reasons.append("말 없는 장면" + ("" if b.quality is None else
+                                          " · 화면이 깨끗함" if b.quality >= 0.7 else
+                                          " · 화면이 조금 흔들리거나 어두움" if b.quality < 0.5 else ""))
         score += 0.3 * (len(hit) / len(want)) if want else 0.0
         reason = f"요청에서 뺀 내용: {', '.join(miss[:3])}" if miss else ("; ".join(reasons) or "기본 점수")
         out[b.beat_id] = {"score": round(max(0.0, min(1.0, score)), 3), "must": False, "never": bool(miss),

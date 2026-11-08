@@ -11,7 +11,8 @@
     3. 길이 맞추기: MAX_BEAT초보다 길면 가장 점수가 높은 경계에서 나누고(재귀), 그보다 짧아도
        IDEAL_BEAT초를 넘고 경계 점수가 STRONG 이상이면 나눈다. 양쪽 모두 MIN_BEAT초 이상일 때만
 
-B롤 구간은 지금은 말 없는 구간 앞쪽 몇 초를 쓴다. pick_window를 넘기면 다른 기준(화면 품질 등)으로 고른다.
+B롤 구간은 pick_window가 고른다 — 기본은 말 없는 구간 앞쪽 몇 초, 분석에서는 화면 품질 곡선으로
+가장 볼만한 2~5초(analysis/quality.py best_window). 품질이 min_quality보다 나쁘면(흔들림·어두움) B롤로 쓰지 않는다.
 """
 
 from __future__ import annotations
@@ -33,8 +34,8 @@ BROLL_MIN_GAP = 2.5      # 말 없는 구간이 이보다 짧으면 B롤로 쓰�
 BROLL_MAX = 5.0          # B롤 비트 최대 길이
 SPEECH_MARGIN = 0.3      # 말 앞뒤 이만큼은 말 구간으로 본다 (B롤이 말소리를 물지 않게)
 
-# (클립 id, 말 없는 구간 시작, 끝) → 쓸 구간 (시작, 끝)
-PickWindow = Callable[[str, float, float], tuple[float, float]]
+# (클립 id, 말 없는 구간 시작, 끝) → 쓸 구간 (시작, 끝, 화면 품질 0~1 또는 모름 None)
+PickWindow = Callable[[str, float, float], tuple[float, float, float | None]]
 
 
 def _short(text: str, n: int) -> str:
@@ -122,10 +123,10 @@ def _quiet_regions(lines: list[Line], duration: float) -> list[tuple[float, floa
     return [(s, e) for s, e in out if e - s >= BROLL_MIN_GAP]
 
 
-def first_seconds(clip_id: str, start: float, end: float) -> tuple[float, float]:
-    """기본 B롤 구간: 말 없는 구간의 앞쪽 최대 BROLL_MAX초 (경계에서 조금 띄운다)."""
+def first_seconds(clip_id: str, start: float, end: float) -> tuple[float, float, float | None]:
+    """기본 B롤 구간: 말 없는 구간의 앞쪽 최대 BROLL_MAX초 (경계에서 조금 띄운다). 품질은 모름."""
     s = start + 0.2
-    return s, min(end - 0.2, s + BROLL_MAX)
+    return s, min(end - 0.2, s + BROLL_MAX), None
 
 
 def _place(sc: Scene | None, label: str) -> str:
@@ -133,7 +134,7 @@ def _place(sc: Scene | None, label: str) -> str:
 
 
 def build_beats(spans: list[ClipSpan], scenes: list[Scene], lines: list[Line], clip_labels: dict[str, str],
-                pick_window: PickWindow = first_seconds) -> list[Beat]:
+                pick_window: PickWindow = first_seconds, min_quality: float = 0.0) -> list[Beat]:
     """타임라인 순서(spans)대로 클립마다 말 비트와 B롤 비트를 만들어 시간순으로 돌려준다."""
     beats: list[Beat] = []
     for span in spans:
@@ -152,14 +153,14 @@ def build_beats(spans: list[ClipSpan], scenes: list[Scene], lines: list[Line], c
                     end=round(end, 3), seg_ids=[line.seg_id for line in group], place=_place(sc, label),
                     title=_short(spoken[0] if spoken else "(말소리)", 30), summary=_short(" ".join(spoken), 120)))
         for qs, qe in _quiet_regions(clip_lines, span.duration):
-            s, e = pick_window(cid, qs, qe)
-            if e - s < 1.0:
+            s, e, quality = pick_window(cid, qs, qe)
+            if e - s < 1.0 or (quality is not None and quality < min_quality):
                 continue
             sc = _scene_at(clip_scenes, (s + e) / 2)
             what = (sc.event or sc.summary) if sc else ""
             clip_beats.append(Beat(
                 beat_id=f"r-{cid}-{int(round(s * 10))}", kind="broll", clip_id=cid, start=round(s, 3),
                 end=round(e, 3), place=_place(sc, label), title=_short(what or "말 없는 장면", 30),
-                summary=_short(sc.summary if sc else "", 120)))
+                summary=_short(sc.summary if sc else "", 120), quality=quality))
         beats += sorted(clip_beats, key=lambda b: b.start)
     return beats

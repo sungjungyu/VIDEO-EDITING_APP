@@ -65,7 +65,7 @@ def test_quiet_regions_become_broll_beats_without_touching_speech():
     assert [(b.start, b.end) for b in broll] == [(3.5, 8.5), (14.5, 19.5)]
     assert all(b.title == "노을" and b.place == "한강" and not b.seg_ids for b in broll)
     picked = build_beats([ClipSpan(clip_id="c01", offset=0, duration=20)], scenes, lines, {},
-                         pick_window=lambda cid, s, e: (e - 3.0, e))     # 다른 기준으로 고를 수 있다 (T4 품질 곡선)
+                         pick_window=lambda cid, s, e: (e - 3.0, e, 0.9))   # 다른 기준으로 고를 수 있다 (T4 품질 곡선)
     assert [(b.start, b.end) for b in picked if b.kind == "broll"] == [(8.7, 11.7), (17.0, 20.0)]
 
 
@@ -73,3 +73,12 @@ def test_clip_without_scenes_uses_clip_label_as_place():
     beats = build_beats([ClipSpan(clip_id="c01", offset=0, duration=5)], [], [L("a", 0.5, 2, "말해요")],
                         {"c01": "클립 1 · cafe"})
     assert beats[0].place == "클립 1 · cafe"
+
+
+def test_shaky_or_dark_broll_is_skipped_by_min_quality():
+    lines = [L("a", 0.5, 3.0, "안녕하세요"), L("b", 12.0, 14.0, "다시 말해요")]
+    spans = [ClipSpan(clip_id="c01", offset=0, duration=20)]
+    quality = {3.3: 0.2, 14.3: 0.8}                                          # 말 없는 구간 시작 → 품질 (앞은 흔들림)
+    pick = lambda cid, s, e: (s + 0.2, s + 3.2, quality[round(s, 1)])  # noqa: E731
+    broll = [b for b in build_beats(spans, [], lines, {}, pick, min_quality=0.35) if b.kind == "broll"]
+    assert [(b.start, b.quality) for b in broll] == [(14.5, 0.8)]

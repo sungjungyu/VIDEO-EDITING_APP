@@ -86,3 +86,11 @@ def test_score_beats_penalizes_repeated_content_and_avoided_words():
     repeated = [k for k in ("b-a", "b-b") if "비슷함" in scores[k]["reason"]]
     assert len(repeated) == 1                                         # 둘 중 하나만 깎는다
     assert scores["b-c"]["never"] is True
+
+
+def test_broll_score_follows_screen_quality():
+    beats = [B("r1", 0, 5, "broll", quality=0.9), B("r2", 5, 10, "broll", quality=0.3), B("r3", 10, 15, "broll")]
+    analysis = Analysis(clips=[ClipSpan(clip_id="c01", offset=0, duration=15)], beats=beats)
+    scores = score_beats(beats, analysis, {}, "")
+    assert scores["r1"]["score"] > scores["r3"]["score"] > scores["r2"]["score"]
+    assert "깨끗함" in scores["r1"]["reason"] and "흔들리거나" in scores["r2"]["reason"]

@@ -16,6 +16,7 @@ from pathlib import Path
 from ..ai.client import GeminiClient
 from ..analysis import judge as judge_mod
 from ..analysis.beats import build_beats
+from ..analysis.quality import MIN_QUALITY, best_window, clip_quality
 from ..analysis.scenes import analyze_clip_scenes
 from ..analysis.stt import transcribe_clip
 from ..domain.models import (
@@ -123,6 +124,7 @@ def _analyze(ctx: RunContext, store: ProjectStore, settings: Settings, project_i
 
     stt: dict[str, dict] = {}
     scene_out: dict[str, dict] = {}
+    quality: dict[str, dict] = {}
     progress_lock = threading.Lock()
     done = {"stt": 0, "scenes": 0}
     errors: list[BaseException] = []
@@ -157,6 +159,14 @@ def _analyze(ctx: RunContext, store: ProjectStore, settings: Settings, project_i
                                         store.cache_dir / "scenes", scene_work_dir,
                                         prev_summary, people, ctx.cancel, client)
                 scene_out[c.clip_id] = r
+                if c.has_video:                     # 말 없는 장면(B롤)을 고를 화면 품질 곡선 (같은 영상이면 캐시)
+                    try:
+                        quality[c.clip_id] = clip_quality(store.clip_path(project_id, c.stored_name), c.sha1,
+                                                          store.cache_dir / "quality", ctx.cancel)
+                    except Canceled:
+                        raise
+                    except Exception as error:      # 품질을 못 재도 분석은 계속 (B롤은 앞쪽 몇 초로)
+                        log.warning("화면 품질 분석 실패 (%s): %s", c.filename, str(error)[:200])
                 if r["scenes"]:
                     prev_summary = " / ".join(s.get("summary", "") for s in r["scenes"][-3:])
                     people = ", ".join(sorted({s.get("people", "") for s in r["scenes"] if s.get("people")}))
@@ -219,7 +229,9 @@ def _analyze(ctx: RunContext, store: ProjectStore, settings: Settings, project_i
 
     with ctx.stage("beats"):
         ctx.progress(91, "장면 나누기")
-        beats = build_beats(spans, scenes, lines, _clip_labels(clips))
+        beats = build_beats(spans, scenes, lines, _clip_labels(clips),
+                            pick_window=lambda cid, s, e: best_window(quality.get(cid), s, e),
+                            min_quality=MIN_QUALITY)
 
     analysis = Analysis(clips=spans, lines=lines, scenes=scenes, beats=beats, silences=silences, judgments=judgments,
                         engines=engines, warnings=list(dict.fromkeys(warnings)))
