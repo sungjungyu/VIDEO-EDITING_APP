@@ -121,6 +121,7 @@ class Settings:
     retention_days: int
     analyze_workers: int
     render_workers: int
+    judge_mode: str = "all"          # 컷 판단: all(모든 문장을 Gemini에) / hybrid(애매한 문장만) — vibecut bench로 비교
 
     @property
     def ai_live(self) -> bool:
@@ -142,7 +143,16 @@ class Settings:
             "models": self.models.__dict__,
             "language": self.language,
             "max_upload_mb": self.max_upload_mb,
+            "judge_mode": self.judge_mode,
         }
+
+
+def _judge_mode(value: str) -> str:
+    value = value.strip().lower()
+    if value not in ("all", "hybrid"):
+        logging.getLogger("vibecut.settings").warning("VIBECUT_JUDGE_MODE=%r을 알 수 없어 all로 씁니다.", value)
+        return "all"
+    return value
 
 
 def load_settings(**overrides) -> Settings:
@@ -179,6 +189,7 @@ def load_settings(**overrides) -> Settings:
         retention_days=_env_int("VIBECUT_RETENTION_DAYS", 14, dotenv),
         analyze_workers=_env_int("VIBECUT_ANALYZE_WORKERS", 1, dotenv),
         render_workers=_env_int("VIBECUT_RENDER_WORKERS", 1, dotenv),
+        judge_mode=_judge_mode(_env("VIBECUT_JUDGE_MODE", "all", dotenv)),
     )
     values.update(overrides)
     return Settings(**values)

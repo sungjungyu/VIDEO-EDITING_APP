@@ -56,5 +56,12 @@ class ReviseRequest(BaseModel):
     profile: dict = Field(default_factory=dict)
 
 
+class BenchCaseRequest(BaseModel):
+    name: str = Field(default="", max_length=80)
+    person: str = Field(default="", max_length=40)
+    split: Literal["tune", "test"] = "test"
+    profile: dict = Field(default_factory=dict)
+
+
 class RenderRequest(BaseModel):
     quality: Literal["preview", "final"] = "final"

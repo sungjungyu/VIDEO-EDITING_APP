@@ -10,6 +10,7 @@
 """
 
 from .analysis import Analysis, ClipSpan, Line, LineDecision, Scene, TreeNode, Word, flatten_tree
+from .bench import BenchCase, BenchClip, GoldLabel, gold_reason
 from .common import now_iso
 from .job import Job, JobStatus
 from .plan import (
@@ -26,7 +27,8 @@ from .plan import (
 from .project import AnalysisState, ClipInfo, Project, RenderInfo
 
 __all__ = [
-    "Analysis", "AnalysisState", "ClipInfo", "ClipSpan", "EditPlan", "Effect", "Job", "JobStatus", "KeepRange",
+    "Analysis", "AnalysisState", "BenchCase", "BenchClip", "ClipInfo", "ClipSpan", "EditPlan", "Effect",
+    "GoldLabel", "Job", "JobStatus", "KeepRange", "gold_reason",
     "Line", "LineDecision", "OutputSpec", "PlanOptions", "Project", "RenderInfo", "Scene", "Selection", "StyleSpec",
     "SubtitleEvent", "TreeNode", "Word", "default_styles", "flatten_tree", "now_iso",
 ]

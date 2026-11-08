@@ -6,8 +6,16 @@
     군더더기 : "음", "어", "그니까"처럼 추임새만 있는 문장 (프로필의 '군말 제거 강도'를 따른다)
     강조     : 느낌표, 감탄 단어, 프로필의 '자주 쓰는 단어' → 펀치인 후보
 
-Gemini에게는 문장 전체를 보내되 '자를 문장·강조할 문장·규칙 표시를 뒤집을 문장'만 id로 돌려받는다.
-(출력이 짧아 토큰·한도를 아끼고, 응답이 잘려도 나머지는 규칙이 맡는다. 시각은 절대 돌려받지 않는다)
+확신도 (v4 설계안 T2) — 규칙마다 고정값이 아니라 근거에서 계산한다
+    자름  : 기준선에서 멀수록 높다 (NG는 겹침이 기준 60%에 가까우면 0.7, 완전히 같으면 0.95).
+            지금 자르는 규칙은 모두 0.7(HARD_RULE) 이상이라 judge_lines의 동작은 예전과 같다
+    남김  : 0.9에서 의심스러운 점마다 깎는다 (NG와 비슷함·추임새 섞임·너무 짧음·받아쓰기 확신 낮음·지시어 비슷한 말)
+
+Gemini 사용 방식 두 가지
+    judge_lines   모든 문장을 보내고 '자를 문장·강조할 문장·규칙 표시를 뒤집을 문장'만 id로 돌려받는다 (지금 방식)
+    judge_hybrid  확신도가 ASK_BELOW보다 낮은 문장만 앞뒤 문맥과 함께 보내 그 문장들의 판단만 받는다
+                  (확실한 문장은 규칙대로 → Gemini 요청·토큰이 준다. 얼마나 맞는지는 vibecut bench로 잰다)
+시각은 절대 돌려받지 않는다. 응답이 잘리거나 실패하면 그 부분은 규칙이 맡는다.
 """
 
 from __future__ import annotations
@@ -26,7 +34,10 @@ log = logging.getLogger("vibecut.analysis.judge")
 CUT_REASONS = ("NG", "반복", "군더더기", "지시어")
 KEEP_REASONS = ("핵심", "일반")
 HARD_RULE = 0.7           # 이 확신 이상 규칙 컷은 Gemini가 따로 '남김'이라고 하지 않으면 자른다
+ASK_BELOW = 0.8           # 하이브리드: 확신도가 이보다 낮은 문장만 Gemini에 묻는다 (조정용 정답으로 맞춘다)
+CONTEXT = 2               # 하이브리드: 물어보는 문장 앞뒤로 함께 보여 줄 문장 수 (같은 클립 안)
 BATCH = 400
+_CUE_LIKE = ("다시", "잠깐", "아니", "잘못")
 
 
 def _line_sort_key(line: Line) -> tuple:
@@ -53,19 +64,72 @@ def is_filler_only(text: str, strength: str = "medium") -> bool:
     return strength != "weak" and all(t in FILLERS or REPEATED_FILLER.match(t) for t in toks)
 
 
-def is_retake(lines: list[Line], i: int, look: int = 3) -> bool:
-    """i번 문장을 바로 뒤에서 다시 말했는가 (앞의 것이 NG)."""
+def retake_overlap(lines: list[Line], i: int, look: int = 3) -> tuple[bool, float, float]:
+    """i번 문장을 바로 뒤에서 다시 말했는가 → (NG인가, 가장 큰 겹침, 그 비교의 기준값).
+    겹침은 글자 2개 묶음 기준 (0~1). 기준: 같은 클립 0.6, 다른 클립 0.7."""
     a = normalize(lines[i].text)
     if len(a) < 4:
-        return False
+        return False, 0.0, 0.6
+    best, best_need, prefix = 0.0, 0.6, False
     for j in range(i + 1, min(len(lines), i + 1 + look)):
         b = normalize(lines[j].text)
         if len(b) < max(4, 0.5 * len(a)):
             continue
         need = 0.6 if lines[j].clip_id == lines[i].clip_id else 0.7
-        if bigram_overlap(a, b) >= need or (len(a) <= 12 and b.startswith(a[:4]) and len(b) > len(a)):
-            return True
-    return False
+        overlap = bigram_overlap(a, b)
+        if overlap - need > best - best_need:
+            best, best_need = overlap, need
+        if len(a) <= 12 and b.startswith(a[:4]) and len(b) > len(a):
+            prefix = True
+    return best >= best_need or prefix, best, best_need
+
+
+def is_retake(lines: list[Line], i: int, look: int = 3) -> bool:
+    """i번 문장을 바로 뒤에서 다시 말했는가 (앞의 것이 NG)."""
+    return retake_overlap(lines, i, look)[0]
+
+
+def _scale(value: float, lo: float, hi: float, out_lo: float, out_hi: float) -> float:
+    """value가 lo→hi일 때 out_lo→out_hi (범위 밖은 끝값)."""
+    t = 0.0 if hi <= lo else min(1.0, max(0.0, (value - lo) / (hi - lo)))
+    return round(out_lo + (out_hi - out_lo) * t, 3)
+
+
+def _stt_confidence(line: Line) -> float | None:
+    probs = [w.probability for w in line.words if w.probability is not None]
+    return sum(probs) / len(probs) if probs else None
+
+
+_HESITATIONS = {"그니까", "그러니까", "뭐지", "뭐랄까"}
+
+
+def _hesitation_ratio(text: str) -> float:
+    """명확한 머뭇거림(음·어·아…, 그니까)의 비율. '이제·막·근데'처럼 평범한 문장에도 흔한 말은 세지 않는다."""
+    toks = tokens(text)
+    return sum(bool(REPEATED_FILLER.match(t)) or t in _HESITATIONS for t in toks) / len(toks) if toks else 0.0
+
+
+def keep_confidence(line: Line, overlap: float, need: float) -> tuple[float, list[str]]:
+    """남기는 문장의 확신도와 깎은 이유. 0.9에서 시작해 의심스러운 점마다 깎는다."""
+    text = line.text.strip()
+    conf, doubts = 0.9, []
+    if overlap >= need - 0.2:
+        conf -= 0.3
+        doubts.append("뒤 문장과 비슷함")
+    if _hesitation_ratio(text) >= 0.3:
+        conf -= 0.2
+        doubts.append("추임새 섞임")
+    if len(normalize(text)) <= 3:
+        conf -= 0.2
+        doubts.append("아주 짧음")
+    stt = _stt_confidence(line)
+    if stt is not None and stt < 0.6:
+        conf -= 0.2
+        doubts.append("받아쓰기 확신 낮음")
+    if any(w in text for w in _CUE_LIKE):
+        conf -= 0.2
+        doubts.append("지시어 비슷한 말")
+    return round(max(0.3, conf), 3), doubts
 
 
 def rule_decisions(lines: list[Line], profile: dict | None = None) -> dict[str, LineDecision]:
@@ -76,24 +140,30 @@ def rule_decisions(lines: list[Line], profile: dict | None = None) -> dict[str, 
     for i, line in enumerate(lines):
         text = line.text.strip()
         dur = line.end - line.start
+        retake, overlap, need = retake_overlap(lines, i) if text else (False, 0.0, 0.6)
         if not text:
             d = LineDecision(seg_id=line.seg_id, keep=True, reason="일반", note="받아쓰기 없음 (말소리 구간)",
                              confidence=0.3)
         elif CUE_PATTERN.search(text):
-            d = LineDecision(seg_id=line.seg_id, keep=False, reason="지시어", note="촬영 지시·NG 신호", confidence=0.8)
-        elif is_retake(lines, i):
+            standalone = len(normalize(text)) <= 12          # 짧게 지시만 했으면 확실, 긴 문장 속이면 덜 확실
+            d = LineDecision(seg_id=line.seg_id, keep=False, reason="지시어", note="촬영 지시·NG 신호",
+                             confidence=0.95 if standalone else HARD_RULE)
+        elif retake:
             d = LineDecision(seg_id=line.seg_id, keep=False, reason="NG", note="바로 뒤에서 같은 말을 다시 했습니다",
-                             confidence=0.7)
+                             confidence=_scale(overlap, need, 1.0, HARD_RULE, 0.95))
         elif is_filler_only(text, strength):
+            pure = all(REPEATED_FILLER.match(t) for t in tokens(text))
             d = LineDecision(seg_id=line.seg_id, keep=False, reason="군더더기", note="의미 없는 추임새",
-                             confidence=0.75)
-        elif strength == "strong" and dur < 1.5 and _filler_ratio(text) >= 0.5:
+                             confidence=0.95 if pure else 0.8)
+        elif strength == "strong" and dur < 1.5 and (ratio := _filler_ratio(text)) >= 0.5:
             d = LineDecision(seg_id=line.seg_id, keep=False, reason="군더더기", note="추임새가 대부분인 짧은 말",
-                             confidence=0.6)
+                             confidence=_scale(ratio, 0.5, 1.0, 0.55, 0.65))
         else:
             emphasis = "!" in text or any(w in text for w in EMPHASIS_WORDS) or any(w in text for w in frequent)
+            conf, doubts = keep_confidence(line, overlap, need)
             d = LineDecision(seg_id=line.seg_id, keep=True, reason="핵심" if emphasis else "일반",
-                             emphasis=emphasis and dur >= 0.8, confidence=0.6 if emphasis else 0.5)
+                             emphasis=emphasis and dur >= 0.8, confidence=conf,
+                             note=f"애매함: {', '.join(doubts)}" if doubts else "")
         out[line.seg_id] = d
     return out
 
@@ -121,16 +191,28 @@ def _scene_label(line: Line, scenes_by_clip: dict[str, list[Scene]]) -> str:
 
 
 def build_prompt(lines: list[Line], rules: dict[str, LineDecision], scenes_by_clip: dict[str, list[Scene]],
-                 profile: dict) -> str:
+                 profile: dict, targets: set[str] | None = None) -> str:
+    """targets가 있으면 하이브리드: ★ 문장만 판단하고 나머지는 문맥으로만 보여 준다."""
     labels = {"weak": "약 (크게 거슬리는 것만)", "medium": "중", "strong": "강 (추임새 전부)"}
     strength = labels[filler_strength(profile)]
     rows = []
     for line in lines:
         rule = rules[line.seg_id]
         flag = f" [규칙: {rule.reason}]" if not rule.keep else ""
-        rows.append(f"{line.seg_id} | {line.start:.1f}s | {line.end - line.start:.1f}s | "
+        mark = ("★ " if line.seg_id in targets else "(문맥) ") if targets is not None else ""
+        rows.append(f"{mark}{line.seg_id} | {line.start:.1f}s | {line.end - line.start:.1f}s | "
                     f"{_scene_label(line, scenes_by_clip)} | {line.text.strip() or '(받아쓰기 없음)'}{flag}")
     words = ", ".join(profile.get("frequent_words") or []) or "(없음)"
+    if targets is None:
+        output = """[출력] 다음 문장만 decisions에 넣는다 (나머지는 남김으로 처리한다):
+  ① 자를 문장  ② 강조할 문장  ③ [규칙] 표시가 있지만 남길 문장
+  각 항목: id, keep, reason(위 이유 중 하나), confidence(0~1), emphasis, note(20자 이내 한국어 설명)
+  시각은 출력하지 않는다."""
+    else:
+        output = """[출력] ★ 표시 문장만 판단한다. (문맥) 문장은 앞뒤 흐름을 보여 주려는 것이니 decisions에 넣지 않는다.
+  ★ 문장은 남기든 자르든 빠짐없이 decisions에 넣는다.
+  각 항목: id, keep, reason(위 이유 중 하나), confidence(0~1), emphasis, note(20자 이내 한국어 설명)
+  시각은 출력하지 않는다."""
     return f"""당신은 한국어 브이로그·유튜브 영상 편집자다. 아래는 촬영 원본의 받아쓰기 문장 목록이다.
 각 문장을 결과 영상에 남길지 판단하라.
 
@@ -146,14 +228,29 @@ def build_prompt(lines: list[Line], rules: dict[str, LineDecision], scenes_by_cl
 - 자주 쓰는 단어(강조 후보): {words}
 - [규칙: …] 표시는 자동 규칙이 자르려는 문장이다. 남겨야 하면 keep=true로 돌려줘라.
 
-[출력] 다음 문장만 decisions에 넣는다 (나머지는 남김으로 처리한다):
-  ① 자를 문장  ② 강조할 문장  ③ [규칙] 표시가 있지만 남길 문장
-  각 항목: id, keep, reason(위 이유 중 하나), confidence(0~1), emphasis, note(20자 이내 한국어 설명)
-  시각은 출력하지 않는다.
+{output}
 
 [문장 목록] id | 시작 | 길이 | 장면 | 내용
 {chr(10).join(rows)}
 """
+
+
+def _ai_decision(line: Line, item: dict) -> LineDecision:
+    reason = item["reason"] if item["reason"] in CUT_REASONS + KEEP_REASONS else ("일반" if item["keep"] else "NG")
+    if item["keep"] and reason in CUT_REASONS:
+        reason = "일반"
+    if not item["keep"] and reason in KEEP_REASONS:
+        reason = "NG"
+    return LineDecision(seg_id=line.seg_id, keep=bool(item["keep"]), reason=reason, note=str(item["note"])[:60],
+                        confidence=max(0.0, min(1.0, float(item["confidence"]))),
+                        emphasis=bool(item["emphasis"]) and line.end - line.start >= 0.8, source="ai")
+
+
+def _scenes_by_clip(scenes: list[Scene]) -> dict[str, list[Scene]]:
+    out: dict[str, list[Scene]] = {}
+    for sc in scenes:
+        out.setdefault(sc.clip_id, []).append(sc)
+    return out
 
 
 def judge_lines(lines: list[Line], scenes: list[Scene], profile: dict | None, client: GeminiClient | None
@@ -164,9 +261,7 @@ def judge_lines(lines: list[Line], scenes: list[Scene], profile: dict | None, cl
     rules = rule_decisions(lines, profile)
     if not lines or client is None:
         return rules, "rule", []
-    scenes_by_clip: dict[str, list[Scene]] = {}
-    for sc in scenes:
-        scenes_by_clip.setdefault(sc.clip_id, []).append(sc)
+    scenes_by_clip = _scenes_by_clip(scenes)
     warnings: list[str] = []
     decisions: dict[str, LineDecision] = {}
     used_ai = False
@@ -195,19 +290,69 @@ def judge_lines(lines: list[Line], scenes: list[Scene], profile: dict | None, cl
         for line in batch:
             rule, item = rules[line.seg_id], items.get(line.seg_id)
             if item is not None:
-                reason = item["reason"] if item["reason"] in CUT_REASONS + KEEP_REASONS else \
-                    ("일반" if item["keep"] else "NG")
-                if item["keep"] and reason in CUT_REASONS:
-                    reason = "일반"
-                if not item["keep"] and reason in KEEP_REASONS:
-                    reason = "NG"
-                decisions[line.seg_id] = LineDecision(
-                    seg_id=line.seg_id, keep=bool(item["keep"]), reason=reason, note=str(item["note"])[:60],
-                    confidence=max(0.0, min(1.0, float(item["confidence"]))),
-                    emphasis=bool(item["emphasis"]) and line.end - line.start >= 0.8, source="ai")
+                decisions[line.seg_id] = _ai_decision(line, item)
             elif not rule.keep and rule.confidence >= HARD_RULE:
                 decisions[line.seg_id] = rule
             else:
                 decisions[line.seg_id] = LineDecision(seg_id=line.seg_id, keep=True, reason="일반", source="ai",
                                                       confidence=0.5, note=rule.note if not line.text.strip() else "")
     return decisions, ("ai" if used_ai else "rule"), warnings
+
+
+# ---------------------------------------------------------------- 하이브리드 (v4 설계안 T2)
+
+def uncertain_ids(lines: list[Line], rules: dict[str, LineDecision], ask_below: float = ASK_BELOW) -> list[str]:
+    """Gemini에 물어볼 문장: 글자가 있고 규칙 확신도가 ask_below보다 낮은 것 (시간순)."""
+    return [line.seg_id for line in lines if line.text.strip() and rules[line.seg_id].confidence < ask_below]
+
+
+def _windows(lines: list[Line], targets: set[str], context: int) -> list[Line]:
+    """물어볼 문장과 그 앞뒤 context개 (같은 클립 안) — 시간순, 중복 없이."""
+    shown: set[int] = set()
+    for i, line in enumerate(lines):
+        if line.seg_id not in targets:
+            continue
+        for j in range(max(0, i - context), min(len(lines), i + context + 1)):
+            if lines[j].clip_id == line.clip_id:
+                shown.add(j)
+    return [lines[i] for i in sorted(shown)]
+
+
+def judge_hybrid(lines: list[Line], scenes: list[Scene], profile: dict | None, client: GeminiClient | None,
+                 ask_below: float = ASK_BELOW, context: int = CONTEXT
+                 ) -> tuple[dict[str, LineDecision], str, list[str], set[str]]:
+    """(문장별 판단, 엔진, 경고, Gemini가 판단한 문장 id). 확실한 문장은 규칙, 애매한 문장만 Gemini."""
+    profile = profile or {}
+    lines = sorted(lines, key=_line_sort_key)
+    rules = rule_decisions(lines, profile)
+    targets = set(uncertain_ids(lines, rules, ask_below))
+    if not targets or client is None:
+        return rules, "rule", [], set()
+    scenes_by_clip = _scenes_by_clip(scenes)
+    shown = _windows(lines, targets, context)
+    decisions = dict(rules)
+    warnings: list[str] = []
+    asked: set[str] = set()
+    for start in range(0, len(shown), BATCH):
+        batch = shown[start:start + BATCH]
+        batch_targets = {line.seg_id for line in batch if line.seg_id in targets}
+        if not batch_targets:
+            continue
+        try:
+            data = client.generate_json(build_prompt(batch, rules, scenes_by_clip, profile, batch_targets),
+                                        JudgeResponse, purpose="컷 판단 (애매한 문장)", temperature=0.1)
+        except AIUnavailable:
+            return rules, "rule", [], set()
+        except AIError as error:
+            warnings.append(f"AI 컷 판단 실패 → 규칙으로 판단했습니다: {str(error)[:150]}")
+            continue
+        items = {it["id"]: it for it in data.get("decisions", []) if it["id"] in batch_targets}
+        spoken = sum(1 for line in batch if line.text.strip())
+        if spoken and sum(1 for it in items.values() if not it["keep"]) > 0.7 * spoken:
+            warnings.append("AI가 문장 대부분을 자르라고 해서 이 구간은 규칙 판단을 썼습니다.")
+            continue
+        for line in batch:
+            if line.seg_id in items:                  # ★인데 답이 없으면 규칙 판단 그대로
+                decisions[line.seg_id] = _ai_decision(line, items[line.seg_id])
+        asked |= batch_targets
+    return decisions, ("hybrid" if asked else "rule"), warnings, asked

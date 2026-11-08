@@ -2,7 +2,8 @@
    분석은 타임라인의 클립 전체를 한 번에 한다 (받아쓰기 ∥ 장면 분석 → 컷 판단 → 4단 트리 → 편집 결과).
    진행률은 서버 작업(job)을 물어서 단계 목록에 보여 주고, 새로고침해도 진행 중인 분석을 이어서 따라간다.
    문장 목록의 살림/뺌·자막 글자 수정은 바로 편집 결과에 반영된다 (되돌리기 가능).
-   수정 요청 뒤에는 무엇이 바뀌었는지(뺀 문장·살린 문장·글자 수정) 보여 주고, 바뀐 문장을 잠깐 반짝인다. */
+   수정 요청 뒤에는 무엇이 바뀌었는지(뺀 문장·살린 문장·글자 수정) 보여 주고, 바뀐 문장을 잠깐 반짝인다.
+   결과 카드 맨 아래 '평가용 정답': 문장을 다 검수한 뒤 지금 살림/뺌을 정답으로 저장한다 (vibecut bench가 채점에 쓴다). */
 
 import { api, pollJob } from "../core/api.js";
 import { $, el, toast } from "../core/dom.js";
@@ -17,6 +18,7 @@ import { goStep } from "./steps.js";
 let trackedJob = null;
 let reviewFilter = "all";        // all | cut | emph | user | reason:<이유>
 let reviewTab = "lines";
+let benchInfo = { project: null, saved: false };   // 이 프로젝트를 평가용 정답으로 저장했는지
 
 /* ---------------------------------------------------------------- ② 분석 */
 
@@ -81,6 +83,8 @@ export async function loadAnalysisAndPlan() {
   if (status === "done" || status === "failed") {      // 분석한 적이 없으면 묻지 않는다 (불필요한 404)
     analysis = await api.getAnalysis(pid()).catch(() => null);
   }
+  benchInfo = { project: pid(), saved: false };
+  if (analysis) benchInfo = { project: pid(), ...(await api.getBenchCase(pid()).catch(() => ({ saved: false }))) };
   setAnalysis(analysis);
   setPlanView(await api.getPlan(pid()));
 }
@@ -191,10 +195,44 @@ function renderResultCard() {
 
   const engines = a.engines || {};
   card.appendChild(el("div", { class: "rc-meta" },
-    `받아쓰기 ${engines.stt || "-"} · 장면 ${engines.scenes || "-"} · 컷 판단 ${engines.judge === "ai" ? "Gemini + 규칙" : "규칙"}`));
+    `받아쓰기 ${engines.stt || "-"} · 장면 ${engines.scenes || "-"} · 컷 판단 ${judgeLabel(engines)}`));
   for (const w of [...(state.project?.analysis?.warnings || []), ...(plan.warnings || [])].slice(0, 3)) {
     card.appendChild(el("div", { class: "rc-warn" }, `! ${w}`));
   }
+  card.appendChild(benchBox());
+}
+
+function judgeLabel(engines) {
+  if (engines.judge === "ai") return "Gemini + 규칙";
+  if (engines.judge === "hybrid") return `규칙 + Gemini (애매한 문장 ${engines.judge_asked || ""}만)`;
+  return "규칙";
+}
+
+/* 평가용 정답 저장 (접어 둔 상자). 정답 = 지금 화면의 살림/뺌 → 모든 문장을 검수한 뒤에 누른다 */
+function benchBox() {
+  const info = benchInfo.project === pid() ? benchInfo : { saved: false };
+  const person = el("input", { class: "bench-input", placeholder: "찍은 사람 (선택)", maxlength: "40", value: info.person || "" });
+  const split = el("select", { class: "bench-input" },
+    el("option", { value: "test", selected: info.split !== "tune" }, "시험용 (결과 보고)"),
+    el("option", { value: "tune", selected: info.split === "tune" }, "조정용 (기준값 맞추기)"));
+  const save = el("button", { class: "btn-mini", onclick: async () => {
+    save.disabled = true;
+    try {
+      const out = await api.saveBenchCase(pid(), { name: state.project.name, person: person.value, split: split.value,
+                                                   profile: loadProfile() });
+      benchInfo = { project: pid(), ...out };
+      toast(`평가용 정답으로 저장했어요 (문장 ${out.sentences}개, 뺀 문장 ${out.gold_cut}개)`, "ok");
+      renderResultCard();
+    } catch (err) {
+      toast(err.message, "error");
+      save.disabled = false;
+    }
+  } }, info.saved ? "다시 저장 (덮어쓰기)" : "검수 완료 → 정답으로 저장");
+  return el("details", { class: "bench-box" },
+    el("summary", {}, info.saved ? `평가용 정답 저장됨 · 문장 ${info.sentences}개` : "평가용 정답 (선택)"),
+    el("div", { class: "bench-help" }, "모든 문장의 살림/뺌을 사람이 확인한 뒤 저장하세요. 지금 화면의 살림/뺌이 그대로 정답이 됩니다. " +
+       "영상은 저장하지 않고 받아쓰기 문장만 data/bench에 남습니다 (vibecut bench로 채점)."),
+    el("div", { class: "bench-row" }, person, split, save));
 }
 
 /* ---------------------------------------------------------------- ④ 문장 목록 */

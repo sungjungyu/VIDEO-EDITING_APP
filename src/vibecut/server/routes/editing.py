@@ -1,4 +1,5 @@
-"""분석·편집 계획 API: 분석 작업, 분석 결과, 편집 계획 읽기·고치기, 장면 선택(AI 가편집), 수정 요청."""
+"""분석·편집 계획 API: 분석 작업, 분석 결과, 편집 계획 읽기·고치기, 장면 선택(AI 가편집), 수정 요청,
+검수한 결과를 평가용 정답으로 저장."""
 
 from __future__ import annotations
 
@@ -6,10 +7,12 @@ from fastapi import APIRouter, Request
 from fastapi.concurrency import run_in_threadpool
 
 from ...errors import BadRequest, NotFound
+from ...services import bench as bench_service
 from ...services import editing as editing_service
 from ...services.analysis import run_analysis
+from ...storage.bench import BenchStore
 from ..deps import state
-from ..schemas import AnalyzeRequest, LinesPatch, PlanUpdate, ReviseRequest, SelectRequest
+from ..schemas import AnalyzeRequest, BenchCaseRequest, LinesPatch, PlanUpdate, ReviseRequest, SelectRequest
 from ..views import plan_view
 
 router = APIRouter()
@@ -82,3 +85,22 @@ async def revise(request: Request, project_id: str, body: ReviseRequest) -> dict
     view = plan_view(app, project, plan)
     view.update({"message": message, "changed": changed, "engine": engine})
     return view
+
+
+# ---------------------------------------------------------------- 평가용 정답 (v4 T1)
+
+@router.get("/projects/{project_id}/bench-case")
+def get_bench_case(request: Request, project_id: str) -> dict:
+    """이 프로젝트를 이미 정답으로 저장했는지 (없으면 saved=false)."""
+    app = state(request)
+    case = BenchStore(app.settings.data_dir).find_by_project(project_id)
+    return {"saved": case is not None, **(bench_service.case_summary(case) if case else {})}
+
+
+@router.post("/projects/{project_id}/bench-case")
+def save_bench_case(request: Request, project_id: str, body: BenchCaseRequest) -> dict:
+    """지금 화면의 살림/뺌을 정답으로 저장 (같은 프로젝트면 덮어쓴다)."""
+    app = state(request)
+    case = bench_service.save_case(app.store, BenchStore(app.settings.data_dir), project_id, body.name,
+                                   body.person, body.split, body.profile)
+    return {"saved": True, **bench_service.case_summary(case)}

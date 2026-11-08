@@ -211,7 +211,12 @@ def _analyze(ctx: RunContext, store: ProjectStore, settings: Settings, project_i
     ctx.check()
     with ctx.stage("judge"):
         ctx.progress(76, "컷 판단", f"문장 {len(lines)}개")
-        judgments, engines["judge"], judge_warnings = judge_mod.judge_lines(lines, scenes, profile, client)
+        if settings.judge_mode == "hybrid":
+            judgments, engines["judge"], judge_warnings, asked = judge_mod.judge_hybrid(lines, scenes, profile, client)
+            spoken = sum(1 for line in lines if line.text.strip())
+            engines["judge_asked"] = f"{len(asked)}/{spoken}"       # Gemini에 물어본 문장 / 전체 (화면·지표용)
+        else:
+            judgments, engines["judge"], judge_warnings = judge_mod.judge_lines(lines, scenes, profile, client)
         warnings += judge_warnings
 
     with ctx.stage("tree"):

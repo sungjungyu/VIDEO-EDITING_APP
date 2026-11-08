@@ -9,6 +9,7 @@
 렌더       POST /projects/{pid}/render → 작업, GET …/renders/{file}              render.py
 작업       GET /jobs/{id}, POST /jobs/{id}/cancel, GET /projects/{pid}/jobs
 평가 지표  GET /projects/{pid}/metrics
+평가 정답  GET/POST /projects/{pid}/bench-case (검수한 살림/뺌 → data/bench, vibecut bench로 채점)   editing.py
 """
 
 from fastapi import APIRouter

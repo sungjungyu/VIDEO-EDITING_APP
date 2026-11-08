@@ -70,3 +70,69 @@ def test_judge_guard_and_failure_fall_back_to_rules():
     assert decisions["t0001"].keep and warnings
     decisions, engine, warnings = judge_mod.judge_lines(LINES, [], {}, ScriptedAI(AIError("503")))
     assert engine == "rule" and decisions["t0001"].keep and warnings
+
+
+# ---------------------------------------------------------------- 확신도·하이브리드 (v4 T2)
+
+def test_cut_confidence_grows_with_distance_from_threshold_and_stays_hard():
+    """지금 자르는 규칙은 모두 HARD_RULE 이상 (judge_lines 동작이 예전과 같다), 확실할수록 높다."""
+    exact = [L("a", "여기 라떼가 정말 유명해요", 0, 2), L("b", "여기 라떼가 정말 유명해요", 2.5, 4.5)]
+    close = LINES
+    exact_ng = judge_mod.rule_decisions(exact, {})["a"]
+    close_ng = judge_mod.rule_decisions(close, {})["t0003"]
+    assert exact_ng.reason == close_ng.reason == "NG"
+    assert exact_ng.confidence > close_ng.confidence >= judge_mod.HARD_RULE
+    cue_alone = judge_mod.rule_decisions([L("c", "아 다시 할게", 0, 1)], {})["c"]
+    cue_inside = judge_mod.rule_decisions([L("d", "오늘은 처음부터 순서대로 하나씩 설명해 드릴게요", 0, 3)], {})["d"]
+    assert cue_alone.confidence > cue_inside.confidence >= judge_mod.HARD_RULE
+
+
+def test_keep_confidence_drops_for_doubtful_lines():
+    lines = [L("x1", "오늘 날씨가 정말 좋아서 한강에 나왔어요", 0, 3),
+             L("x2", "음 그니까 여기가 어", 3.5, 5),                        # 추임새 섞임
+             L("x3", "아니 이거 말고", 5.5, 6.5)]                           # 지시어 비슷한 말
+    rules = judge_mod.rule_decisions(lines, {})
+    assert all(rules[i].keep for i in ("x1", "x2", "x3"))
+    assert rules["x1"].confidence >= judge_mod.ASK_BELOW
+    assert rules["x2"].confidence < judge_mod.ASK_BELOW and "추임새" in rules["x2"].note
+    assert rules["x3"].confidence < judge_mod.ASK_BELOW
+    assert judge_mod.uncertain_ids(lines, rules) == ["x2", "x3"]
+
+
+class RecordingAI(ScriptedAI):
+    def __init__(self, data):
+        super().__init__(data)
+        self.prompts = []
+
+    def generate_json(self, prompt, schema=None, **kw):
+        self.prompts.append(prompt)
+        return super().generate_json(prompt, schema, **kw)
+
+
+def test_hybrid_asks_only_uncertain_lines_with_context():
+    texts = ["오늘은 아침 일찍 일어났어요", "날씨가 맑아서 기분이 좋네요", "버스를 타고 시장에 갔어요",
+             "사람들이 생각보다 많더라고요", "떡볶이 가게 앞에 줄이 길었어요", "", "결국 국밥을 먹기로 했습니다",
+             "국물이 진하고 고기가 부드러워요", "다 먹고 근처 공원을 걸었어요", "이제 집으로 돌아갑니다"]
+    lines = [L(f"h{i}", t, i * 3, i * 3 + 2) for i, t in enumerate(texts)]
+    lines[5] = L("h5", "음 그니까 여기가 어", 15, 17)
+    ai = RecordingAI({"decisions": [
+        {"id": "h5", "keep": False, "reason": "군더더기", "confidence": 0.8, "emphasis": False, "note": "머뭇거림"},
+        {"id": "h4", "keep": False, "reason": "NG", "confidence": 0.9, "emphasis": False, "note": "문맥 문장"}]})
+    decisions, engine, warnings, asked = judge_mod.judge_hybrid(lines, [], {}, ai)
+    assert engine == "hybrid" and asked == {"h5"} and not warnings
+    assert decisions["h5"].keep is False and decisions["h5"].source == "ai"
+    assert decisions["h4"].keep and decisions["h4"].source == "rule"          # 문맥 문장은 판단하지 않는다
+    prompt = ai.prompts[0]
+    assert "★ h5" in prompt and "(문맥) h3" in prompt and "(문맥) h7" in prompt
+    assert "h0 |" not in prompt and "h9 |" not in prompt                     # 멀리 떨어진 문장은 보내지 않는다
+
+
+def test_hybrid_without_ai_or_doubt_is_rules_and_all_mode_prompt_is_unchanged():
+    clear = [L("c1", "오늘 날씨가 정말 좋아서 한강에 나왔어요", 0, 3)]
+    ai = RecordingAI({"decisions": []})
+    assert judge_mod.judge_hybrid(clear, [], {}, ai)[1:] == ("rule", [], set()) and not ai.prompts
+    decisions, engine, _, asked = judge_mod.judge_hybrid(LINES, [], {}, None)
+    assert engine == "rule" and not asked and decisions == judge_mod.rule_decisions(LINES, {})
+    rules = judge_mod.rule_decisions(LINES, {})
+    prompt = judge_mod.build_prompt(LINES, rules, {}, {})
+    assert "★" not in prompt and "(문맥)" not in prompt

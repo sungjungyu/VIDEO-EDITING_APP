@@ -1547,7 +1547,7 @@
  },
  "rules": {
   "t0001": {
-   "confidence": 0.6,
+   "confidence": 0.9,
    "emphasis": true,
    "keep": true,
    "note": "",
@@ -1557,7 +1557,7 @@
    "text": null
   },
   "t0002": {
-   "confidence": 0.75,
+   "confidence": 0.95,
    "emphasis": false,
    "keep": false,
    "note": "의미 없는 추임새",
@@ -1567,7 +1567,7 @@
    "text": null
   },
   "t0003": {
-   "confidence": 0.7,
+   "confidence": 0.95,
    "emphasis": false,
    "keep": false,
    "note": "바로 뒤에서 같은 말을 다시 했습니다",
@@ -1577,7 +1577,7 @@
    "text": null
   },
   "t0004": {
-   "confidence": 0.5,
+   "confidence": 0.9,
    "emphasis": false,
    "keep": true,
    "note": "",
@@ -1587,7 +1587,7 @@
    "text": null
   },
   "t0005": {
-   "confidence": 0.8,
+   "confidence": 0.95,
    "emphasis": false,
    "keep": false,
    "note": "촬영 지시·NG 신호",
@@ -1597,7 +1597,7 @@
    "text": null
   },
   "t0006": {
-   "confidence": 0.6,
+   "confidence": 0.9,
    "emphasis": true,
    "keep": true,
    "note": "",
@@ -1607,7 +1607,7 @@
    "text": null
   },
   "t0007": {
-   "confidence": 0.5,
+   "confidence": 0.9,
    "emphasis": false,
    "keep": true,
    "note": "",
@@ -1617,7 +1617,7 @@
    "text": null
   },
   "t0008": {
-   "confidence": 0.5,
+   "confidence": 0.9,
    "emphasis": false,
    "keep": true,
    "note": "",
@@ -1627,7 +1627,7 @@
    "text": null
   },
   "t0009": {
-   "confidence": 0.75,
+   "confidence": 0.8,
    "emphasis": false,
    "keep": false,
    "note": "의미 없는 추임새",
@@ -1637,7 +1637,7 @@
    "text": null
   },
   "t0010": {
-   "confidence": 0.5,
+   "confidence": 0.9,
    "emphasis": false,
    "keep": true,
    "note": "",

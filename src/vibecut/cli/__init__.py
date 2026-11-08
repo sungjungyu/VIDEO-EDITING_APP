@@ -5,6 +5,7 @@
     vibecut transcribe --input ./raw_clips …       받아쓰기만 (transcript.json)
     vibecut scenes --input ./raw_clips …           장면 분석만 (scenes.json)
     vibecut metrics [project_id]                   평가 지표 표
+    vibecut bench [--split test] [--methods …]     컷 판단 채점 (검수한 정답 vs 규칙·Gemini·…)
 """
 
 from __future__ import annotations
@@ -19,6 +20,7 @@ COMMANDS = {
     "transcribe": ("받아쓰기 (단어 단위 타임스탬프)", "transcribe"),
     "scenes": ("장면 분석 (Gemini 영상 이해)", "scenes"),
     "metrics": ("평가 지표 표", "metrics"),
+    "bench": ("컷 판단 채점 (검수한 정답과 비교)", "bench"),
 }
 
 

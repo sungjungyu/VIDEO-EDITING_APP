@@ -48,6 +48,8 @@ export const api = {
   revise: (pid, body) => post(`${P(pid)}/revise`, body),
   render: (pid, quality) => post(`${P(pid)}/render`, { quality }),
   metrics: pid => get(`${P(pid)}/metrics`),
+  getBenchCase: pid => get(`${P(pid)}/bench-case`),
+  saveBenchCase: (pid, body) => post(`${P(pid)}/bench-case`, body),
   job: jid => get(`/api/jobs/${jid}`),
   cancelJob: jid => post(`/api/jobs/${jid}/cancel`),
 

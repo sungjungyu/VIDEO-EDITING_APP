@@ -7,6 +7,7 @@
   "GET /api/projects",
   "GET /api/projects/{project_id}",
   "GET /api/projects/{project_id}/analysis",
+  "GET /api/projects/{project_id}/bench-case",
   "GET /api/projects/{project_id}/clips/{clip_id}/file",
   "GET /api/projects/{project_id}/clips/{clip_id}/proxy",
   "GET /api/projects/{project_id}/jobs",
@@ -18,6 +19,7 @@
   "POST /api/jobs/{job_id}/cancel",
   "POST /api/projects",
   "POST /api/projects/{project_id}/analyze",
+  "POST /api/projects/{project_id}/bench-case",
   "POST /api/projects/{project_id}/clips",
   "POST /api/projects/{project_id}/render",
   "POST /api/projects/{project_id}/revise",
@@ -27,6 +29,12 @@
  "schemas": {
   "AnalyzeRequest": [
    "profile"
+  ],
+  "BenchCaseRequest": [
+   "name",
+   "person",
+   "profile",
+   "split"
   ],
   "Body_upload_clips_api_projects__project_id__clips_post": [
    "files"
