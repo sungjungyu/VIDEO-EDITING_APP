@@ -109,3 +109,20 @@ def test_full_flow(settings, media):
     with TestClient(create_app(settings), base_url="http://127.0.0.1") as client:      # 다시 켜면 빈 상태
         assert client.get(f"/api/projects/{pid}").status_code == 404
         assert client.get("/api/projects").json() == []
+
+
+def test_vertical_upload_makes_vertical_output_until_user_picks(settings, tmp_path):
+    """세로로 찍은 영상을 올리면 화면이 계획을 다시 읽을 때 결과 비율이 9:16 (예전: 항상 16:9)."""
+    vertical = make_clip(tmp_path / "세로.mp4", 3, size="180x320", audio=False)
+    with TestClient(create_app(settings), base_url="http://127.0.0.1") as client:
+        pid = client.post("/api/projects", json={"name": "세로"}).json()["project_id"]
+        assert client.get(f"/api/projects/{pid}/plan").json()["plan"]["output"]["aspect"] == "16:9"   # 빈 프로젝트
+        clip = client.post(f"/api/projects/{pid}/clips",
+                           files=[("files", ("세로.mp4", vertical.read_bytes(), "video/mp4"))]).json()["clips"][0]
+        client.patch(f"/api/projects/{pid}", json={"timeline": [clip["clip_id"]]})        # 화면이 하는 것과 같이
+        output = client.get(f"/api/projects/{pid}/plan").json()["plan"]["output"]
+        assert (output["aspect"], output["aspect_source"]) == ("9:16", "auto")
+        chosen = {**output, "aspect": "16:9", "aspect_source": "user"}                       # 비율 버튼
+        put = client.put(f"/api/projects/{pid}/plan", json={"output": chosen}).json()
+        assert put["plan"]["output"]["aspect"] == "16:9"
+        assert client.get(f"/api/projects/{pid}/plan").json()["plan"]["output"]["aspect"] == "16:9"
