@@ -3,17 +3,22 @@
    편집 결과 : 렌더하지 않고 편집 결과의 남길 구간(keep)만 이어서 재생. 자막은 서버가 계산한 결과 자막(events),
                강조 줌인(effects)도 그대로 → 내보낸 영상과 같은 화면
    미리보기 상자는 출력 비율(16:9/9:16) 그대로, 영상은 가운데를 잘라 채운다 (렌더의 scale+crop과 같음).
-   비율 버튼은 미리보기 아래 재생 줄 오른쪽 끝에 있다 (어느 단계에서나 바꿀 수 있고, 영상 자리를 줄이지 않게). */
+   비율 버튼은 미리보기 아래 재생 줄 오른쪽 끝에 있다 (어느 단계에서나 바꿀 수 있고, 영상 자리를 줄이지 않게).
+   배경음악: 편집 결과를 재생할 때 같이 틀고, 크기는 렌더와 같은 규칙(core/mix.js)으로 매 화면 맞춘다
+   (내보낸 영상은 목소리·음악을 각각 음량 맞추기 한 뒤 섞으므로 전체 크기는 조금 다를 수 있다). */
 
 import { api } from "../core/api.js";
 import { $, toast } from "../core/dom.js";
 import { clamp, fmt } from "../core/format.js";
+import { gainAt } from "../core/mix.js";
 import { clipById, decisionOf, emit, linesOfClip, mutatePlan, on, pid, state } from "../core/store.js";
 import { drawEvent, lineToEvent } from "../subtitle/draw.js";
 import { mediaUrl } from "./media.js";
 import { effectiveStyle } from "./style-panel.js";
 
 const video = () => $("video");
+const bgm = new Audio();
+bgm.preload = "auto";
 let mode = "source";
 let clipId = null;
 let planIndex = -1;
@@ -188,9 +193,36 @@ function updateTimeUI() {
 
 let lastPositionKey = "";
 
+function musicUrl() {
+  const m = state.plan?.music;
+  if (!m || m.source === "none" || !pid()) return null;
+  if (m.source === "library") return m.track ? `/api/music/${encodeURIComponent(m.track)}/file` : null;
+  return `/api/projects/${pid()}/music/file?v=${encodeURIComponent(m.title || m.track || "")}`;   // 바꿔 올리면 새로
+}
+
+/* 편집 결과를 재생하는 동안만 배경음악을 같이 튼다. 위치는 결과 초 기준(곡보다 길면 반복), 크기는 렌더와 같은 식 */
+function syncMusic() {
+  const v = video();
+  const url = musicUrl();
+  if (!(mode === "plan" && !v.paused && url)) {
+    if (!bgm.paused) bgm.pause();
+    return;
+  }
+  if (bgm.dataset.url !== url) { bgm.dataset.url = url; bgm.src = url; }
+  const m = state.plan.music;
+  const t = outTime();
+  bgm.volume = clamp(gainAt(t, state.plan.speech || [], m.volume, m.duck_level, m.duck, state.plan.duration || 0), 0, 1);
+  if (bgm.duration > 0) {
+    const want = t % bgm.duration;
+    if (Math.abs(bgm.currentTime - want) > 0.3) bgm.currentTime = want;     // 구간을 건너뛰었을 때만 맞춘다
+  }
+  if (bgm.paused) bgm.play().catch(() => {});
+}
+
 function tick(now) {
   requestAnimationFrame(tick);
   if (mode === "plan") advance();
+  syncMusic();
   if (now - lastDraw > 33) {
     lastDraw = now;
     drawOverlay();

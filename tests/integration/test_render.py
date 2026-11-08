@@ -111,3 +111,41 @@ def test_jump_cut_zoom_and_voice_clean_keep_frames_and_sync(sources, tmp_path):
     video_sec, audio_sec = stream_durations(out)
     assert abs(video_sec / 30 - 5.0) <= 1 / 30 + 1e-3 and abs(audio_sec - 5.0) <= 0.03
     assert abs(frame_lumas(out, [2.0 + 0.5 / 30], 30)[0] - 150) <= 2          # 확대한 조각 첫 프레임 = 원본 150번
+
+
+def _pcm(path, rate: int = 48000):
+    import subprocess
+
+    import numpy as np
+
+    from vibecut.media.ffmpeg import ffmpeg_path
+    raw = subprocess.run([ffmpeg_path(), "-hide_banner", "-loglevel", "error", "-i", str(path), "-vn", "-ac", "1",
+                          "-ar", str(rate), "-f", "f32le", "-"], check=True, capture_output=True).stdout
+    return np.frombuffer(raw, np.float32)
+
+
+def test_music_is_ducked_under_speech_like_the_shared_rule(sources, tmp_path):
+    """렌더한 음악 크기가 domain/mix.py 규칙(미리보기와 같은 식)대로 말하는 동안 줄어든다."""
+    import subprocess
+
+    import numpy as np
+
+    from vibecut.domain.mix import gain_at
+    from vibecut.domain.models import MusicSpec
+    from vibecut.media.ffmpeg import ffmpeg_path
+    music = tmp_path / "tone.wav"
+    subprocess.run([ffmpeg_path(), "-hide_banner", "-loglevel", "error", "-y", "-f", "lavfi", "-i",
+                    "sine=frequency=440:sample_rate=48000:duration=8", str(music)], check=True)
+    clips = {"c03": clip_info("c03", sources["c03"])}                      # 소리 없는 클립 → 들리는 건 음악뿐
+    plan = keep_plan([("c03", 0.0, 5.0)])
+    plan.options.voice_clean = False
+    plan.music = MusicSpec(source="user", volume=0.5, duck_level=0.3)
+    plan.speech = [(-0.2, 0.0), (2.0, 2.6)]          # 첫 구간: 말 시작 전 식이 음수가 되는 경우
+    out = tmp_path / "music.mp4"
+    result = render_plan(plan, clips, {"c03": sources["c03"]}, "preview", out, tmp_path / "work", music_file=music)
+    assert abs(result["duration"] - 5.0) <= 1 / 30 + 1e-3
+    pcm = _pcm(out)
+    rms = lambda t: float(np.sqrt(np.mean(pcm[int((t - 0.05) * 48000):int((t + 0.05) * 48000)] ** 2)))  # noqa: E731
+    expect = lambda t: gain_at(t, plan.speech, 0.5, 0.3, True, 5.0)  # noqa: E731
+    ratio, want = rms(2.3) / rms(1.55), expect(2.3) / expect(1.55)       # 말하는 중 / 말 없음
+    assert abs(ratio - want) < 0.05, (ratio, want)

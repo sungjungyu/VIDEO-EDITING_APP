@@ -127,7 +127,7 @@ function enqueuePlan(task) {
 function snapshot() {
   const p = state.plan;
   return p ? structuredClone({ selection: p.selection, lines: p.lines, styles: p.styles, output: p.output,
-                               options: p.options }) : null;
+                               options: p.options, music: p.music }) : null;
 }
 
 export const canUndo = () => undoStack.length > 0;

@@ -4,6 +4,7 @@
   "DELETE /api/projects/{project_id}/clips/{clip_id}",
   "GET /api/config",
   "GET /api/jobs/{job_id}",
+  "GET /api/music/{track_id}/file",
   "GET /api/projects",
   "GET /api/projects/{project_id}",
   "GET /api/projects/{project_id}/analysis",
@@ -12,6 +13,8 @@
   "GET /api/projects/{project_id}/clips/{clip_id}/proxy",
   "GET /api/projects/{project_id}/jobs",
   "GET /api/projects/{project_id}/metrics",
+  "GET /api/projects/{project_id}/music",
+  "GET /api/projects/{project_id}/music/file",
   "GET /api/projects/{project_id}/plan",
   "GET /api/projects/{project_id}/renders/{file_name}",
   "PATCH /api/projects/{project_id}",
@@ -21,6 +24,7 @@
   "POST /api/projects/{project_id}/analyze",
   "POST /api/projects/{project_id}/bench-case",
   "POST /api/projects/{project_id}/clips",
+  "POST /api/projects/{project_id}/music",
   "POST /api/projects/{project_id}/render",
   "POST /api/projects/{project_id}/revise",
   "POST /api/projects/{project_id}/select",
@@ -38,6 +42,9 @@
   ],
   "Body_upload_clips_api_projects__project_id__clips_post": [
    "files"
+  ],
+  "Body_upload_music_api_projects__project_id__music_post": [
+   "file"
   ],
   "ClipPatch": [
    "clip_id",
@@ -65,6 +72,14 @@
   ],
   "LinesPatch": [
    "changes"
+  ],
+  "MusicSpec": [
+   "duck",
+   "duck_level",
+   "source",
+   "title",
+   "track",
+   "volume"
   ],
   "OutputSpec": [
    "aspect",
@@ -94,6 +109,7 @@
   ],
   "PlanUpdate": [
    "lines",
+   "music",
    "options",
    "output",
    "selection",

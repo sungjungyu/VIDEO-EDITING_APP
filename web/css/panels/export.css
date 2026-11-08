@@ -39,3 +39,18 @@
 .dev-info-actions{display:flex;justify-content:flex-end;margin-bottom:8px}
 .plan-json{font-family:Consolas,monospace;font-size:11px;white-space:pre-wrap;max-height:260px;overflow:auto;background:var(--panel3);
   padding:10px;border-radius:8px;margin-bottom:12px}
+
+/* 배경음악 카드 */
+.music-list{display:flex;flex-direction:column;gap:2px;margin-top:4px}
+.music-row{display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:7px;cursor:pointer;font-size:13px}
+.music-row:hover{background:var(--panel3)}
+.music-row.active{background:rgba(139,92,246,.12)}
+.music-radio{color:var(--accent);width:12px}
+.music-title{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.music-mood{font-size:11px;color:var(--muted)}
+.music-rec{font-size:11px;color:var(--warn)}
+.music-empty{padding:12px;text-align:center;color:var(--muted);font-size:13px}
+.music-user{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:4px}
+.music-user .card-note{flex:1 1 100%;margin:0}
+.music-user-name{font-size:13px}
+.music-controls{display:flex;flex-direction:column;gap:6px;margin-top:6px}

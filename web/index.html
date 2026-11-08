@@ -485,6 +485,29 @@
           </div>
 
           <div class="card">
+            <div class="card-title">배경음악 <small>말할 때는 저절로 작아지고, 처음·끝은 서서히</small></div>
+            <div class="seg-switch seg-switch-block" id="music-source"></div>
+            <div class="music-list hidden" id="music-library"></div>
+            <div class="music-user hidden" id="music-user">
+              <button class="btn-ghost" id="btn-music-upload" type="button">음악 파일 고르기</button>
+              <span class="music-user-name" id="music-user-name"></span>
+              <input type="file" id="music-file" accept=".mp3,.m4a,.aac,.wav,.ogg,.flac,audio/*" hidden>
+              <p class="card-note">저작권을 확인한 음악만 올려 주세요 (MP3·M4A·WAV 등, 50MB까지)</p>
+            </div>
+            <div class="music-controls hidden" id="music-controls">
+              <div class="ss-row">
+                <span class="ss-row-label">음량</span>
+                <div class="ss-row-ctrl">
+                  <input type="range" class="ss-slider" id="music-volume" min="0.05" max="0.6" step="0.05" value="0.25">
+                  <span class="ss-slider-val" id="music-volume-val">보통</span>
+                </div>
+              </div>
+              <div class="switch-row">말할 때 음악 작게 <button class="ss-toggle" id="music-duck"></button></div>
+              <p class="card-note" id="music-credit"></p>
+            </div>
+          </div>
+
+          <div class="card">
             <div class="card-title">영상 만들기</div>
             <div class="render-actions">
               <button class="btn-primary btn-block btn-lg" id="btn-render">최종 영상 만들기</button>

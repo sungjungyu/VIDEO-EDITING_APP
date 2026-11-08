@@ -111,7 +111,7 @@ def _edit(args, settings, store: ProjectStore, pid: str, files: list[Path]) -> i
     _, plan = editing.current_plan(store, pid)
     print(f"편집 계획: 구간 {len(plan.keep)}개, {plan.duration:.1f}초")
 
-    result = run_render(ctx, store, pid, args.quality)
+    result = run_render(ctx, store, pid, args.quality, settings)
     out = Path(args.output)
     shutil.copyfile(store.render_path(pid, result["render"]["file"]), out)
     print(f"\n완성: {out} ({result['render']['duration']:.1f}초, 계획과 차이 {result['render']['error_ms']:+.0f}ms)")

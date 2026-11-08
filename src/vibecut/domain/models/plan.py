@@ -218,6 +218,22 @@ def default_styles() -> dict[str, StyleSpec]:
     }
 
 
+class MusicSpec(BaseModel):
+    """배경음악 (사용자 값). source: none 없음 · library 기본 곡(assets/music) · user 내가 올린 파일(프로젝트 music/).
+    크기 규칙은 domain/mix.py (말할 때 미리 줄이고, 처음·끝은 서서히)."""
+    source: Literal["none", "library", "user"] = "none"
+    track: str = ""              # library: 곡 id, user: 저장한 파일 이름
+    title: str = ""
+    volume: float = 0.25         # 말이 없을 때 음악 크기 (원래 크기 대비, 0~1)
+    duck: bool = True            # 말할 때 음악을 작게
+    duck_level: float = 0.3      # 말할 때는 volume의 이 비율로
+
+    @field_validator("volume", "duck_level")
+    @classmethod
+    def _ratio(cls, v: float) -> float:
+        return _clamp(v, 0.0, 1.0)
+
+
 class EditPlan(BaseModel):
     version: int = 1
     selection: Selection = Field(default_factory=Selection)
@@ -225,10 +241,12 @@ class EditPlan(BaseModel):
     styles: dict[str, StyleSpec] = Field(default_factory=default_styles)
     output: OutputSpec = Field(default_factory=OutputSpec)
     options: PlanOptions = Field(default_factory=PlanOptions)
+    music: MusicSpec = Field(default_factory=MusicSpec)
     # ↓ planner.compile_plan이 계산해서 채운다
     keep: list[KeepRange] = Field(default_factory=list)
     effects: list[Effect] = Field(default_factory=list)
     events: list[SubtitleEvent] = Field(default_factory=list)
+    speech: list[tuple[float, float]] = Field(default_factory=list)   # 결과 초 말 구간 (배경음악을 줄일 곳, 합친 것)
     duration: float = 0.0
     warnings: list[str] = Field(default_factory=list)
     updated_at: str = Field(default_factory=now_iso)

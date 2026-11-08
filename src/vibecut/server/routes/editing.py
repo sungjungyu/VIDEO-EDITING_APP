@@ -56,7 +56,7 @@ def get_plan(request: Request, project_id: str) -> dict:
 def put_plan(request: Request, project_id: str, body: PlanUpdate) -> dict:
     app = state(request)
     project, plan = editing_service.update_plan(app.store, project_id, body.selection, body.lines, body.styles,
-                                                body.output, body.options)
+                                                body.output, body.options, body.music)
     return plan_view(app, project, plan)
 
 

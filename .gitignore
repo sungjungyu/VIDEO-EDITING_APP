@@ -72,6 +72,10 @@ output.mp4
 *.wav
 *.m4a
 audio.mp3
+# 앱에 들어 있는 기본 배경음악은 올린다 (CC0 등 배포 가능한 곡만, assets/music/LICENSE.md)
+!assets/music/*.mp3
+!assets/music/*.m4a
+!assets/music/*.ogg
 
 # VIBE CUT 앱 데이터 (프로젝트·작업·AI 응답 캐시)
 /data/

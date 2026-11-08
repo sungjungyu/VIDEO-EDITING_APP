@@ -129,6 +129,11 @@ class Settings:
         return self.ai_mode == "live" and bool(self.api_key)
 
     @property
+    def music_dir(self) -> Path:
+        """앱에 들어 있는 배경음악 (tracks.json + 음원, storage/music.py)."""
+        return self.root_dir / "assets" / "music"
+
+    @property
     def web_dir(self) -> Path:
         """브라우저 화면 파일 (index.html, css, js)."""
         return self.root_dir / "web"

@@ -49,6 +49,20 @@ export const api = {
   render: (pid, quality) => post(`${P(pid)}/render`, { quality }),
   metrics: pid => get(`${P(pid)}/metrics`),
   getBenchCase: pid => get(`${P(pid)}/bench-case`),
+  musicChoices: pid => get(`${P(pid)}/music`),
+  async uploadMusic(pid, file) {
+    const form = new FormData();
+    form.append("file", file);
+    let res;
+    try {
+      res = await fetch(`${P(pid)}/music`, { method: "POST", body: form });
+    } catch (err) {
+      throw new ApiError("서버에 연결할 수 없습니다. 서버(vibecut serve)가 켜져 있는지 확인하세요.", 0);
+    }
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new ApiError(data.detail || `업로드 실패 (HTTP ${res.status})`, res.status);
+    return data;
+  },
   saveBenchCase: (pid, body) => post(`${P(pid)}/bench-case`, body),
   job: jid => get(`/api/jobs/${jid}`),
   cancelJob: jid => post(`/api/jobs/${jid}/cancel`),

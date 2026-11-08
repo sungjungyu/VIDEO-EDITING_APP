@@ -6,7 +6,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-from ..domain.models import LineDecision, OutputSpec, PlanOptions, Selection, StyleSpec
+from ..domain.models import LineDecision, MusicSpec, OutputSpec, PlanOptions, Selection, StyleSpec
 from ..services.editing import LineChange
 
 
@@ -36,6 +36,7 @@ class PlanUpdate(BaseModel):
     styles: dict[str, StyleSpec] | None = None
     output: OutputSpec | None = None
     options: PlanOptions | None = None
+    music: MusicSpec | None = None
 
 
 class LinesPatch(BaseModel):

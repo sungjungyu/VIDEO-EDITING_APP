@@ -99,7 +99,7 @@ def test_preview_renders_do_not_evict_final_renders(tmp_path, monkeypatch):
     plan.duration = 2.0
     store.save_plan(pid, plan)
 
-    def fake_render(plan, clips, files, quality, out, workdir, on_progress=None, cancel=None):
+    def fake_render(plan, clips, files, quality, out, workdir, on_progress=None, cancel=None, music_file=None):
         out.parent.mkdir(parents=True, exist_ok=True)
         out.write_bytes(b"mp4")
         return {"width": 960, "height": 540, "duration": 2.0, "plan_duration": 2.0, "error_ms": 0.0,

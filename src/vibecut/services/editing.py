@@ -13,7 +13,16 @@ from typing import Literal
 from pydantic import BaseModel
 
 from ..ai.client import GeminiClient
-from ..domain.models import EditPlan, LineDecision, OutputSpec, PlanOptions, Project, Selection, StyleSpec
+from ..domain.models import (
+    EditPlan,
+    LineDecision,
+    MusicSpec,
+    OutputSpec,
+    PlanOptions,
+    Project,
+    Selection,
+    StyleSpec,
+)
 from ..editing.planner import compile_plan, effective_decisions
 from ..editing.revise import revise as revise_lines
 from ..editing.select import select_beats
@@ -56,11 +65,12 @@ def edit_plan(store: ProjectStore, project_id: str,
 
 def update_plan(store: ProjectStore, project_id: str, selection: Selection | None = None,
                 lines: dict[str, LineDecision] | None = None, styles: dict[str, StyleSpec] | None = None,
-                output: OutputSpec | None = None, options: PlanOptions | None = None) -> tuple[Project, EditPlan]:
+                output: OutputSpec | None = None, options: PlanOptions | None = None,
+                music: MusicSpec | None = None) -> tuple[Project, EditPlan]:
     """주어진 사용자 값만 바꾼다 (실행취소·다시실행도 이 함수로 이전 값을 통째로 되돌린다)."""
     def change(plan: EditPlan):
         for name, value in (("selection", selection), ("lines", lines), ("styles", styles), ("output", output),
-                            ("options", options)):
+                            ("options", options), ("music", music)):
             if value is not None:
                 setattr(plan, name, value)
         if "subtitle" not in plan.styles:

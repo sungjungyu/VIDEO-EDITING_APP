@@ -32,7 +32,8 @@ def render(request: Request, project_id: str, body: RenderRequest) -> dict:
         running = app.jobs.active(project_id, "render")
         if running is not None:
             return running.model_dump()
-        return app.jobs.submit("render", project_id, run_render, app.store, project_id, body.quality).model_dump()
+        return app.jobs.submit("render", project_id, run_render, app.store, project_id, body.quality,
+                               app.settings).model_dump()
 
 
 @router.get("/projects/{project_id}/renders/{file_name}")

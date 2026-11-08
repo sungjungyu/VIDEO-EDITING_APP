@@ -9,14 +9,18 @@ from ..editing.planner import compile_plan, validate_plan
 from ..media.convert import make_proxy
 from ..media.probe import MediaInfo
 from ..render.renderer import render_plan
+from ..settings import Settings
+from ..storage.music import MusicLibrary
 from ..storage.projects import ProjectStore
 from .context import RunContext
+from .music import music_file
 
 MAX_FINAL_RENDERS = 10
 MAX_PREVIEW_RENDERS = 3
 
 
-def run_render(ctx: RunContext, store: ProjectStore, project_id: str, quality: str) -> dict:
+def run_render(ctx: RunContext, store: ProjectStore, project_id: str, quality: str,
+               settings: Settings | None = None) -> dict:
     project = store.get(project_id)
     clips = project.timeline_clips()
     analysis = store.load_analysis(project_id)
@@ -25,12 +29,16 @@ def run_render(ctx: RunContext, store: ProjectStore, project_id: str, quality: s
     errors = [i["message"] for i in validate_plan(plan, clips, analysis, files) if i["level"] == "error"]
     if errors:
         raise ValueError("렌더 전 검사 실패: " + " / ".join(errors[:3]))
+    music = None
+    if plan.music.source != "none" and settings is not None:
+        music = music_file(store, MusicLibrary(settings.music_dir), project_id, plan.music)
     render_id = uuid.uuid4().hex[:10]
     out = store.render_path(project_id, f"{render_id}_{quality}.mp4")
     ctx.progress(2, "렌더링", f"구간 {len(plan.keep)}개, {plan.duration:.1f}초")
     with ctx.stage("render"):
         result = render_plan(plan, {c.clip_id: c for c in clips}, files, quality, out,
-                             store.work_dir(project_id, f"render_{render_id}"), ctx.sub(2, 99, "렌더링"), ctx.cancel)
+                             store.work_dir(project_id, f"render_{render_id}"), ctx.sub(2, 99, "렌더링"), ctx.cancel,
+                             music_file=music)
     info = RenderInfo(render_id=render_id, quality=quality, file=out.name, **result)
 
     def add(p):

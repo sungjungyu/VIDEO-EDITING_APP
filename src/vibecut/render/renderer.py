@@ -9,6 +9,7 @@
                   atrim · 48kHz 스테레오 · 앞뒤 25ms 페이드 (소리 없는 클립은 무음 생성)
       → concat (구간마다 영상·소리 길이를 맞춰 이어 붙임) → fps 통일 → 자막(libass) → yuv420p
       → 목소리 다듬기(highpass 80Hz + afftdn 잡음 줄이기) → 음량 고르게(loudnorm)
+      → 배경음악(있으면): 반복 재생해 길이를 맞추고 음량 고르게 → 크기 규칙(domain/mix.py)을 ffmpeg 식으로 → 섞기
 """
 
 from __future__ import annotations
@@ -21,7 +22,8 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from ..domain.models import ClipInfo, EditPlan, KeepRange
+from ..domain.mix import FADE_IN, FADE_OUT, LEAD, RELEASE
+from ..domain.models import ClipInfo, EditPlan, KeepRange, MusicSpec
 from ..media.ffmpeg import HDR_TONEMAP_FILTER, filter_script_args, run_with_progress, supports_tonemap
 from ..media.probe import probe
 from . import fonts
@@ -58,9 +60,20 @@ def _input_window(ranges: list[KeepRange], fps: float) -> tuple[float, float]:
     return seek, last - seek + 1.0
 
 
+def music_gain_expr(music: MusicSpec, spans: list[tuple[float, float]], duration: float) -> str:
+    """domain/mix.py gain_at과 같은 식 (ffmpeg volume 필터, t = 결과 초)."""
+    fade = f"clip(t/{FADE_IN:g},0,1)*clip(({_seconds(duration)}-t)/{FADE_OUT:g},0,1)"
+    expr = f"{music.volume:.4f}*{fade}"
+    if music.duck and spans:
+        ramps = "+".join(f"clip((t-({_seconds(a - LEAD)}))/{LEAD:g},0,1)"     # 괄호: a − LEAD는 음수일 수 있다
+                         f"*clip(({_seconds(b + RELEASE)}-t)/{RELEASE:g},0,1)" for a, b in spans)
+        expr += f"*(1-{1 - music.duck_level:.4f}*min(1,{ramps}))"
+    return expr
+
+
 def compile_render(plan: EditPlan, clips: dict[str, ClipInfo], files: dict[str, Path], quality: str,
-                   output_name: str) -> RenderSpec:
-    """quality: preview(짧은 변 540px, 빠른 인코딩) | final(설정 해상도)."""
+                   output_name: str, music_file: Path | None = None) -> RenderSpec:
+    """quality: preview(짧은 변 540px, 빠른 인코딩) | final(설정 해상도). music_file: 배경음악 (없으면 None)."""
     resolution = 540 if quality == "preview" else plan.output.resolution
     width, height = plan.output.size(resolution)
     out_fps = plan.output.fps
@@ -82,6 +95,8 @@ def compile_render(plan: EditPlan, clips: dict[str, ClipInfo], files: dict[str, 
         if seek > 0:
             args += ["-ss", _seconds(seek)]
         args += ["-t", _seconds(length), "-i", str(files[clip_id])]
+    if music_file is not None:
+        args += ["-stream_loop", "-1", "-i", str(music_file)]          # 영상보다 짧으면 반복
 
     graph: list[str] = []
     pairs: list[str] = []
@@ -136,10 +151,16 @@ def compile_render(plan: EditPlan, clips: dict[str, ClipInfo], files: dict[str, 
     # 소리 끝을 계획 길이에 맞춘다 (loudnorm은 마지막 패킷을 길게 기록해 결과 길이가 40ms쯤 늘어난다)
     end = f"atrim=duration={_seconds(plan.duration)}"
     voice = "highpass=f=80,afftdn=nr=12:nf=-40," if opts.voice_clean else ""
-    if opts.loudness:
-        graph.append(f"[ac]{voice}loudnorm=I=-16:TP=-1.5:LRA=11,aresample=48000,{end}[aout]")
+    level = "loudnorm=I=-16:TP=-1.5:LRA=11,aresample=48000," if opts.loudness else ""
+    if music_file is None:
+        graph.append(f"[ac]{voice}{level}{end}[aout]")
     else:
-        graph.append(f"[ac]{voice}{end}[aout]")
+        graph.append(f"[ac]{voice}{level}{end}[sp]")
+        gain = music_gain_expr(plan.music, plan.speech, plan.duration)
+        graph.append(f"[{len(order)}:a]aresample=48000,aformat=sample_fmts=fltp:channel_layouts=stereo,{end},"
+                     f"asetpts=PTS-STARTPTS,loudnorm=I=-16:TP=-1.5:LRA=11,aresample=48000,"
+                     f"volume=eval=frame:volume='{gain}'[bgm]")
+        graph.append(f"[sp][bgm]amix=inputs=2:duration=first:normalize=0,{end}[aout]")
 
     if quality == "preview":
         encode = ["-c:v", "libx264", "-preset", "veryfast", "-crf", "27", "-c:a", "aac", "-b:a", "128k"]
@@ -171,14 +192,15 @@ def prepare_workdir(spec: RenderSpec, workdir: Path) -> None:
 
 def render_plan(plan: EditPlan, clips: dict[str, ClipInfo], files: dict[str, Path], quality: str, output: Path,
                 workdir: Path, on_progress: Callable[[float], None] | None = None,
-                cancel: threading.Event | None = None, keep_workdir: bool = False) -> dict:
+                cancel: threading.Event | None = None, keep_workdir: bool = False,
+                music_file: Path | None = None) -> dict:
     """결과 파일을 output에 만들고 측정값을 돌려준다.
     duration은 실제 결과 길이, error_ms는 계획 길이와의 차이 (1프레임 = 33ms 안쪽이어야 정상)."""
     if not plan.keep:
         raise ValueError("남길 구간이 없어 렌더할 수 없습니다.")
     started = time.time()
     output.parent.mkdir(parents=True, exist_ok=True)
-    spec = compile_render(plan, clips, files, quality, "out.mp4")
+    spec = compile_render(plan, clips, files, quality, "out.mp4", music_file)
     prepare_workdir(spec, workdir)
     log.info("렌더 시작: %s, 구간 %d개, 예상 %.1f초, %dx%d", quality, len(plan.keep), spec.duration,
              spec.width, spec.height)

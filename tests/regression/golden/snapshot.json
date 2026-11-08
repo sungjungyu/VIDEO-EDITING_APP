@@ -447,6 +447,14 @@
     }
    ],
    "lines": {},
+   "music": {
+    "duck": true,
+    "duck_level": 0.3,
+    "source": "none",
+    "title": "",
+    "track": "",
+    "volume": 0.25
+   },
    "options": {
     "fade_ms": 25,
     "jump_scale": 1.1,
@@ -483,6 +491,28 @@
     "target_sec": null,
     "user_prompt": ""
    },
+   "speech": [
+    [
+     0.8,
+     5.4
+    ],
+    [
+     8.467,
+     11.667
+    ],
+    [
+     19.467,
+     22.967
+    ],
+    [
+     34.467,
+     36.967
+    ],
+    [
+     43.733,
+     47.733
+    ]
+   ],
    "styles": {
     "location": {
      "background_box": true,
@@ -916,6 +946,14 @@
     }
    ],
    "lines": {},
+   "music": {
+    "duck": true,
+    "duck_level": 0.3,
+    "source": "none",
+    "title": "",
+    "track": "",
+    "volume": 0.25
+   },
    "options": {
     "fade_ms": 25,
     "jump_scale": 1.1,
@@ -952,6 +990,28 @@
     "target_sec": null,
     "user_prompt": ""
    },
+   "speech": [
+    [
+     0.8,
+     5.4
+    ],
+    [
+     8.467,
+     11.667
+    ],
+    [
+     19.467,
+     22.967
+    ],
+    [
+     34.467,
+     36.967
+    ],
+    [
+     43.733,
+     47.733
+    ]
+   ],
    "styles": {
     "location": {
      "background_box": true,
@@ -1153,6 +1213,14 @@
     }
    ],
    "lines": {},
+   "music": {
+    "duck": true,
+    "duck_level": 0.3,
+    "source": "none",
+    "title": "",
+    "track": "",
+    "volume": 0.25
+   },
    "options": {
     "fade_ms": 25,
     "jump_scale": 1.1,
@@ -1191,6 +1259,12 @@
     "target_sec": null,
     "user_prompt": ""
    },
+   "speech": [
+    [
+     0.0,
+     4.6
+    ]
+   ],
    "styles": {
     "location": {
      "background_box": true,
@@ -1661,6 +1735,14 @@
      "text": null
     }
    },
+   "music": {
+    "duck": true,
+    "duck_level": 0.3,
+    "source": "none",
+    "title": "",
+    "track": "",
+    "volume": 0.25
+   },
    "options": {
     "fade_ms": 25,
     "jump_scale": 1.1,
@@ -1697,6 +1779,24 @@
     "target_sec": null,
     "user_prompt": ""
    },
+   "speech": [
+    [
+     0.8,
+     6.3
+    ],
+    [
+     9.367,
+     12.567
+    ],
+    [
+     31.767,
+     34.267
+    ],
+    [
+     41.033,
+     45.033
+    ]
+   ],
    "styles": {
     "location": {
      "background_box": true,

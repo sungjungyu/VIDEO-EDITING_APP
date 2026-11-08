@@ -17,6 +17,7 @@ from .plan import (
     EditPlan,
     Effect,
     KeepRange,
+    MusicSpec,
     OutputSpec,
     PlanOptions,
     Selection,
@@ -28,7 +29,7 @@ from .project import AnalysisState, ClipInfo, Project, RenderInfo
 
 __all__ = [
     "Analysis", "AnalysisState", "Beat", "BenchCase", "BenchClip", "ClipInfo", "ClipSpan", "EditPlan", "Effect",
-    "GoldLabel", "Job", "JobStatus", "KeepRange", "gold_reason",
+    "GoldLabel", "Job", "JobStatus", "KeepRange", "MusicSpec", "gold_reason",
     "Line", "LineDecision", "OutputSpec", "PlanOptions", "Project", "RenderInfo", "Scene", "Selection", "StyleSpec",
     "SubtitleEvent", "Word", "beats_by_id", "default_styles", "now_iso",
 ]

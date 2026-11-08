@@ -206,3 +206,12 @@ def test_jump_cut_zoom_alternates_within_a_clip_and_resets_on_new_clip():
     assert [(e.clip_id, e.start) for e in fx] == [("c01", 3), ("c02", 4)]
     assert all(e.type == "jump_cut" and e.scale == 1.1 for e in fx)
     assert planner_mod._jump_cut_effects(keep, PlanOptions(jump_zoom=False)) == []
+
+
+def test_speech_spans_are_in_output_time_and_skip_cut_lines():
+    lines = {"c01": [line("a", 1.0, 2.0, "첫 말", "c01"), line("b", 6.0, 7.0, "뺀 말", "c01"),
+                     line("c", 10.0, 11.0, "끝 말", "c01")]}
+    keep = [KeepRange(clip_id="c01", start=0.5, end=3.0, out_start=0.0),
+            KeepRange(clip_id="c01", start=9.5, end=12.0, out_start=2.5)]
+    spans = planner_mod.speech_spans(keep, lines, {"b": cut("b")})
+    assert spans == [(0.5, 1.5), (3.0, 4.0)]                     # 결과 초, 뺀 문장은 없음

@@ -43,3 +43,6 @@ jobs:
 
       - name: 화면 자막 줄바꿈 = 서버 줄바꿈
         run: node tests/js/wrap.test.mjs
+
+      - name: 화면 배경음악 크기 = 서버 크기 규칙
+        run: node tests/js/mix.test.mjs

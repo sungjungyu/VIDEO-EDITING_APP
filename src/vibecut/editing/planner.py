@@ -19,6 +19,7 @@ from pathlib import Path
 
 from ..domain.intervals import Interval, clamp, merge, subtract
 from ..domain.korean import CUE_PATTERN
+from ..domain.mix import merge_spans
 from ..domain.models import (
     Analysis,
     ClipInfo,
@@ -199,6 +200,20 @@ def _effects(keep: list[KeepRange], lines_by_clip: dict[str, list[Line]], decisi
     return chosen
 
 
+def speech_spans(keep: list[KeepRange], lines_by_clip: dict[str, list[Line]],
+                 decisions: dict[str, LineDecision]) -> list[tuple[float, float]]:
+    """결과 영상에서 말하는 구간 (결과 초, 합친 것) — 배경음악을 줄일 곳."""
+    spans = []
+    for k in keep:
+        for line in lines_by_clip.get(k.clip_id, []):
+            d = decisions.get(line.seg_id)
+            if (d is not None and not d.keep) or line.end <= k.start or line.start >= k.end:
+                continue
+            spans.append((k.out_start + max(line.start, k.start) - k.start,
+                          k.out_start + min(line.end, k.end) - k.start))
+    return merge_spans(spans)
+
+
 JUMP_GAP = 0.3     # 같은 클립에서 이만큼 넘게 잘라 냈으면 점프컷
 
 
@@ -287,6 +302,7 @@ def compile_plan(plan: EditPlan, clips: list[ClipInfo], analysis: Analysis | Non
     plan.keep = keep
     plan.duration = round(cursor, 3)
     plan.effects = _effects(keep, lines_by_clip, decisions, opts) + _jump_cut_effects(keep, opts)
+    plan.speech = speech_spans(keep, lines_by_clip, decisions)
     style = plan.styles.get("subtitle") or StyleSpec()
     events = build_subtitle_events(keep, lines_by_clip, decisions, style, cursor) if opts.subtitles else []
     events += build_overlay_events(keep, analysis.scenes if analysis else [], plan.styles, opts, cursor)

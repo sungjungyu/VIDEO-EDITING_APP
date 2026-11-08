@@ -9,6 +9,7 @@ import { initAnalysis, loadAnalysisAndPlan, showReviewTab, toggleSelectedLine, t
          updateAnalyzeButton } from "./panels/analysis.js";
 import { initExport, trackRender } from "./panels/export.js";
 import { initMedia, resetMedia } from "./panels/media.js";
+import { initMusic } from "./panels/music.js";
 import { initPreview, togglePlay } from "./panels/preview.js";
 import { initProfile, loadProfile } from "./panels/profile.js";
 import { initSetup } from "./panels/setup.js";
@@ -152,6 +153,7 @@ async function boot() {
   initSetup();
   initProfile();
   initExport();
+  initMusic();
 
   on("project", renderTopbar);
   on("history", renderHistoryButtons);

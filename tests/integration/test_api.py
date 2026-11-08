@@ -126,3 +126,50 @@ def test_vertical_upload_makes_vertical_output_until_user_picks(settings, tmp_pa
         put = client.put(f"/api/projects/{pid}/plan", json={"output": chosen}).json()
         assert put["plan"]["output"]["aspect"] == "16:9"
         assert client.get(f"/api/projects/{pid}/plan").json()["plan"]["output"]["aspect"] == "16:9"
+
+
+def _tone(path, seconds: float, freq: int = 330):
+    import subprocess
+
+    from vibecut.media.ffmpeg import ffmpeg_path
+    subprocess.run([ffmpeg_path(), "-hide_banner", "-loglevel", "error", "-y", "-f", "lavfi", "-i",
+                    f"sine=frequency={freq}:sample_rate=44100:duration={seconds}", str(path)], check=True)
+    return path
+
+
+def test_music_library_upload_and_render_with_music(settings, tmp_path):
+    """기본 곡 목록 + 추천, 내 음악 올리기, 음악을 섞어 렌더해도 길이가 계획과 같다."""
+    import json
+    library = tmp_path / "root" / "assets" / "music"
+    library.mkdir(parents=True)
+    _tone(library / "calm.mp3", 4.0)
+    (library / "tracks.json").write_text(json.dumps([
+        {"id": "calm", "title": "잔잔한 오후", "mood": "잔잔", "file": "calm.mp3", "source": "test", "license": "CC0"},
+        {"id": "gone", "title": "파일 없음", "mood": "경쾌", "file": "missing.mp3"}]), encoding="utf-8")
+    import shutil
+    shutil.copytree(settings.web_dir, tmp_path / "root" / "web")                 # 화면 파일은 그대로
+    settings = settings.__class__(**{**settings.__dict__, "root_dir": tmp_path / "root"})
+    video = make_clip(tmp_path / "v.mp4", 6, size="320x180", bursts=True)
+    with TestClient(create_app(settings), base_url="http://127.0.0.1") as client:
+        pid = client.post("/api/projects", json={"name": "음악"}).json()["project_id"]
+        choices = client.get(f"/api/projects/{pid}/music").json()
+        assert [t["id"] for t in choices["tracks"]] == ["calm"] and choices["user"] is None   # 파일 없는 곡은 숨김
+        assert client.get("/api/music/calm/file").status_code == 200
+        assert client.get("/api/music/gone/file").status_code == 404
+
+        bad = client.post(f"/api/projects/{pid}/music", files={"file": ("a.txt", b"x", "text/plain")})
+        assert bad.status_code == 400
+        song = _tone(tmp_path / "내노래.mp3", 2.0, 440)
+        view = client.post(f"/api/projects/{pid}/music",
+                           files={"file": ("내노래.mp3", song.read_bytes(), "audio/mpeg")})
+        music = view.json()["plan"]["music"]
+        assert (music["source"], music["title"]) == ("user", "내노래")
+        assert client.get(f"/api/projects/{pid}/music/file").status_code == 200
+
+        clip = client.post(f"/api/projects/{pid}/clips",
+                           files=[("files", ("v.mp4", video.read_bytes(), "video/mp4"))]).json()["clips"][0]
+        client.patch(f"/api/projects/{pid}", json={"timeline": [clip["clip_id"]]})
+        job = client.post(f"/api/projects/{pid}/render", json={"quality": "preview"}).json()
+        done = wait_job(client, job["job_id"])
+        assert done["status"] == "done", done
+        assert abs(done["result"]["render"]["error_ms"]) <= 40               # 2초 음악을 반복해 6초 영상에 맞춤
