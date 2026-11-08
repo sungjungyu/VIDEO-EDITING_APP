@@ -1,7 +1,7 @@
 """배경음악 파일.
 
 기본 곡 (앱에 들어 있는 곡, 저장소에 함께 올라간다)
-    assets/music/tracks.json   [{"id", "title", "mood": 잔잔|경쾌|감성, "file", "source", "license", "url"?}, ...]
+    assets/music/tracks.json   [{"id", "title", "mood": 잔잔|경쾌|감성|웃김, "file", "source", "license", "url"?}, ...]
     assets/music/<file>        음원 (CC0 등 앱에 넣어 배포해도 되는 곡만 — 곡마다 출처·라이선스를 tracks.json에)
 내 음악 (사용자가 올린 파일): data/projects/{pid}/music/ — 프로젝트와 함께 서버를 켜고 끌 때 지워진다
 """

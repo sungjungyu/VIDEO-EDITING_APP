@@ -14,7 +14,7 @@
 ]
 ```
 
-- `mood`는 `잔잔` · `경쾌` · `감성` 중 하나 (장면 분위기에 맞는 곡에 화면에서 ⭐추천이 붙습니다)
+- `mood`는 `잔잔` · `경쾌` · `감성` · `웃김`(예능) 중 하나 (장면 분위기에 맞는 곡에 화면에서 ⭐추천이 붙습니다)
 - 파일이 없는 곡은 화면에 나오지 않습니다
 - 무료 음원도 다른 사람이 유튜브 Content ID에 잘못 등록해 둔 경우가 있으니, 고른 곡은 유튜브에 한 번 올려 확인합니다
 - 원래 FreePD 주소(freepd.com)는 닫혔으므로 url에는 보관 사본 주소를 적습니다
@@ -28,7 +28,8 @@ app that generates movies for users? **YES!**" — 사용자 영상을 만드는
   안내문과 목록을 그대로 옮겨 둠)에서 2026-11-08에 받았다. CC0는 사이트가 닫혀도 그대로다
 - 원본(최대 320kbps, 일부는 표지 그림 포함)을 소리만 128kbps MP3로 다시 인코딩했다 (저장소 용량 약 20MB)
 - 보관 사본 목록에 작곡가 이름이 없어 적지 않았다
-- 곡 선택은 FreePD 분류(chill·upbeat·romantic)와 제목으로 했다 — 직접 들어 보고 바꿀 것
+- 곡 선택은 FreePD 분류(chill·upbeat·romantic·comedy)와 제목으로 했다 — 직접 들어 보고 바꿀 것
+- 웃김 3곡은 2026-11-08에 추가 (Tuba Plum Fairy 원본에 깨진 프레임이 하나 있어 다시 인코딩할 때 경고가 나왔지만 결과는 정상)
 
 | id | 화면 제목 | 분위기 | 원래 제목 (FreePD 분류) | 길이 |
 | --- | --- | --- | --- | --- |
@@ -38,3 +39,6 @@ app that generates movies for users? **YES!**" — 사용자 영상을 만드는
 | city-sunshine | 도시의 햇살 | 경쾌 | City Sunshine (upbeat) | 3:05 |
 | lovely-piano-song | 사랑스러운 피아노 | 감성 | Lovely Piano Song (romantic) | 1:36 |
 | nostalgic-piano | 그리운 피아노 | 감성 | Nostalgic Piano (romantic) | 3:16 |
+| comic-mischief-loop | 장난꾸러기 | 웃김 | Comic Game Loop - Mischief (comedy) | 0:43 (반복용) |
+| silly-boy | 엉뚱한 녀석 | 웃김 | Silly Boy (comedy) | 1:36 |
+| tuba-plum-fairy | 뒤뚱뒤뚱 튜바 | 웃김 | Dance of the Tuba Plum Fairy (comedy) | 0:29 |

@@ -52,5 +52,32 @@
   "source": "FreePD \"Nostalgic Piano\" (romantic)",
   "license": "CC0 1.0",
   "url": "https://a.ocv.me/pub/stuff/music/freepd/romantic/Nostalgic%20Piano.mp3"
+ },
+ {
+  "id": "comic-mischief-loop",
+  "title": "장난꾸러기",
+  "mood": "웃김",
+  "file": "comic-mischief-loop.mp3",
+  "source": "FreePD \"Comic Game Loop - Mischief\" (comedy)",
+  "license": "CC0 1.0",
+  "url": "https://a.ocv.me/pub/stuff/music/freepd/comedy/Comic%20Game%20Loop%20-%20Mischief.mp3"
+ },
+ {
+  "id": "silly-boy",
+  "title": "엉뚱한 녀석",
+  "mood": "웃김",
+  "file": "silly-boy.mp3",
+  "source": "FreePD \"Silly Boy\" (comedy)",
+  "license": "CC0 1.0",
+  "url": "https://a.ocv.me/pub/stuff/music/freepd/comedy/Silly%20Boy.mp3"
+ },
+ {
+  "id": "tuba-plum-fairy",
+  "title": "뒤뚱뒤뚱 튜바",
+  "mood": "웃김",
+  "file": "tuba-plum-fairy.mp3",
+  "source": "FreePD \"Dance of the Tuba Plum Fairy\" (comedy)",
+  "license": "CC0 1.0",
+  "url": "https://a.ocv.me/pub/stuff/music/freepd/comedy/Dance%20of%20the%20Tuba%20Plum%20Fairy.mp3"
  }
 ]
