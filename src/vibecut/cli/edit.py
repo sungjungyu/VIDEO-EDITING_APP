@@ -103,7 +103,7 @@ def _edit(args, settings, store: ProjectStore, pid: str, files: list[Path]) -> i
     if args.target:
         _, plan, engine, warnings = editing.select(store, client.with_usage(ctx.usage), pid, "auto", args.target,
                                                    args.prompt)
-        print(f"AI 가편집({engine}): 장면 {len(plan.selection.node_ids)}개 선택")
+        print(f"AI 가편집({engine}): 장면 {len(plan.selection.beat_ids)}개 선택")
         for w in warnings:
             print(f"  ! {w}")
     _, plan = editing.current_plan(store, pid)

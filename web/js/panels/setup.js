@@ -1,81 +1,37 @@
 /* ③ 분량·장면 (신정빈 님의 편집 설정 화면을 단계 패널로 옮김).
-   - AI 가편집: 목표 길이 + 바라는 점 → 서버가 장면 점수(Gemini/규칙)로 고르고 길이는 코드가 맞춘다 (목표 ±5%)
-   - 장면 직접 고르기: 4단 트리(장소/일/상황/대사 탭)에서 체크 → 그 장면만 쓰는 '직접 고르기'(manual)로 바로 반영
-     📌 고정: AI 가편집이 반드시 넣는 장면 · 장면 이름을 누르면 미리보기
-   - 길이 비교: '고른 장면 길이'(트리 구간 합) · '실제 결과 길이'(뺀 문장·쉼을 뺀 길이) · 목표
+   - AI 가편집: 목표 길이 + 바라는 점 → 서버가 비트 점수(규칙/Gemini)를 매기고 길이는 동적계획법으로 맞춘다 (목표 ±5%)
+   - 장면 직접 고르기: 비트(이어지는 말 묶음 · 말 없는 풍경 2~5초) 목록을 시간순으로, 장소가 바뀌는 곳에 구분선.
+     체크하면 그 비트만 쓰는 '직접 고르기'(manual)로 바로 반영 · 📌 고정: AI 가편집이 반드시 넣는 비트
+     · 줄을 누르면 그 부분 미리보기
+   - 길이 비교: '고른 장면 길이'(비트 구간 합) · '실제 결과 길이'(뺀 문장·쉼을 뺀 길이) · 목표
    - 제목·장소 이름 자막 (영상 비율은 어느 단계에서나 보이게 미리보기 재생 줄에 있다: preview.js) */
 
 import { api } from "../core/api.js";
 import { $, el, setToggle, toast } from "../core/dom.js";
 import { debounce, fmt } from "../core/format.js";
-import { analysisReady, globalToClip, mutatePlan, on, pid, sourceDuration, state } from "../core/store.js";
+import { analysisReady, mutatePlan, on, pid, sourceDuration, state } from "../core/store.js";
 import { showPlan, showSource } from "./preview.js";
 import { loadProfile } from "./profile.js";
 import { goStep } from "./steps.js";
 
-const DEPTH_LABELS = ["장소", "일", "상황", "대사"];
 const tolerance = () => state.config?.target_tolerance ?? 0.05;   // AI 가편집 목표 길이 허용 오차 (서버 설정)
 
-const setup = { tree: [], checked: new Set(), locked: new Set(), reasons: {}, depth: 0, pending: false, targetFor: null };
+const setup = { beats: [], checked: new Set(), locked: new Set(), reasons: {}, pending: false, targetFor: null };
 
-/* ---------------------------------------------------------------- 트리 도구 */
-
-function walk(nodes, fn, depth = 0) {
-  for (const n of nodes) { fn(n, depth); walk(n.children || [], fn, depth + 1); }
-}
-
-function allIds(nodes) {
-  const out = [];
-  walk(nodes, n => out.push(n.id));
-  return out;
-}
-
-const nodeDuration = n => Math.max(0, n.end - n.start);
-
-/* 부모와 자식이 함께 체크되면 부모 길이만 센다 */
-function selectedDuration(nodes) {
-  let total = 0;
-  for (const n of nodes) total += setup.checked.has(n.id) ? nodeDuration(n) : selectedDuration(n.children || []);
-  return total;
-}
-
-function hasCheckedDescendant(node) {
-  return (node.children || []).some(c => setup.checked.has(c.id) || hasCheckedDescendant(c));
-}
-
-function checkState(node) {
-  if (setup.checked.has(node.id)) return "checked";
-  return hasCheckedDescendant(node) ? "indeterminate" : "unchecked";
-}
-
-function cascade(node, on) {
-  if (on) setup.checked.add(node.id); else setup.checked.delete(node.id);
-  for (const c of node.children || []) cascade(c, on);
-}
-
-/* 서버로 보낼 때는 가장 위쪽의 체크된 노드만 (자식은 부모 구간에 이미 들어 있다) */
-function topMostChecked(nodes, out = []) {
-  for (const n of nodes) {
-    if (setup.checked.has(n.id)) out.push(n.id);
-    else topMostChecked(n.children || [], out);
-  }
-  return out;
-}
-
-function expandDown(nodes, ids) {
-  const want = new Set(ids), out = new Set();
-  walk(nodes, n => { if (want.has(n.id)) walk([n], m => out.add(m.id)); });
-  return out;
-}
+const beatDuration = b => Math.max(0, b.end - b.start);
 
 /* ---------------------------------------------------------------- 상태 */
 
 function loadState() {
-  setup.tree = analysisReady() ? state.analysis.tree || [] : [];
+  setup.beats = analysisReady() ? state.analysis.beats || [] : [];
   const sel = state.plan?.selection;
-  setup.checked = sel?.mode === "all" ? new Set(allIds(setup.tree)) : expandDown(setup.tree, sel?.node_ids || []);
+  setup.checked = new Set(sel?.mode === "all" ? setup.beats.map(b => b.beat_id) : sel?.beat_ids || []);
   setup.locked = new Set(sel?.locked_ids || []);
   setup.reasons = sel?.reasons || {};
+}
+
+function selectedDuration() {
+  return setup.beats.reduce((sum, b) => sum + (setup.checked.has(b.beat_id) ? beatDuration(b) : 0), 0);
 }
 
 function targetMinutes() {
@@ -115,7 +71,7 @@ function renderMeter() {
   const ok = target > 0 && Math.abs(actual / target - 1) <= tolerance();
   box.append(
     el("div", { class: "dm-row" }, el("span", {}, "원본 전체"), el("b", {}, fmt(sourceDuration()))),
-    el("div", { class: "dm-row" }, el("span", {}, "고른 장면"), el("b", {}, fmt(selectedDuration(setup.tree)))),
+    el("div", { class: "dm-row" }, el("span", {}, "고른 장면"), el("b", {}, fmt(selectedDuration()))),
     el("div", { class: "dm-row", title: "고른 장면에서 뺀 문장과 긴 쉼을 덜어 낸 실제 결과 길이" },
        el("span", {}, "실제 결과 길이"), el("b", { class: target > 0 ? (ok ? "ok" : "off") : "" },
          `${fmt(actual)}${target > 0 ? ` (목표 ${fmt(target)}${ok ? " ✓" : ""})` : ""}`)));
@@ -123,60 +79,53 @@ function renderMeter() {
 
 /* ---------------------------------------------------------------- 그리기 */
 
-function renderTabs() {
-  const tabs = $("scene-tabs");
-  tabs.innerHTML = "";
-  DEPTH_LABELS.forEach((label, depth) => {
-    tabs.appendChild(el("button", { type: "button", class: `scene-tab${depth === setup.depth ? " active" : ""}`,
-                                    onclick: () => { setup.depth = depth; renderTabs(); renderList(); } }, label));
-  });
-}
-
-function nodesAtDepth(depth) {
-  const out = [];
-  walk(setup.tree, (n, d) => { if (d === depth) out.push(n); });
-  return out;
-}
-
-function row(node) {
+function row(beat) {
+  const id = beat.beat_id;
   const check = el("input", { type: "checkbox", class: "scene-row-check", title: "체크: 이 장면을 결과에 넣기" });
-  const s = checkState(node);
-  check.checked = s === "checked";
-  check.indeterminate = s === "indeterminate";
+  check.checked = setup.checked.has(id);
   check.addEventListener("click", e => e.stopPropagation());
   check.addEventListener("change", () => {
-    cascade(node, check.checked);
-    if (!check.checked) setup.locked.delete(node.id);
+    if (check.checked) setup.checked.add(id);
+    else { setup.checked.delete(id); setup.locked.delete(id); }
     changed();
   });
-  const pin = el("button", { class: `scene-row-pin${setup.locked.has(node.id) ? " on" : ""}`,
+  const pin = el("button", { class: `scene-row-pin${setup.locked.has(id) ? " on" : ""}`,
                              title: "고정: AI 가편집이 반드시 넣는 장면" }, "📌");
   pin.addEventListener("click", e => {
     e.stopPropagation();
-    if (setup.locked.has(node.id)) setup.locked.delete(node.id);
-    else { setup.locked.add(node.id); cascade(node, true); }
+    if (setup.locked.has(id)) setup.locked.delete(id);
+    else { setup.locked.add(id); setup.checked.add(id); }
     changed();
   });
-  const items = [check, pin, el("span", { class: "scene-row-title", title: node.summary || node.title }, node.title || "(제목 없음)"),
-                 el("span", { class: "scene-row-dur" }, fmt(nodeDuration(node)))];
-  if (setup.reasons[node.id]) items.push(el("div", { class: "scene-row-reason" }, `💡 ${setup.reasons[node.id]}`));
-  const div = el("div", { class: `scene-row${setup.locked.has(node.id) ? " is-locked" : ""}`, title: "눌러서 이 장면 보기" }, ...items);
-  div.addEventListener("click", () => {
-    const pos = globalToClip(node.start);
-    if (pos) showSource(pos.clipId, pos.time);
-  });
+  const broll = beat.kind === "broll";
+  const title = broll ? beat.title : `"${beat.title}"`;
+  const items = [check, pin,
+                 broll ? el("span", { class: "scene-row-kind", title: "말 없는 장면 (분위기 전환용)" }, "풍경") : null,
+                 el("span", { class: "scene-row-title", title: beat.summary || beat.title }, title || "(제목 없음)"),
+                 el("span", { class: "scene-row-dur" }, fmt(beatDuration(beat)))];
+  if (setup.reasons[id]) items.push(el("div", { class: "scene-row-reason" }, `💡 ${setup.reasons[id]}`));
+  const div = el("div", { class: `scene-row${setup.locked.has(id) ? " is-locked" : ""}${broll ? " is-broll" : ""}`,
+                          title: "눌러서 이 장면 보기" }, ...items);
+  div.addEventListener("click", () => showSource(beat.clip_id, beat.start));
   return div;
 }
 
+/* 시간순 목록 하나. 장소가 바뀌는 곳에만 얇은 구분선 */
 function renderList() {
   const list = $("scene-list");
   list.innerHTML = "";
-  const nodes = nodesAtDepth(setup.depth);
-  if (!nodes.length) {
-    list.appendChild(el("div", { class: "scene-list-empty" }, "이 단계의 장면이 없어요"));
+  if (!setup.beats.length) {
+    list.appendChild(el("div", { class: "scene-list-empty" }, "고를 장면이 없어요"));
     return;
   }
-  for (const n of nodes) list.appendChild(row(n));
+  let place = null;
+  for (const b of setup.beats) {
+    if (b.place !== place) {
+      place = b.place;
+      list.appendChild(el("div", { class: "scene-divider" }, el("span", {}, place || "장소 모름")));
+    }
+    list.appendChild(row(b));
+  }
 }
 
 function renderExtras() {
@@ -191,7 +140,6 @@ function renderAll() {
   if (!analysisReady()) { renderExtras(); return; }
   initTarget();
   if (!setup.pending) loadState();
-  renderTabs();
   renderList();
   renderMeter();
   renderExtras();
@@ -203,7 +151,8 @@ const applyManual = debounce(async () => {
   setup.pending = false;
   try {
     await mutatePlan(() => api.select(pid(), {
-      mode: "manual", node_ids: topMostChecked(setup.tree), locked_ids: [...setup.locked],
+      mode: "manual", beat_ids: setup.beats.map(b => b.beat_id).filter(i => setup.checked.has(i)),
+      locked_ids: [...setup.locked],
       target_sec: targetMinutes() * 60 || null, user_prompt: $("setup-user-prompt").value,
     }));
     setStatus(`고른 장면으로 바꿨어요 (결과 ${fmt(state.plan.duration)}).`, "ok");
@@ -236,7 +185,7 @@ async function runAiAutoEdit() {
     renderAll();
     const diff = view.plan.duration / target - 1;
     const ok = Math.abs(diff) <= tolerance();
-    const lines = [`${view.engine === "ai" ? "Gemini" : "규칙(오프라인)"} 점수로 장면 ${view.plan.selection.node_ids.length}개를 골랐어요.`,
+    const lines = [`${view.engine === "ai" ? "Gemini" : "규칙(오프라인)"} 점수로 장면 ${view.plan.selection.beat_ids.length}개를 골랐어요.`,
                    `결과 ${fmt(view.plan.duration)} / 목표 ${fmt(target)} (차이 ${diff >= 0 ? "+" : ""}${(diff * 100).toFixed(1)}%)`,
                    ...(view.warnings || []).map(w => `! ${w}`)];
     setStatus(lines.join("\n"), ok ? "ok" : "info");

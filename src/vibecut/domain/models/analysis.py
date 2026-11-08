@@ -1,4 +1,4 @@
-"""분석 결과: 받아쓰기 문장·장면·4단 트리·문장별 판단 (시각은 클립 초, 트리만 원본 초)."""
+"""분석 결과: 받아쓰기 문장·장면·비트(편집 단위)·문장별 판단 (시각은 모두 클립 초)."""
 
 from __future__ import annotations
 
@@ -42,17 +42,18 @@ class Scene(BaseModel):
     source: str = "local"
 
 
-class TreeNode(BaseModel):
-    """4단 트리 노드 (원본 초). level 0=장소, 1=일, 2=상황, 3=대사."""
-    id: str
-    title: str
-    level: int
+class Beat(BaseModel):
+    """편집 단위 하나 (클립 초, v4 설계안 T3). 장면을 고르거나 AI 가편집이 고르는 단위.
+    speech: 한 주제로 이어지는 말 묶음 (문장 여러 개)  ·  broll: 말 없는 구간에서 고른 2~5초 화면."""
+    beat_id: str
+    kind: Literal["speech", "broll"]
+    clip_id: str
     start: float
     end: float
+    seg_ids: list[str] = Field(default_factory=list)
+    place: str = ""
+    title: str = ""
     summary: str = ""
-    tags: list[str] = Field(default_factory=list)
-    seg_id: str | None = None
-    children: list[TreeNode] = Field(default_factory=list)
 
 
 class ClipSpan(BaseModel):
@@ -78,7 +79,7 @@ class Analysis(BaseModel):
     clips: list[ClipSpan] = Field(default_factory=list)
     lines: list[Line] = Field(default_factory=list)
     scenes: list[Scene] = Field(default_factory=list)
-    tree: list[TreeNode] = Field(default_factory=list)
+    beats: list[Beat] = Field(default_factory=list)
     silences: dict[str, list[tuple[float, float]]] = Field(default_factory=dict)
     judgments: dict[str, LineDecision] = Field(default_factory=dict)
     engines: dict[str, str] = Field(default_factory=dict)
@@ -92,12 +93,6 @@ class Analysis(BaseModel):
         return out
 
 
-def flatten_tree(tree: list[TreeNode]) -> dict[str, TreeNode]:
-    """트리의 모든 노드를 id → 노드로 펼친다."""
-    out: dict[str, TreeNode] = {}
-    stack = list(tree)
-    while stack:
-        node = stack.pop()
-        out[node.id] = node
-        stack.extend(node.children)
-    return out
+
+def beats_by_id(beats: list[Beat]) -> dict[str, Beat]:
+    return {b.beat_id: b for b in beats}

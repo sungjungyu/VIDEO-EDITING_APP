@@ -5,7 +5,7 @@
     vibecut transcribe --input ./raw_clips --engine gemini --out transcript_gemini.json
     vibecut transcribe --input ./raw_clips --dry-run      # 정렬·오디오 추출만
 
-clip_id·offset이 장면 분석(vibecut scenes) 결과와 같아서 4단 트리에서 장면 목록과 바로 합칠 수 있다.
+clip_id·offset이 장면 분석(vibecut scenes) 결과와 같아서 장면 목록과 바로 합쳐 비트(편집 단위)를 만들 수 있다.
 결과: transcript.json (문장·단어 시각, 환각 의심 제외 목록, 검증 경고) + transcript.md (읽기용 표)
 """
 

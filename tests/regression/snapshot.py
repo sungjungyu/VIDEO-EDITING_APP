@@ -13,10 +13,10 @@ import json
 from unittest import mock
 
 from vibecut.ai.client import GeminiClient, schema_payload
+from vibecut.analysis.beats import build_beats
 from vibecut.analysis.judge import JudgeResponse, rule_decisions
 from vibecut.analysis.judge import build_prompt as judge_prompt
 from vibecut.analysis.scenes.gemini import SCENE_SCHEMA, scene_prompt
-from vibecut.analysis.tree import build_tree, group_tree
 from vibecut.domain.models import (
     Analysis,
     ClipInfo,
@@ -32,7 +32,7 @@ from vibecut.domain.models import (
 from vibecut.editing.planner import compile_plan, effective_decisions, validate_plan
 from vibecut.editing.revise import ReviseResponse
 from vibecut.editing.revise import build_prompt as revise_prompt
-from vibecut.editing.select import ScoreResponse, select_scenes
+from vibecut.editing.select import ScoreResponse, select_beats
 from vibecut.editing.select import build_prompt as select_prompt
 from vibecut.render.ass import build_ass
 from vibecut.settings import load_settings
@@ -56,7 +56,7 @@ def _line(seg_id, start, end, text, clip_id) -> Line:
 
 
 def inputs() -> tuple[Analysis, list[ClipInfo]]:
-    """클립 2개, 문장 10개(NG·군더더기·지시어·강조 포함), 장면 4개, 트리."""
+    """클립 2개, 문장 10개(NG·군더더기·지시어·강조 포함), 장면 4개, 비트."""
     clips = [ClipInfo(clip_id="c01", filename="cafe.mp4", stored_name="c01.mp4", duration=40.0, fps=FPS),
              ClipInfo(clip_id="c02", filename="street.mp4", stored_name="c02.mp4", duration=24.0, fps=FPS,
                       in_point=1.0, out_point=22.0)]
@@ -85,10 +85,10 @@ def inputs() -> tuple[Analysis, list[ClipInfo]]:
     spans = [ClipSpan(clip_id="c01", offset=0.0, duration=40.0), ClipSpan(clip_id="c02", offset=40.0, duration=24.0)]
     judgments = rule_decisions(lines, {"filler_removal": "강", "frequent_words": ["성수동"]})
     labels = {"c01": "클립 1 · cafe", "c02": "클립 2 · street"}
-    tree = build_tree(spans, scenes, lines, judgments, labels)
+    beats = build_beats(spans, scenes, lines, labels)
     silences = {"c01": [(3.0, 3.35), (6.65, 6.95), (12.1, 14.9), (18.3, 25.9)],
                 "c02": [(0.0, 1.9), (4.6, 8.9), (9.7, 11.9)]}
-    analysis = Analysis(clips=spans, lines=lines, scenes=scenes, tree=tree, silences=silences, judgments=judgments,
+    analysis = Analysis(clips=spans, lines=lines, scenes=scenes, beats=beats, silences=silences, judgments=judgments,
                         engines={"stt": "test", "scenes": "test", "judge": "rule"}, created_at="2026-01-01T00:00:00")
     return analysis, clips
 
@@ -100,7 +100,7 @@ def _plan_dump(plan: EditPlan) -> dict:
 def _plans(analysis: Analysis, clips: list[ClipInfo]) -> dict:
     out = {}
     out["all"] = compile_plan(EditPlan(), clips, analysis)
-    manual = EditPlan(selection=Selection(mode="manual", node_ids=[analysis.tree[0].children[0].id]))
+    manual = EditPlan(selection=Selection(mode="manual", beat_ids=[analysis.beats[0].beat_id]))
     out["manual"] = compile_plan(manual, clips, analysis)
     user = EditPlan(lines={
         "t0002": LineDecision(seg_id="t0002", keep=True, source="user"),
@@ -120,9 +120,9 @@ def _plans(analysis: Analysis, clips: list[ClipInfo]) -> dict:
     with mock.patch("vibecut.render.fonts.line_ratio", lambda family, bold=False: GOLDEN_LINE_RATIO):
         snapshot["ass_extras"] = build_ass(out["extras"].events, out["extras"].styles, w, h)
     for target in (20.0, 35.0):
-        sel, engine, warnings = select_scenes(analysis, {c.clip_id: c for c in clips}, EditPlan(),
-                                              effective_decisions(EditPlan(), analysis), target, "카페 장면 위주로",
-                                              [], {}, None)
+        sel, engine, warnings = select_beats(analysis, {c.clip_id: c for c in clips}, EditPlan(),
+                                             effective_decisions(EditPlan(), analysis), target, "카페 장면 위주로",
+                                             [], {}, None)
         snapshot[f"select_{int(target)}"] = {"selection": sel.model_dump(), "engine": engine, "warnings": warnings}
     return snapshot
 
@@ -134,11 +134,9 @@ def _prompts(analysis: Analysis) -> dict:
     for sc in analysis.scenes:
         scenes_by_clip.setdefault(sc.clip_id, []).append(sc)
     decisions = effective_decisions(EditPlan(), analysis)
-    from vibecut.editing.select import candidate_nodes
-    nodes = candidate_nodes(analysis.tree)
     texts = {
         "judge": judge_prompt(lines, analysis.judgments, scenes_by_clip, profile),
-        "select": select_prompt(nodes, analysis, decisions, "카페 장면 위주로", 30.0, profile),
+        "select": select_prompt(analysis.beats, analysis, decisions, "카페 장면 위주로", 30.0, profile),
         "revise": revise_prompt("말더듬 다 잘라줘", lines, decisions),
         "scene": scene_prompt(duration=42.5, min_sec=10.0, prev_summary="카페: 주문한다", known_people="빨간 후드"),
         "scene_first": scene_prompt(duration=12.0, min_sec=10.0, prev_summary="", known_people=""),
@@ -160,20 +158,11 @@ def _prompts(analysis: Analysis) -> dict:
             "cache_keys": keys, "texts": texts}
 
 
-def _tree(analysis: Analysis) -> dict:
-    groups = group_tree(
-        [{"start": 0.0, "end": 20.0, "place": "카페", "activity": "주문", "event": "메뉴", "summary": "메뉴판",
-          "mood": "설렘", "people": "빨간 후드"},
-         {"start": 20.0, "end": 45.0, "place": "카페", "activity": "주문", "summary": "음료"}],
-        [{"start": 1.0, "end": 3.0, "text": "안녕", "seg_id": "t1"},
-         {"start": 18.0, "end": 23.0, "text": "아메리카노 두 잔이요", "cut": True, "seg_id": "t2"}], 45.0)
-    return {"group_tree": groups, "analysis_tree": [n.model_dump() for n in analysis.tree]}
-
-
 def build_snapshot() -> dict:
     analysis, clips = inputs()
     return {"rules": {k: v.model_dump() for k, v in analysis.judgments.items()},
-            "tree": _tree(analysis), "prompts": _prompts(analysis), "plans": _plans(analysis, clips)}
+            "beats": [b.model_dump() for b in analysis.beats], "prompts": _prompts(analysis),
+            "plans": _plans(analysis, clips)}
 
 
 def openapi_snapshot(app) -> dict:

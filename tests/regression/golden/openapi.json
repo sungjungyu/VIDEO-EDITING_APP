@@ -111,18 +111,18 @@
    "profile"
   ],
   "SelectRequest": [
+   "beat_ids",
    "locked_ids",
    "mode",
-   "node_ids",
    "profile",
    "target_sec",
    "user_prompt"
   ],
   "Selection": [
-   "ai_node_ids",
+   "ai_beat_ids",
+   "beat_ids",
    "locked_ids",
    "mode",
-   "node_ids",
    "reasons",
    "scores",
    "target_sec",

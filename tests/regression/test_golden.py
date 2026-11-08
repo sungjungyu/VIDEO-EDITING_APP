@@ -53,7 +53,7 @@ def test_prompts_schemas_and_ai_cache_keys_unchanged(snapshot):
     assert actual == expected
 
 
-def test_rules_tree_and_plans_unchanged(snapshot):
+def test_rules_beats_and_plans_unchanged(snapshot):
     _check("snapshot.json", snapshot)
 
 

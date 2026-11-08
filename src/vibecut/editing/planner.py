@@ -7,7 +7,7 @@
     여유  : 말 시작 앞 pad_start, 끝 뒤 pad_end. 짧은 틈은 메우고 너무 짧은 조각은 버린다
     마지막: 클립 프레임 단위로 맞춘다 → 영상·소리 조각 길이가 정확히 같아 컷이 많아도 싱크가 밀리지 않는다
 
-시간은 클립 초. 장면 선택(트리 노드)만 원본 초라 global_to_clip으로 바꿔 쓴다.
+시간은 모두 클립 초 (고른 비트도 클립 초라 그대로 쓴다).
 
 validate_plan: 렌더 전 규칙 검사 (계획서 3-2). error가 있으면 렌더하지 않는다.
 """
@@ -29,10 +29,9 @@ from ..domain.models import (
     LineDecision,
     PlanOptions,
     StyleSpec,
-    flatten_tree,
+    beats_by_id,
     now_iso,
 )
-from ..domain.timebase import global_to_clip
 from ..settings import TARGET_TOLERANCE
 from .subtitles import build_overlay_events, build_subtitle_events
 
@@ -48,12 +47,16 @@ def effective_decisions(plan: EditPlan, analysis: Analysis | None) -> dict[str, 
     return merged
 
 
-def selected_ranges(plan: EditPlan, analysis: Analysis | None) -> list[Interval] | None:
-    """고른 장면의 원본 초 구간. None이면 '전체 사용'."""
-    if plan.selection.mode == "all" or analysis is None or not analysis.tree:
+def selected_ranges(plan: EditPlan, analysis: Analysis | None) -> dict[str, list[Interval]] | None:
+    """고른 비트의 클립별 구간 (클립 초). None이면 '전체 사용'."""
+    if plan.selection.mode == "all" or analysis is None or not analysis.beats:
         return None
-    nodes = flatten_tree(analysis.tree)
-    return merge([(nodes[i].start, nodes[i].end) for i in plan.selection.node_ids if i in nodes])
+    beats = beats_by_id(analysis.beats)
+    out: dict[str, list[Interval]] = {}
+    for bid in plan.selection.beat_ids:
+        if bid in beats:
+            out.setdefault(beats[bid].clip_id, []).append((beats[bid].start, beats[bid].end))
+    return {cid: merge(ranges) for cid, ranges in out.items()}
 
 
 # ---------------------------------------------------------------- 클립 하나
@@ -205,8 +208,7 @@ def compile_plan(plan: EditPlan, clips: list[ClipInfo], analysis: Analysis | Non
     warnings: list[str] = []
     decisions = effective_decisions(plan, analysis)
     lines_by_clip = analysis.lines_by_clip() if analysis else {}
-    spans = analysis.clips if analysis else []
-    analyzed = {s.clip_id for s in spans}
+    analyzed = {s.clip_id for s in analysis.clips} if analysis else set()
     sel = selected_ranges(plan, analysis)
     if sel is not None and not sel:
         warnings.append("고른 장면이 없습니다. 편집 설정에서 장면을 고르거나 AI 가편집을 실행하세요.")
@@ -223,8 +225,7 @@ def compile_plan(plan: EditPlan, clips: list[ClipInfo], analysis: Analysis | Non
                 warnings.append(f"'{clip.filename}'은 아직 분석하지 않아 전체를 넣었습니다. "
                                 "다시 분석하면 자막과 컷이 생깁니다.")
         else:
-            base = merge([(s, e) for gs, ge in sel for cid, s, e in global_to_clip(gs, ge, spans)
-                          if cid == clip.clip_id])
+            base = sel.get(clip.clip_id, [])
         silences = [tuple(x) for x in analysis.silences.get(clip.clip_id, [])] if analysis else []
         intervals = plan_clip(clip, base, lines_by_clip.get(clip.clip_id, []), decisions, plan.lines, silences, opts)
         for s, e in intervals:
@@ -237,7 +238,7 @@ def compile_plan(plan: EditPlan, clips: list[ClipInfo], analysis: Analysis | Non
     plan.effects = _effects(keep, lines_by_clip, decisions, opts)
     style = plan.styles.get("subtitle") or StyleSpec()
     events = build_subtitle_events(keep, lines_by_clip, decisions, style, cursor) if opts.subtitles else []
-    events += build_overlay_events(keep, analysis.tree if analysis else [], spans, plan.styles, opts, cursor)
+    events += build_overlay_events(keep, analysis.scenes if analysis else [], plan.styles, opts, cursor)
     plan.events = events
     if not keep and clips:
         warnings.append("남길 구간이 없습니다.")

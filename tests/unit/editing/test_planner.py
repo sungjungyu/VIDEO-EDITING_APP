@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from vibecut.domain.models import (
     Analysis,
+    Beat,
     ClipInfo,
     ClipSpan,
     EditPlan,
@@ -12,7 +13,6 @@ from vibecut.domain.models import (
     LineDecision,
     PlanOptions,
     Selection,
-    TreeNode,
     Word,
 )
 from vibecut.editing.planner import compile_plan, count_word_cuts, plan_clip, validate_plan
@@ -98,18 +98,14 @@ def analysis_two_clips() -> tuple[Analysis, list[ClipInfo]]:
     clips = [clip("c01", 20.0), clip("c02", 10.0)]
     lines = [line("t0001", 1.0, 3.0, "첫 번째 장면 이야기", "c01"), line("t0002", 3.4, 3.8, "음", "c01"),
              line("t0003", 4.2, 6.0, "카페에 왔어요 대박!", "c01"), line("t0004", 1.0, 2.5, "두 번째 클립", "c02")]
-    tree = [
-        TreeNode(id="p01", title="카페", level=0, start=0.0, end=20.0, children=[
-            TreeNode(id="p01-a01", title="주문", level=1, start=0.0, end=20.0, children=[
-                TreeNode(id="p01-a01-s01", title="입장", level=2, start=0.0, end=8.0),
-                TreeNode(id="p01-a01-s02", title="풍경", level=2, start=8.0, end=20.0)])]),
-        TreeNode(id="p02", title="거리", level=0, start=20.0, end=30.0, children=[
-            TreeNode(id="p02-a01", title="걷기", level=1, start=20.0, end=30.0, children=[
-                TreeNode(id="p02-a01-s01", title="산책", level=2, start=20.0, end=30.0)])]),
-    ]
+    beats = [Beat(beat_id="b-t0001", kind="speech", clip_id="c01", start=0.0, end=8.0,
+                  seg_ids=["t0001", "t0002", "t0003"], place="카페"),
+             Beat(beat_id="r-c01-80", kind="broll", clip_id="c01", start=8.0, end=20.0, place="카페"),
+             Beat(beat_id="b-t0004", kind="speech", clip_id="c02", start=0.0, end=10.0, seg_ids=["t0004"],
+                  place="거리")]
     analysis = Analysis(clips=[ClipSpan(clip_id="c01", offset=0.0, duration=20.0),
                                ClipSpan(clip_id="c02", offset=20.0, duration=10.0)],
-                        lines=lines, tree=tree,
+                        lines=lines, beats=beats,
                         judgments={"t0002": cut("t0002"),
                                    "t0003": LineDecision(seg_id="t0003", keep=True, reason="핵심", emphasis=True,
                                                          confidence=0.9)})
@@ -118,11 +114,11 @@ def analysis_two_clips() -> tuple[Analysis, list[ClipInfo]]:
 
 def test_compile_plan_multi_clip_selection_events_and_effects():
     analysis, clips = analysis_two_clips()
-    plan = EditPlan(selection=Selection(mode="manual", node_ids=["p01-a01-s01", "p02-a01-s01"]))
+    plan = EditPlan(selection=Selection(mode="manual", beat_ids=["b-t0001", "b-t0004"]))
     plan.options.max_pause = None
     out = compile_plan(plan, clips, analysis)
     assert [k.clip_id for k in out.keep][0] == "c01" and out.keep[-1].clip_id == "c02"
-    assert all(k.end <= 8.2 for k in out.keep if k.clip_id == "c01")          # 풍경 장면(8~20초)은 빠짐
+    assert all(k.end <= 8.2 for k in out.keep if k.clip_id == "c01")          # 풍경 비트(8~20초)는 빠짐
     total = sum(k.end - k.start for k in out.keep)
     assert abs(out.duration - total) < 1e-3
     assert out.keep[0].out_start == 0.0
@@ -149,7 +145,7 @@ def test_user_overrides_and_text_edit():
 
 def test_empty_selection_warns_and_unanalyzed_clip_is_included_whole():
     analysis, clips = analysis_two_clips()
-    plan = EditPlan(selection=Selection(mode="manual", node_ids=[]))
+    plan = EditPlan(selection=Selection(mode="manual", beat_ids=[]))
     out = compile_plan(plan, clips, analysis)
     assert out.keep == [] and any("고른 장면이 없습니다" in w for w in out.warnings)
     extra = clip("c03", 5.0)

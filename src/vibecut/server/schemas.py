@@ -47,7 +47,7 @@ class SelectRequest(BaseModel):
     target_sec: float | None = None
     user_prompt: str = ""
     locked_ids: list[str] = Field(default_factory=list)
-    node_ids: list[str] = Field(default_factory=list)
+    beat_ids: list[str] = Field(default_factory=list)
     profile: dict = Field(default_factory=dict)
 
 

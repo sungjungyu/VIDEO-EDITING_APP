@@ -62,7 +62,7 @@ def test_full_flow(settings, media):
         assert job["result"]["engines"]["stt"] == "energy" and job["result"]["scenes"] >= 2
 
         analysis = client.get(f"/api/projects/{pid}/analysis").json()
-        assert len(analysis["lines"]) >= 4 and analysis["tree"]
+        assert len(analysis["lines"]) >= 4 and analysis["beats"]
         view = client.get(f"/api/projects/{pid}/plan").json()
         full = view["plan"]["duration"]
         assert 0 < full <= 18.0 and not [i for i in view["issues"] if i["level"] == "error"]

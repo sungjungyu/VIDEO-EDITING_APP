@@ -71,7 +71,7 @@ async def select(request: Request, project_id: str, body: SelectRequest) -> dict
     app = state(request)
     project, plan, engine, warnings = await run_in_threadpool(
         editing_service.select, app.store, app.ai, project_id, body.mode, body.target_sec, body.user_prompt,
-        body.locked_ids, body.node_ids, body.profile)
+        body.locked_ids, body.beat_ids, body.profile)
     view = plan_view(app, project, plan)
     view.update({"engine": engine, "warnings": warnings})
     return view

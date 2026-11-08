@@ -72,9 +72,6 @@
 .setup-status.is-empty{display:none}
 .setup-status.is-ok{color:var(--ok)}
 .setup-status.is-error{color:var(--cut)}
-.scene-tabs{display:flex;background:var(--panel3);border-radius:8px;padding:3px;gap:2px}
-.scene-tab{flex:1;padding:6px 4px;background:none;border:none;color:var(--muted);font-size:13px;border-radius:6px;cursor:pointer}
-.scene-tab.active{background:var(--panel2);color:var(--text);font-weight:700}
 .scene-list{display:flex;flex-direction:column;gap:2px;max-height:340px;overflow-y:auto}
 .scene-row{display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:7px;cursor:pointer;flex-wrap:wrap}
 .scene-row:hover{background:var(--panel3)}
@@ -86,6 +83,11 @@
 .scene-row-title{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px}
 .scene-row-dur{flex:0 0 auto;color:var(--muted);font-size:12px;font-variant-numeric:tabular-nums}
 .scene-row-reason{flex:1 1 100%;margin-left:50px;font-size:12px;color:var(--analyzing);line-height:1.5}
+.scene-divider{display:flex;align-items:center;gap:8px;margin:8px 0 2px;font-size:11px;color:var(--muted)}
+.scene-divider::before,.scene-divider::after{content:"";flex:1;height:1px;background:var(--border)}
+.scene-divider:first-child{margin-top:0}
+.scene-row-kind{flex:0 0 auto;font-size:11px;padding:1px 6px;border-radius:9px;background:var(--panel3);color:var(--muted)}
+.scene-row.is-broll .scene-row-title{color:var(--muted)}
 .scene-list-empty{padding:18px;text-align:center;color:var(--muted);font-size:13px}
 
 /* ④ 결과 카드 */

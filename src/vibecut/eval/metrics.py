@@ -52,9 +52,9 @@ def project_metrics(project: Project, analysis: Analysis | None, plan: EditPlan,
             "engines": analysis.engines,
         })
         out["word_cuts"] = count_word_cuts(plan.keep, analysis.lines_by_clip())
-    ai_nodes = set(plan.selection.ai_node_ids)
+    ai_nodes = set(plan.selection.ai_beat_ids)
     if ai_nodes:
-        final = set(plan.selection.node_ids)
+        final = set(plan.selection.beat_ids)
         out["selection_retention"] = round(len(ai_nodes & final) / len(ai_nodes), 3)
     finals = [r for r in project.renders if r.quality == "final"]
     if finals:

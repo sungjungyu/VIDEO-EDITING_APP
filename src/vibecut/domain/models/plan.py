@@ -23,15 +23,15 @@ def _clamp(value: float, lo: float, hi: float) -> float:
 
 
 class Selection(BaseModel):
-    """어떤 장면을 쓸지. all=전체, manual=사용자가 체크, auto=AI 가편집."""
+    """어떤 비트(편집 단위)를 쓸지. all=전체, manual=사용자가 체크, auto=AI 가편집."""
     mode: Literal["all", "manual", "auto"] = "all"
-    node_ids: list[str] = Field(default_factory=list)
+    beat_ids: list[str] = Field(default_factory=list)
     target_sec: float | None = None
     user_prompt: str = ""
     locked_ids: list[str] = Field(default_factory=list)
     reasons: dict[str, str] = Field(default_factory=dict)
     scores: dict[str, float] = Field(default_factory=dict)
-    ai_node_ids: list[str] = Field(default_factory=list)
+    ai_beat_ids: list[str] = Field(default_factory=list)
 
 
 class StyleSpec(BaseModel):

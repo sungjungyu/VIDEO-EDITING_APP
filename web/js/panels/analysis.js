@@ -1,5 +1,5 @@
 /* ② AI 분석 · ④ 확인·수정 (결과 카드 · 문장 목록 · AI에게 수정 요청).
-   분석은 타임라인의 클립 전체를 한 번에 한다 (받아쓰기 ∥ 장면 분석 → 컷 판단 → 4단 트리 → 편집 결과).
+   분석은 타임라인의 클립 전체를 한 번에 한다 (받아쓰기 ∥ 장면 분석 → 컷 판단 → 장면 나누기(비트) → 편집 결과).
    진행률은 서버 작업(job)을 물어서 단계 목록에 보여 주고, 새로고침해도 진행 중인 분석을 이어서 따라간다.
    문장 목록의 살림/뺌·자막 글자 수정은 바로 편집 결과에 반영된다 (되돌리기 가능).
    수정 요청 뒤에는 무엇이 바뀌었는지(뺀 문장·살린 문장·글자 수정) 보여 주고, 바뀐 문장을 잠깐 반짝인다.
@@ -22,7 +22,7 @@ let benchInfo = { project: null, saved: false };   // 이 프로젝트를 평가
 
 /* ---------------------------------------------------------------- ② 분석 */
 
-/* 서버 진행률 구간 (services/analysis.py): 소리 0~8 · 받아쓰기·장면 8~75 · 컷 판단 76 · 트리 91 · 편집 결과 96 */
+/* 서버 진행률 구간 (services/analysis.py): 소리 0~8 · 받아쓰기·장면 8~75 · 컷 판단 76 · 장면 나누기 91 · 편집 결과 96 */
 function pipelineIndex(progress) {
   if (progress < 8) return 0;
   if (progress < 76) return 1;
@@ -175,7 +175,7 @@ function renderResultCard() {
     card.appendChild(el("div", { class: "rc-line" }, "AI 가편집 목표 ", el("b", {}, fmt(sel.target_sec)), " · 차이 ",
       el("b", { class: ok ? "ok" : "off" }, `${diff >= 0 ? "+" : ""}${(diff * 100).toFixed(1)}%${ok ? " ✓" : ""}`)));
   } else if (sel.mode === "manual") {
-    card.appendChild(el("div", { class: "rc-line" }, `직접 고른 장면 ${(sel.node_ids || []).length}개로 만들었어요`));
+    card.appendChild(el("div", { class: "rc-line" }, `직접 고른 장면 ${(sel.beat_ids || []).length}개로 만들었어요`));
   }
 
   card.appendChild(el("div", { class: "rc-line" }, `문장 ${s.total}개 중 `, el("b", {}, `${s.cut}개`), "를 뺐어요"));

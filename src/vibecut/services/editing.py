@@ -13,10 +13,10 @@ from typing import Literal
 from pydantic import BaseModel
 
 from ..ai.client import GeminiClient
-from ..domain.models import EditPlan, LineDecision, OutputSpec, PlanOptions, Project, Selection, StyleSpec, flatten_tree
+from ..domain.models import EditPlan, LineDecision, OutputSpec, PlanOptions, Project, Selection, StyleSpec
 from ..editing.planner import compile_plan, effective_decisions
 from ..editing.revise import revise as revise_lines
-from ..editing.select import select_scenes
+from ..editing.select import select_beats
 from ..errors import BadRequest, Conflict
 from ..storage.projects import ProjectStore
 from .analysis import apply_profile
@@ -95,10 +95,10 @@ def patch_lines(store: ProjectStore, project_id: str, changes: list[LineChange])
 
 def select(store: ProjectStore, client: GeminiClient | None, project_id: str,
            mode: Literal["all", "manual", "auto"], target_sec: float | None = None, user_prompt: str = "",
-           locked_ids: list[str] | None = None, node_ids: list[str] | None = None, profile: dict | None = None
+           locked_ids: list[str] | None = None, beat_ids: list[str] | None = None, profile: dict | None = None
            ) -> tuple[Project, EditPlan, str, list[str]]:
     """장면 선택: all(전체) / manual(사용자가 체크한 장면) / auto(AI 가편집). (프로젝트, 계획, 엔진, 경고)"""
-    locked_ids, node_ids, profile = locked_ids or [], node_ids or [], profile or {}
+    locked_ids, beat_ids, profile = locked_ids or [], beat_ids or [], profile or {}
     project = store.get(project_id)
     analysis = store.load_analysis(project_id)
     if mode != "all" and analysis is None:
@@ -112,16 +112,16 @@ def select(store: ProjectStore, client: GeminiClient | None, project_id: str,
         snapshot.options = apply_profile(snapshot.options, profile)
         decisions = effective_decisions(snapshot, analysis)
         clips = {c.clip_id: c for c in project.timeline_clips()}
-        chosen, engine, warnings = select_scenes(analysis, clips, snapshot, decisions, target_sec, user_prompt,
+        chosen, engine, warnings = select_beats(analysis, clips, snapshot, decisions, target_sec, user_prompt,
                                                  locked_ids, profile, client)
 
     def change(plan: EditPlan):
         if mode == "all":
             plan.selection = Selection(mode="all")
         elif mode == "manual":
-            known = flatten_tree(analysis.tree)
+            known = {b.beat_id for b in analysis.beats}
             plan.selection = plan.selection.model_copy(update={
-                "mode": "manual", "node_ids": [i for i in node_ids if i in known],
+                "mode": "manual", "beat_ids": [i for i in beat_ids if i in known],
                 "locked_ids": [i for i in locked_ids if i in known], "target_sec": target_sec,
                 "user_prompt": user_prompt})
         else:

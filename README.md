@@ -3,7 +3,7 @@
 여러 클립을 올리면 **받아쓰기 · 장면 분석 · AI 판단**으로 편집 계획(EditPlan)을 만들고, FFmpeg로 한 번에 렌더하는 브이로그 편집 도구입니다.
 
 - 문장 단위 컷 판단 (자체 규칙 + Gemini), 목표 분량에 맞춘 AI 가편집, 채팅으로 수정 요청
-- 장소 → 일 → 상황 → 대사 4단 장면 트리로 직접 고르기
+- 장면을 '비트'(이어지는 말 묶음 · 말 없는 풍경 2~5초)로 나눠 직접 고르기, AI 가편집은 동적계획법으로 목표 분량에 맞춤
 - 미리보기와 같은 자막 스타일로 렌더 (ASS, 카라오케), 16:9 / 9:16
 - Gemini 키가 없거나 한도를 넘겨도 동작 (로컬 Whisper · 화면 변화 감지 · 규칙 판단으로 대체)
 
@@ -30,6 +30,7 @@ vibecut edit input.mp4 --offline                         # Gemini 없이
 vibecut transcribe --input .\raw_clips --engine gemini   # 받아쓰기만 → transcript.json + .md
 vibecut scenes --input .\raw_clips                       # 장면 분석만 → scenes.json + .md
 vibecut metrics <프로젝트 id>                             # 평가 지표 표
+vibecut bench                                            # 검수한 정답으로 컷 판단 채점 (규칙·Gemini·하이브리드)
 ```
 
 ## 프로젝트 구조
@@ -37,9 +38,9 @@ vibecut metrics <프로젝트 id>                             # 평가 지표 �
 ```
 ├─ src/vibecut/           백엔드 (계층 구조: 위는 아래를 쓰고 아래는 위를 모른다)
 │  ├─ server/             HTTP 입구: FastAPI 조립·라우트 (서비스만 부른다)
-│  ├─ cli/                명령줄 입구: serve · edit · transcribe · scenes · metrics
+│  ├─ cli/                명령줄 입구: serve · edit · transcribe · scenes · metrics · bench
 │  ├─ services/           사용 사례 (웹·명령줄 공통): 프로젝트·편집·분석 작업·렌더 작업, 작업 큐
-│  ├─ analysis/           원본 이해: 받아쓰기(stt/) · 장면 분석(scenes/) · 음량·무음 · 4단 트리 · 컷 판단
+│  ├─ analysis/           원본 이해: 받아쓰기(stt/) · 장면 분석(scenes/) · 음량·무음 · 비트 나누기 · 컷 판단
 │  ├─ editing/            편집 계획 계산 · 자막 장면 · AI 가편집 · 수정 요청
 │  ├─ render/             EditPlan → FFmpeg 필터 그래프 · ASS 자막 · 글꼴
 │  ├─ eval/               평가 지표

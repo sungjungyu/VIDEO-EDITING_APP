@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from tests.unit.editing.test_select import tree_analysis
+from tests.unit.editing.test_select import beat_analysis
 from vibecut.domain.models import ClipInfo
 from vibecut.services import editing as editing_service
 from vibecut.storage.projects import ProjectStore
@@ -11,7 +11,7 @@ from vibecut.storage.projects import ProjectStore
 def project_with_analysis(tmp_path):
     store = ProjectStore(tmp_path)
     project = store.create("테스트")
-    analysis, clip = tree_analysis()
+    analysis, clip = beat_analysis()
 
     def add(p):
         p.clips.append(ClipInfo(**clip.model_dump()))

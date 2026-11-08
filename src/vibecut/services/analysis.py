@@ -15,9 +15,9 @@ from pathlib import Path
 
 from ..ai.client import GeminiClient
 from ..analysis import judge as judge_mod
+from ..analysis.beats import build_beats
 from ..analysis.scenes import analyze_clip_scenes
 from ..analysis.stt import transcribe_clip
-from ..analysis.tree import build_tree
 from ..domain.models import (
     Analysis,
     AnalysisState,
@@ -27,7 +27,6 @@ from ..domain.models import (
     PlanOptions,
     Scene,
     Word,
-    flatten_tree,
     now_iso,
 )
 from ..domain.timebase import clip_spans
@@ -59,12 +58,12 @@ def _line_key(line: Line) -> tuple:
     return line.clip_id, round(line.start, 2), line.text
 
 
-def _tree_key(nodes) -> list:
-    return [(n.id, round(n.start, 2), round(n.end, 2)) for n in nodes]
+def _beat_key(beats) -> list:
+    return [(b.beat_id, b.clip_id, round(b.start, 2), round(b.end, 2)) for b in beats]
 
 
 def carry_over_plan(plan: EditPlan, old: Analysis | None, new: Analysis) -> tuple[EditPlan, list[str]]:
-    """다시 분석했을 때 사용자 결정 중 '같은 문장·같은 트리'에 해당하는 것만 이어받는다."""
+    """다시 분석했을 때 사용자 결정 중 '같은 문장·같은 비트'에 해당하는 것만 이어받는다."""
     notes: list[str] = []
     old_lines = {line.seg_id: _line_key(line) for line in old.lines} if old else {}
     new_lines = {line.seg_id: _line_key(line) for line in new.lines}
@@ -73,12 +72,11 @@ def carry_over_plan(plan: EditPlan, old: Analysis | None, new: Analysis) -> tupl
     if len(kept) < sum(1 for d in plan.lines.values() if d.source == "user"):
         notes.append("받아쓰기가 바뀌어 일부 문장 결정(남김/자름, 자막 수정)을 초기화했습니다.")
     plan.lines = kept
-    same_tree = (old is not None
-                 and _tree_key(flatten_tree(old.tree).values()) == _tree_key(flatten_tree(new.tree).values()))
-    if plan.selection.mode != "all" and not same_tree:
-        plan.selection = plan.selection.model_copy(update={"mode": "all", "node_ids": [], "reasons": {},
-                                                           "ai_node_ids": []})
-        notes.append("장면 트리가 바뀌어 장면 선택을 '전체 사용'으로 되돌렸습니다.")
+    same_beats = old is not None and _beat_key(old.beats) == _beat_key(new.beats)
+    if plan.selection.mode != "all" and not same_beats:
+        plan.selection = plan.selection.model_copy(update={"mode": "all", "beat_ids": [], "reasons": {},
+                                                           "ai_beat_ids": []})
+        notes.append("장면 나누기가 바뀌어 장면 선택을 '전체 사용'으로 되돌렸습니다.")
     return plan, notes
 
 
@@ -219,11 +217,11 @@ def _analyze(ctx: RunContext, store: ProjectStore, settings: Settings, project_i
             judgments, engines["judge"], judge_warnings = judge_mod.judge_lines(lines, scenes, profile, client)
         warnings += judge_warnings
 
-    with ctx.stage("tree"):
-        ctx.progress(91, "장면 트리")
-        tree = build_tree(spans, scenes, lines, judgments, _clip_labels(clips))
+    with ctx.stage("beats"):
+        ctx.progress(91, "장면 나누기")
+        beats = build_beats(spans, scenes, lines, _clip_labels(clips))
 
-    analysis = Analysis(clips=spans, lines=lines, scenes=scenes, tree=tree, silences=silences, judgments=judgments,
+    analysis = Analysis(clips=spans, lines=lines, scenes=scenes, beats=beats, silences=silences, judgments=judgments,
                         engines=engines, warnings=list(dict.fromkeys(warnings)))
     ctx.progress(96, "편집 계획")
     with store.lock(project_id):      # 분석 저장부터 계획 저장까지: 그 사이 사용자가 고친 계획이 사라지지 않게
@@ -238,5 +236,5 @@ def _analyze(ctx: RunContext, store: ProjectStore, settings: Settings, project_i
     store.update(project_id, lambda p: setattr(p, "analysis", analysis_state))
     cut = sum(1 for d in judgments.values() if not d.keep)
     ctx.log.info("분석 완료: 문장 %d (자름 제안 %d), 장면 %d, 엔진 %s", len(lines), cut, len(scenes), engines)
-    return {"lines": len(lines), "cut_suggested": cut, "scenes": len(scenes), "tree_nodes": len(flatten_tree(tree)),
+    return {"lines": len(lines), "cut_suggested": cut, "scenes": len(scenes), "beats": len(beats),
             "plan_duration": plan.duration, "engines": engines, "warnings": analysis_state.warnings}

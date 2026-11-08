@@ -1,7 +1,7 @@
 /* 화면 상태 한 곳 + 간단한 이벤트 + 실행취소/다시실행.
 
    state.project   서버 프로젝트 (클립·타임라인 순서·분석 상태·렌더 목록)
-   state.analysis  받아쓰기 문장·장면·트리·AI 판단 (분석 전엔 null)
+   state.analysis  받아쓰기 문장·장면·비트·AI 판단 (분석 전엔 null)
    state.plan      편집 계획 (서버가 계산한 keep·events·duration 포함)
    state.issues    렌더 전 검사 결과
    state.media     clip_id → 브라우저 쪽 정보 (로컬 blob 주소, 썸네일)
@@ -109,14 +109,6 @@ export function sourceDuration() {
 
 export function analysisReady() {
   return !!state.analysis && state.project?.analysis?.status === "done";
-}
-
-/* 분석용 원본 시각(트리 노드) → (clip_id, 클립 초) */
-export function globalToClip(t) {
-  for (const span of state.analysis?.clips || []) {
-    if (t >= span.offset && t < span.offset + span.duration) return { clipId: span.clip_id, time: t - span.offset };
-  }
-  return null;
 }
 
 /* ---------------------------------------------------------------- 실행취소 */

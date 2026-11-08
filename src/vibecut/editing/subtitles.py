@@ -9,18 +9,16 @@
 from __future__ import annotations
 
 from ..domain.models import (
-    ClipSpan,
     KeepRange,
     Line,
     LineDecision,
     PlanOptions,
+    Scene,
     StyleSpec,
     SubtitleEvent,
-    TreeNode,
     Word,
 )
 from ..domain.text import align_words_to_lines, squash, wrap_text, wrap_tokens
-from ..domain.timebase import global_to_clip
 
 MAX_LINES = 2
 MIN_SHOW = 0.7          # 자막은 가능하면 이만큼은 보여 준다 (초)
@@ -155,36 +153,38 @@ def build_subtitle_events(keep: list[KeepRange], lines_by_clip: dict[str, list[L
     return events
 
 
-GENERIC_PLACE = ("장소", "영상 전체", "장면 ")
+GENERIC_PLACE = ("장소", "영상 전체", "장면 ", "클립 ")
 
 
-def build_overlay_events(keep: list[KeepRange], tree: list[TreeNode], spans: list[ClipSpan],
-                         styles: dict[str, StyleSpec], options: PlanOptions, total: float) -> list[SubtitleEvent]:
-    """제목(처음 3초)과 촬영지 자막(장소가 바뀌는 곳)."""
+def _place_at(scenes: list[Scene], clip_id: str, t: float) -> str:
+    for sc in scenes:
+        if sc.clip_id == clip_id and sc.start <= t < sc.end:
+            return sc.place.strip()
+    return ""
+
+
+def build_overlay_events(keep: list[KeepRange], scenes: list[Scene], styles: dict[str, StyleSpec],
+                         options: PlanOptions, total: float) -> list[SubtitleEvent]:
+    """제목(처음 3초)과 촬영지 자막(결과 영상에서 장소가 바뀌는 곳, 장면 분석의 장소 이름)."""
     events: list[SubtitleEvent] = []
     title = options.title_text.strip()
     if title and total > 0:
         style = styles.get("title") or StyleSpec()
         events.append(SubtitleEvent(start=0.0, end=round(min(3.0, total), 3),
                                     text="\n".join(wrap_text(title, style.max_chars_per_line)), style="title"))
-    if options.location_captions and tree:
+    if options.location_captions and scenes:
         style = styles.get("location") or StyleSpec()
-        last_end = -1.0
-        for node in tree:
-            name = node.title.strip()
-            if not name or name.startswith(GENERIC_PLACE):
+        last_place, last_end = "", -1.0
+        for k in keep:
+            name = _place_at(scenes, k.clip_id, (k.start + min(k.end, k.start + 0.5)) / 2)
+            if not name or name == last_place:
                 continue
-            first = None
-            for clip_id, s, e in global_to_clip(node.start, node.end, spans):
-                for k in keep:
-                    if k.clip_id == clip_id and k.end > s and k.start < e:
-                        t = k.out_start + (max(s, k.start) - k.start)
-                        first = t if first is None else min(first, t)
-            if first is None or first < last_end:
+            last_place = name
+            if name.startswith(GENERIC_PLACE) or k.out_start < last_end:
                 continue
-            end = min(first + 2.5, total)
-            if end - first >= 0.5:
-                events.append(SubtitleEvent(start=round(first, 3), end=round(end, 3),
+            end = min(k.out_start + 2.5, total)
+            if end - k.out_start >= 0.5:
+                events.append(SubtitleEvent(start=round(k.out_start, 3), end=round(end, 3),
                                             text="\n".join(wrap_text(name, style.max_chars_per_line)),
                                             style="location"))
                 last_end = end
