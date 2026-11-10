@@ -1,56 +1,96 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useProject } from '../../state/ProjectContext.jsx';
-import { getClips } from '../../api/index.js';
+import { getClips, uploadClips, removeClip, reorderClips, ProjectGoneError, USE_MOCK } from '../../api/index.js';
 import { fmtDuration, fmtAspect } from '../../utils/format.js';
 import TopBar from '../common/TopBar.jsx';
 import BottomBar from '../common/BottomBar.jsx';
+import ProgressBar from '../common/ProgressBar.jsx';
 import ClipCard from './ClipCard.jsx';
 
 const NEEDS_CONFIRM = (status) => status === 'analyzed' || status === 'rendered';
+const ACCEPT = '.mp4,.mov,.m4v,.avi,.mkv,.webm,.3gp,video/*';
 
 export default function ClipImport() {
-  const { status, clips, setClips, transition, navigate } = useProject();
-  // pendingClips: new clip list waiting for user confirm before CHANGE_CLIPS
-  const [pendingClips, setPendingClips] = useState(null);
+  const { status, clips, setClips, transition, navigate, notice, setNotice } = useProject();
+  // pending: 분석 결과가 있을 때 클립을 바꾸기 전 확인받을 작업 () => Promise<clips>
+  const [pending,   setPending]   = useState(null);
+  const [uploadPct, setUploadPct] = useState(null);   // null = 업로드 중 아님
+  const [busy,      setBusy]      = useState(false);
+  const [error,     setError]     = useState(null);
+  const [dragOver,  setDragOver]  = useState(false);
+  const fileInput = useRef(null);
+
+  const handleError = (e) => {
+    if (e instanceof ProjectGoneError) {
+      transition('RESET', { keepServer: true });
+      setNotice(e.message);
+      setClips([]);
+    } else {
+      setError(e.message ?? String(e));
+    }
+  };
 
   useEffect(() => {
-    getClips().then(setClips);
+    getClips().then(setClips).catch(handleError);
   }, []);
 
   const totalSec = clips.reduce((s, c) => s + c.duration, 0);
-  const canNext  = clips.length > 0;
+  const canNext  = clips.length > 0 && uploadPct === null && !busy;
 
   const aspectSummary = () => {
     const counts = {};
     clips.forEach(c => {
+      if (!c.width || !c.height) return;
       const a = fmtAspect(c.width, c.height);
       counts[a] = (counts[a] ?? 0) + 1;
     });
     return Object.entries(counts).map(([a, n]) => `${a} ×${n}`).join(', ');
   };
 
-  // Any clip-list change while analyzed/rendered: show confirm first
-  const applyOrConfirm = (newClips) => {
-    if (NEEDS_CONFIRM(status)) {
-      setPendingClips(newClips);
-    } else {
-      setClips(newClips);
+  // 클립 목록을 바꾸는 작업. 분석 결과가 있으면 먼저 확인받고, 확인 후 CHANGE_CLIPS로 분석을 초기화한다
+  const runChange = async (work) => {
+    setError(null);
+    setBusy(true);
+    try {
+      const next = await work();
+      if (NEEDS_CONFIRM(status)) transition('CHANGE_CLIPS', next);
+      else setClips(next);
+    } catch (e) {
+      handleError(e);
+    } finally {
+      setBusy(false);
+      setUploadPct(null);
     }
   };
+  const applyOrConfirm = (work) => (NEEDS_CONFIRM(status) ? setPending(() => work) : runChange(work));
 
-  const handleRemove = (id) => applyOrConfirm(clips.filter(c => c.id !== id));
+  const handleRemove = (id) => {
+    const remaining = clips.filter(c => c.id !== id);
+    applyOrConfirm(() => removeClip(id, remaining));
+  };
 
   const handleSort = () => {
-    const sorted = [...clips].sort((a, b) => (a.recorded_at ?? a.file) < (b.recorded_at ?? b.file) ? -1 : 1);
-    applyOrConfirm(sorted);
+    const key = (c) => c.shot_at ?? c.file;
+    const sorted = [...clips].sort((a, b) => (key(a) < key(b) ? -1 : 1));
+    applyOrConfirm(() => reorderClips(sorted));
+  };
+
+  const handleFiles = (fileList) => {
+    const files = [...(fileList ?? [])];
+    if (files.length === 0) return;
+    applyOrConfirm(() => {
+      setUploadPct(0);
+      return uploadClips(files, setUploadPct);
+    });
   };
 
   const handleAddClick = () => {
-    if (NEEDS_CONFIRM(status)) {
-      // In mock mode we can't add real files; show confirm so analysis is reset first
-      setPendingClips(clips);
+    if (USE_MOCK) {
+      // mock에서는 실제 파일을 못 올리므로, 분석이 있으면 초기화 확인만 띄운다
+      if (NEEDS_CONFIRM(status)) setPending(() => async () => clips);
+      return;
     }
-    // else: no-op in mock (file picker not implemented)
+    fileInput.current?.click();
   };
 
   const handleNext = () => {
@@ -62,35 +102,82 @@ export default function ClipImport() {
   };
 
   const confirmChange = () => {
-    transition('CHANGE_CLIPS', pendingClips);
-    setPendingClips(null);
+    const work = pending;
+    setPending(null);
+    runChange(work);
+  };
+
+  const onDrop = (e) => {
+    e.preventDefault();
+    setDragOver(false);
+    if (!USE_MOCK) handleFiles(e.dataTransfer.files);
   };
 
   return (
     <div className="app-shell">
-      <TopBar rightContent="프로젝트: 밤 브이로그" />
+      <TopBar rightContent={USE_MOCK ? '프로젝트: 밤 브이로그' : 'VIBE CUT'} />
 
-      <div style={{ padding: 16, flex: 1, overflowY: 'auto' }}>
+      <div
+        style={{ padding: 16, flex: 1, overflowY: 'auto' }}
+        onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+        onDragLeave={() => setDragOver(false)}
+        onDrop={onDrop}
+      >
+        {notice && (
+          <div className="warn row" style={{ justifyContent: 'space-between', marginBottom: 12 }}>
+            <span>{notice}</span>
+            <button onClick={() => setNotice(null)}>닫기</button>
+          </div>
+        )}
+        {error && (
+          <div className="warn row" style={{ justifyContent: 'space-between', marginBottom: 12 }}>
+            <span>{error}</span>
+            <button onClick={() => setError(null)}>닫기</button>
+          </div>
+        )}
+
         <div className="row" style={{ justifyContent: 'space-between', marginBottom: 12 }}>
           <div className="sec" style={{ margin: 0 }}>촬영 클립</div>
           <div className="row">
-            <span className="lb">드래그해서 순서를 바꿀 수 있어요</span>
-            <button onClick={handleSort}>촬영 시각순 정렬</button>
+            <span className="lb">편집에 쓰는 순서대로 보여요</span>
+            <button onClick={handleSort} disabled={busy || clips.length < 2}>촬영 시각순 정렬</button>
           </div>
         </div>
+
+        {uploadPct !== null && (
+          <div style={{ marginBottom: 12 }}>
+            <div className="row lb" style={{ justifyContent: 'space-between' }}>
+              <span>{uploadPct < 100 ? '영상 올리는 중…' : '서버에서 영상 정보를 읽는 중…'}</span>
+              <b>{uploadPct}%</b>
+            </div>
+            <ProgressBar percent={uploadPct} height={6} />
+          </div>
+        )}
 
         <div className="grid2">
           {clips.map(clip => (
-            <ClipCard key={clip.id} clip={clip} onRemove={handleRemove} />
+            <ClipCard key={clip.id} clip={clip} onRemove={busy ? undefined : handleRemove} />
           ))}
-          <div className="clip-card add-card" onClick={handleAddClick}>
+          <div
+            className="clip-card add-card"
+            onClick={busy ? undefined : handleAddClick}
+            style={dragOver ? { outline: '2px dashed var(--color-accent)' } : undefined}
+          >
             + 영상 추가 (클릭 또는 끌어다 놓기)
           </div>
         </div>
+        <input
+          ref={fileInput}
+          type="file"
+          accept={ACCEPT}
+          multiple
+          hidden
+          onChange={(e) => { handleFiles(e.target.files); e.target.value = ''; }}
+        />
       </div>
 
       <BottomBar
-        left={<span className="lb">클립 {clips.length}개 · 총 {fmtDuration(totalSec)} · {aspectSummary()}</span>}
+        left={<span className="lb">클립 {clips.length}개 · 총 {fmtDuration(totalSec)}{clips.length > 0 && ` · ${aspectSummary()}`}</span>}
         right={
           <button className="btn-primary" disabled={!canNext} onClick={handleNext}>
             {NEEDS_CONFIRM(status) ? '요청 화면으로 →' : '다음: 요청 →'}
@@ -98,7 +185,7 @@ export default function ClipImport() {
         }
       />
 
-      {pendingClips && (
+      {pending && (
         <>
           <div className="modal-dim" />
           <div className="modal">
@@ -107,7 +194,7 @@ export default function ClipImport() {
               클립을 바꾸면 분석 결과와 편집 선택이 초기화돼요. 계속할까요?
             </div>
             <div className="bottom-bar">
-              <button onClick={() => setPendingClips(null)}>취소</button>
+              <button onClick={() => setPending(null)}>취소</button>
               <button className="btn-primary" onClick={confirmChange}>초기화하고 계속</button>
             </div>
           </div>

@@ -1,50 +1,34 @@
-import clipsData           from '../mock/clips.json';
-import judgmentRulesData   from '../mock/judgment_rules.json';
-import executionRulesData  from '../mock/execution_rules.json';
-import treeData            from '../mock/tree.json';
-import selectionData       from '../mock/selection.json';
-import progressAnalyzing   from '../mock/progress_analyzing.json';
-import progressRendering   from '../mock/progress_rendering.json';
-import resultData          from '../mock/result.json';
-import { computeAutoCompress } from '../logic/selection.js';
+// API 진입점: VITE_USE_MOCK=false 이면 실제 서버(real.js), 그 외(기본)는 mock.js.
+//   mock:  npm run dev
+//   실제:  npm run dev:real   (서버: vibecut serve, Vite가 /api를 8000번으로 넘긴다)
+import * as mock from './mock.js';
+import * as real from './real.js';
 
-const delay = (ms) => new Promise((r) => setTimeout(r, ms));
+export const USE_MOCK = import.meta.env.VITE_USE_MOCK !== 'false';
+const api = USE_MOCK ? mock : real;
 
-export async function getClips()          { await delay(50); return clipsData; }
-export async function getJudgmentRules()  { await delay(50); return judgmentRulesData; }
-export async function getExecutionRules() { await delay(50); return executionRulesData; }
-export async function getTree()           { await delay(50); return treeData; }
-export async function getResult()         { await delay(50); return resultData; }
+export { ProjectGoneError } from './real.js';
 
-export async function getProgress(stage = 'analyzing') {
-  await delay(50);
-  return stage === 'rendering' ? progressRendering : progressAnalyzing;
-}
+export const getClips          = (...a) => api.getClips(...a);
+export const getJudgmentRules  = (...a) => api.getJudgmentRules(...a);
+export const getExecutionRules = (...a) => api.getExecutionRules(...a);
+export const getTree           = (...a) => api.getTree(...a);
+export const getResult         = (...a) => api.getResult(...a);
+export const getProgress       = (...a) => api.getProgress(...a);
+export const getSelection      = (...a) => api.getSelection(...a);
+export const saveSelection     = (...a) => api.saveSelection(...a);
+export const autoCompress      = (...a) => api.autoCompress(...a);
 
-const SELECTION_KEY = 'vibecut_selection';
+export const ensureProject     = (...a) => api.ensureProject(...a);
+export const checkProject      = (...a) => api.checkProject(...a);
+export const deleteProject     = (...a) => api.deleteProject(...a);
+export const uploadClips       = (...a) => api.uploadClips(...a);
+export const removeClip        = (...a) => api.removeClip(...a);
+export const reorderClips      = (...a) => api.reorderClips(...a);
+export const startAnalysis     = (...a) => api.startAnalysis(...a);
+export const getJob            = (...a) => api.getJob(...a);
 
-export async function getSelection() {
-  await delay(50);
-  try {
-    const raw = localStorage.getItem(SELECTION_KEY);
-    if (raw) return JSON.parse(raw);
-  } catch {}
-  return selectionData;
-}
-
-export async function saveSelection(data) {
-  try {
-    localStorage.setItem(SELECTION_KEY, JSON.stringify(data));
-  } catch (e) {
-    console.warn('[saveSelection] failed', e);
-  }
-}
-
-export async function autoCompress(selection, treeData) {
-  await delay(400);
-  return computeAutoCompress(selection, treeData);
-}
-
+// 화면 상태(상태 머신)는 어느 모드든 브라우저에 저장한다
 const PROJECT_KEY = 'vibecut_project';
 
 export function getProjectSync() {

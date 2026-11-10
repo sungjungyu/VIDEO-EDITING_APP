@@ -1,8 +1,10 @@
 import { fmtDuration, fmtAspect } from '../../utils/format.js';
 
 export default function ClipCard({ clip, onRemove }) {
-  const aspect = fmtAspect(clip.width, clip.height);
-  const shotAt = new Date(clip.shot_at).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
+  const aspect = clip.width && clip.height ? fmtAspect(clip.width, clip.height) : '';
+  const shotAt = clip.shot_at
+    ? `${new Date(clip.shot_at).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })} 촬영`
+    : '촬영 시각 없음';
 
   return (
     <div className="clip-card">
@@ -14,7 +16,7 @@ export default function ClipCard({ clip, onRemove }) {
           {clip.file}
         </div>
         <div className="lb">
-          {fmtDuration(clip.duration)} · {shotAt} 촬영 · {clip.width}×{clip.height} · {aspect}
+          {fmtDuration(clip.duration)} · {shotAt} · {clip.width}×{clip.height} · {aspect}
         </div>
       </div>
       <span

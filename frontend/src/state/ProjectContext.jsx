@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useRef, useEffect, useCallback } from 'react';
-import { getProjectSync, saveProject } from '../api/index.js';
+import { getProjectSync, saveProject, checkProject, deleteProject, USE_MOCK } from '../api/index.js';
 
 const ProjectContext = createContext(null);
 
@@ -89,8 +89,13 @@ export function ProjectProvider({ children }) {
   const [judgmentRules,  setJudgmentRules]  = useState(stored.judgmentRules ?? null);
   const [executionRules, setExecutionRules] = useState(stored.executionRules ?? null);
   const [selection,      setSelection]      = useState(stored.selection ?? null);
-  const [analyzeError,   setAnalyzeError]   = useState(null);
+  const [analyzeError,   setAnalyzeError]   = useState(stored.analyzeError ?? null);
   const [renderError,    setRenderError]    = useState(null);
+  // 실제 API 모드: S2 요청(한 줄 설명·목표 분량)과 분석 작업 id. 새로고침해도 이어서 폴링한다
+  const [request,        setRequest]        = useState(stored.request ?? null);
+  const [analyzeJobId,   setAnalyzeJobId]   = useState(stored.analyzeJobId ?? null);
+  // 화면 위에 한 번 보여 줄 안내 (예: 서버 재시작으로 프로젝트가 지워짐)
+  const [notice,         setNotice]         = useState(null);
 
   const statusRef = useRef(initStatus);
   useEffect(() => { statusRef.current = status; }, [status]);
@@ -120,8 +125,20 @@ export function ProjectProvider({ children }) {
 
   // Persist status (+ clips for restart continuity) on every change
   useEffect(() => {
-    saveProject({ status, clips });
-  }, [status, clips]);
+    saveProject({ status, clips, request, analyzeJobId, analyzeError });
+  }, [status, clips, request, analyzeJobId, analyzeError]);
+
+  // 새로고침 복원 (실제 API): 서버가 다시 켜져 프로젝트가 지워졌으면(404) S1로 돌려보내고 안내한다
+  useEffect(() => {
+    if (USE_MOCK || initStatus === 'created') return;
+    checkProject().then((alive) => {
+      if (alive) return;
+      transitionRef.current('RESET', { keepServer: true });
+      setNotice('서버가 다시 시작되어 올린 영상과 분석 결과가 지워졌어요. 영상을 다시 올려 주세요.');
+    }).catch(() => {
+      setNotice('서버에 연결할 수 없어요. 서버(vibecut serve)가 켜져 있는지 확인해 주세요.');
+    });
+  }, []);
 
   // navigate: moves to a screen without changing status (must be in ALLOWED_SCREENS)
   const navigate = useCallback((screen) => {
@@ -155,6 +172,8 @@ export function ProjectProvider({ children }) {
         break;
       case 'CONFIRM_REQUEST':
         if (payload) setJudgmentRules(payload);
+        setAnalyzeJobId(null);   // 새 분석을 시작한다 (예전 작업 결과를 다시 읽지 않게)
+        setAnalyzeError(null);
         break;
       case 'ANALYZE_SUCCESS':
         if (payload?.selection) setSelection(payload.selection);
@@ -165,6 +184,7 @@ export function ProjectProvider({ children }) {
         break;
       case 'RETRY_ANALYZE':
         setAnalyzeError(null);
+        setAnalyzeJobId(null);
         break;
       case 'SKIP_CLIP':
         setAnalyzeError(null);
@@ -196,6 +216,10 @@ export function ProjectProvider({ children }) {
         setExecutionRules(null);
         setAnalyzeError(null);
         setRenderError(null);
+        setRequest(null);
+        setAnalyzeJobId(null);
+        setNotice(null);
+        if (!payload?.keepServer) deleteProject();
         break;
       default: break;
     }
@@ -203,6 +227,7 @@ export function ProjectProvider({ children }) {
     setStatus(nextStatus);
     if (ACTION_SCREEN[action]) setCurrentScreen(ACTION_SCREEN[action]);
   }, []);
+  const transitionRef = useRef(transition);
 
   return (
     <ProjectContext.Provider value={{
@@ -212,6 +237,9 @@ export function ProjectProvider({ children }) {
       executionRules, setExecutionRules,
       selection, setSelection,
       analyzeError, renderError,
+      request, setRequest,
+      analyzeJobId, setAnalyzeJobId,
+      notice, setNotice,
       transition, navigate,
     }}>
       {children}

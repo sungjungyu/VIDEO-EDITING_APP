@@ -1,22 +1,29 @@
 import { useEffect, useState } from 'react';
 import { useProject } from '../../state/ProjectContext.jsx';
-import { getJudgmentRules, getExecutionRules } from '../../api/index.js';
-import { fmtDuration } from '../../utils/format.js';
+import { getJudgmentRules, getExecutionRules, USE_MOCK } from '../../api/index.js';
+import { fmtDuration, fmtMinSec } from '../../utils/format.js';
 import TopBar from '../common/TopBar.jsx';
 import BottomBar from '../common/BottomBar.jsx';
 import StylePanel from './StylePanel.jsx';
 import ConfirmModal from '../s2_1/ConfirmModal.jsx';
 
-export default function RequestScreen() {
-  const { status, clips, judgmentRules, setJudgmentRules, executionRules, setExecutionRules, transition, navigate } = useProject();
+const MOCK_ONE_LINE = '친구랑 편의점 갔다가 집에서 먹방하는 밤 브이로그';
+const MOCK_INTENT   = '과자 고르는 장면이랑 먹방 위주로 해줘. 걸어서 이동하는 건 짧게. 빨간 후드 입은 애가 민수야. 한강 도착하는 장면은 꼭 넣고.';
 
-  const [oneLine,    setOneLine]    = useState('친구랑 편의점 갔다가 집에서 먹방하는 밤 브이로그');
-  const [targetMin,  setTargetMin]  = useState(10);
-  const [targetSec,  setTargetSec]  = useState(0);
-  const [intentText, setIntentText] = useState('과자 고르는 장면이랑 먹방 위주로 해줘. 걸어서 이동하는 건 짧게. 빨간 후드 입은 애가 민수야. 한강 도착하는 장면은 꼭 넣고.');
+export default function RequestScreen() {
+  const { status, clips, judgmentRules, setJudgmentRules, executionRules, setExecutionRules,
+          request, setRequest, transition, navigate } = useProject();
+
+  // 실제 API 모드: 이전에 확정한 요청이 있으면 그 값으로, 없으면 빈 칸에서 시작
+  const initTarget = request?.target_sec ?? (USE_MOCK ? 600 : 60);
+  const [oneLine,    setOneLine]    = useState(request?.one_line ?? (USE_MOCK ? MOCK_ONE_LINE : ''));
+  const [targetMin,  setTargetMin]  = useState(Math.floor(initTarget / 60));
+  const [targetSec,  setTargetSec]  = useState(initTarget % 60);
+  const [intentText, setIntentText] = useState(request?.intent ?? (USE_MOCK ? MOCK_INTENT : ''));
   const [showModal,  setShowModal]  = useState(false);
 
   useEffect(() => {
+    if (!USE_MOCK) return;   // 실제 API에는 아직 규칙 해석(S2-1)·스타일 API가 없다 (Phase 3)
     getJudgmentRules().then(setJudgmentRules);
     getExecutionRules().then(setExecutionRules);
   }, []);
@@ -24,9 +31,13 @@ export default function RequestScreen() {
   const canNext = oneLine.trim().length > 0 && (targetMin > 0 || targetSec > 0);
 
   const totalSec = clips.reduce((s, c) => s + c.duration, 0);
+  const goalSec  = targetMin * 60 + targetSec;
 
   const handleConfirm = (confirmedRules) => {
     setShowModal(false);
+    if (!USE_MOCK) {
+      setRequest({ one_line: oneLine.trim(), intent: intentText.trim(), target_sec: goalSec });
+    }
     if (status === 'analyzed' || status === 'rendered') {
       transition('CHANGE_REQUEST', confirmedRules);
       navigate('s4');
@@ -39,7 +50,7 @@ export default function RequestScreen() {
     <div className="app-shell" style={{ position: 'relative' }}>
       <TopBar rightContent={`클립 ${clips.length}개 · ${fmtDuration(totalSec)}`} />
 
-      <div className="split" style={{ gridTemplateColumns: '52% 48%', flex: 1, overflowY: 'auto' }}>
+      <div className="split" style={{ gridTemplateColumns: USE_MOCK ? '52% 48%' : 'min(720px, 100%)', justifyContent: 'center', flex: 1, overflowY: 'auto' }}>
         {/* 왼쪽: 기획 */}
         <div className="pane" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           <div>
@@ -97,20 +108,43 @@ export default function RequestScreen() {
           </div>
 
           <div className="card lb" style={{ marginTop: 'auto' }}>
-            다음을 누르면 AI가 이해한 내용을 항목으로 보여드려요. 거기서 고친 뒤 확정하면 분석이 시작돼요.
+            {USE_MOCK
+              ? '다음을 누르면 AI가 이해한 내용을 항목으로 보여드려요. 거기서 고친 뒤 확정하면 분석이 시작돼요.'
+              : '다음을 누르면 요청을 한 번 더 확인한 뒤 분석이 시작돼요. 한 줄 설명과 편집 의도는 구조 편집에서 AI가 장면을 고를 때 쓰여요.'}
           </div>
         </div>
 
-        {/* 오른쪽: 스타일 */}
-        <StylePanel rules={executionRules} onChange={setExecutionRules} />
+        {/* 오른쪽: 스타일 (실제 API 모드에서는 결과 화면에서 바꾸도록 Phase 3에서 옮긴다) */}
+        {USE_MOCK && <StylePanel rules={executionRules} onChange={setExecutionRules} />}
       </div>
 
-      {showModal && (
+      {showModal && USE_MOCK && (
         <ConfirmModal
           rules={judgmentRules}
           onBack={() => setShowModal(false)}
           onConfirm={handleConfirm}
         />
+      )}
+      {showModal && !USE_MOCK && (
+        <>
+          <div className="modal-dim" />
+          <div className="modal">
+            <div style={{ padding: '16px 16px 12px', fontWeight: 600 }}>요청 확인</div>
+            <div style={{ padding: '0 16px 16px', display: 'grid', gridTemplateColumns: '90px 1fr', gap: '6px 12px' }}>
+              <span className="lb">한 줄 설명</span><span>{oneLine.trim()}</span>
+              <span className="lb">목표 분량</span>
+              <span>{fmtMinSec(goalSec)} <span className="lb">(원본 {fmtMinSec(totalSec)})</span></span>
+              <span className="lb">편집 의도</span><span>{intentText.trim() || <span className="lb">없음</span>}</span>
+              <span className="lb">클립</span><span>{clips.length}개</span>
+            </div>
+            <div className="bottom-bar">
+              <button onClick={() => setShowModal(false)}>고치기</button>
+              <button className="btn-primary" onClick={() => handleConfirm(null)}>
+                {status === 'analyzed' || status === 'rendered' ? '확정' : '확정하고 분석 시작 →'}
+              </button>
+            </div>
+          </div>
+        </>
       )}
 
       <BottomBar
@@ -121,7 +155,7 @@ export default function RequestScreen() {
             disabled={!canNext}
             onClick={() => setShowModal(true)}
           >
-            다음: AI가 이해한 내용 확인 →
+            {USE_MOCK ? '다음: AI가 이해한 내용 확인 →' : '다음: 요청 확인 →'}
           </button>
         }
       />
