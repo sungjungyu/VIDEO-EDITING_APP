@@ -87,3 +87,7 @@ audio.mp3
 /scenes*.md
 /transcript*.json
 /transcript*.md
+/local_results/
+/frontend/node_modules/
+/frontend/test-results/
+/frontend/playwright-report/

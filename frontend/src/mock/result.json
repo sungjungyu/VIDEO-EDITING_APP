@@ -1,0 +1,23 @@
+{
+  "video_url": "/files/p1/result.mp4",
+  "duration": 604,
+  "source_duration": 3600,
+  "target_sec": 600,
+  "topic_ratio": { "편의점": 0.29, "귀가길": 0.19, "집 먹방": 0.38, "마무리": 0.14 },
+  "requests": [
+    { "type": "must_include", "text": "한강 도착",    "ok": true },
+    { "type": "minimize",     "text": "걸어서 이동", "before": 400, "after": 112 }
+  ],
+  "fixes": { "word_boundary": 3, "fades": 22 },
+  "timing": { "analyze": 612, "edit": 380, "render": 168 },
+  "segments": [
+    { "id": "seg1", "topic_id": "t2", "topic_title": "편의점", "scene_title": "문 열고 들어가기", "pct_start": 0,  "pct_end": 9,  "original_clip": "편의점_안", "original_start": 252.0, "original_end": 271.0, "ai_reason": "편의점 입장 장면" },
+    { "id": "seg2", "topic_id": "t2", "topic_title": "편의점", "scene_title": "칼로리 확인",      "pct_start": 9,  "pct_end": 23, "original_clip": "편의점_안", "original_start": 352.0, "original_end": 371.0, "ai_reason": "요청의 '과자 고르기' 강조 · 두 사람 반응이 뚜렷한 구간" },
+    { "id": "seg3", "topic_id": "t2", "topic_title": "편의점", "scene_title": "가격 비교",        "pct_start": 23, "pct_end": 29, "original_clip": "편의점_안", "original_start": 490.0, "original_end": 540.0, "ai_reason": "꼭 넣기 항목" },
+    { "id": "seg4", "topic_id": "t3", "topic_title": "귀가길", "scene_title": "길 걸으며 대화",   "pct_start": 29, "pct_end": 48, "original_clip": "귀가길",   "original_start": 762.0, "original_end": 830.0, "ai_reason": "이동 장면 최소화 · 핵심 대화만 포함" },
+    { "id": "seg5", "topic_id": "t4", "topic_title": "집 먹방","scene_title": "과자 언박싱",      "pct_start": 48, "pct_end": 60, "original_clip": "집_먹방",  "original_start": 947.0, "original_end": 1021.0,"ai_reason": "요청의 '먹방 위주' · 세 명 반응이 겹치는 구간이라 압축 시 유지" },
+    { "id": "seg6", "topic_id": "t4", "topic_title": "집 먹방","scene_title": "칩 먹기",          "pct_start": 60, "pct_end": 75, "original_clip": "집_먹방",  "original_start": 1200.0,"original_end": 1450.0,"ai_reason": "먹방 핵심 구간" },
+    { "id": "seg7", "topic_id": "t4", "topic_title": "집 먹방","scene_title": "맛 평가",          "pct_start": 75, "pct_end": 93, "original_clip": "집_먹방",  "original_start": 1530.0,"original_end": 1600.0,"ai_reason": "맛 리액션 · 먹방 하이라이트" },
+    { "id": "seg8", "topic_id": "t5", "topic_title": "마무리", "scene_title": "인사",             "pct_start": 93, "pct_end": 100,"original_clip": "마무리",   "original_start": 3427.0,"original_end": 3500.0,"ai_reason": "마무리 인사" }
+  ]
+}
