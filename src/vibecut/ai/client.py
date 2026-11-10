@@ -53,6 +53,7 @@ class Usage:
     prompt_tokens: int = 0
     output_tokens: int = 0
     by_model: dict[str, int] = field(default_factory=dict)
+    tokens_by_model: dict[str, list[int]] = field(default_factory=dict)   # 모델 → [입력, 출력] (모델별 비용 계산용)
     _lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
 
     def add(self, model: str, prompt_tokens: int, output_tokens: int) -> None:
@@ -61,6 +62,9 @@ class Usage:
             self.prompt_tokens += prompt_tokens
             self.output_tokens += output_tokens
             self.by_model[model] = self.by_model.get(model, 0) + 1
+            tokens = self.tokens_by_model.setdefault(model, [0, 0])
+            tokens[0] += prompt_tokens
+            tokens[1] += output_tokens
 
     def hit(self) -> None:
         with self._lock:
@@ -68,7 +72,8 @@ class Usage:
 
     def to_dict(self) -> dict:
         return {"requests": self.requests, "cache_hits": self.cache_hits, "prompt_tokens": self.prompt_tokens,
-                "output_tokens": self.output_tokens, "by_model": dict(self.by_model)}
+                "output_tokens": self.output_tokens, "by_model": dict(self.by_model),
+                "tokens_by_model": {m: list(t) for m, t in self.tokens_by_model.items()}}
 
 
 def classify_error(error: BaseException) -> str:
