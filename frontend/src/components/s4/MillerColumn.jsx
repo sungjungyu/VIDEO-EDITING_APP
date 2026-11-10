@@ -46,8 +46,8 @@ export default function MillerColumn({ level, nodes, selectedId, selectionNodes,
               <span className={dotCls} />
             </span>
             {node.title}
-            {lock === 'must_include' && <span style={{ fontSize: 10, marginLeft: 2 }}>📌</span>}
-            {lock === 'must_exclude' && <span style={{ fontSize: 10, marginLeft: 2 }}>🚫</span>}
+            {lock === 'must_include' && <span className="lock-tag in" title="꼭 넣기 잠금">꼭 넣기</span>}
+            {lock === 'must_exclude' && <span className="lock-tag out" title="꼭 빼기 잠금">꼭 빼기</span>}
             <span className="d">{fmtDuration(sec(node))}</span>
           </div>
         );

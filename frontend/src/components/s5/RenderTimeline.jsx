@@ -19,7 +19,7 @@ export default function RenderTimeline({ segments, currentLabel, renderPercent }
           const color = done
             ? `var(${TOPIC_COLORS[seg.topic_id] ?? '--topic-1'})`
             : now
-              ? 'var(--color-accent)'
+              ? 'var(--color-text-muted)'
               : 'transparent';
           return (
             <div

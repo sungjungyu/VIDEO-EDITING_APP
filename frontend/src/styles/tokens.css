@@ -1,32 +1,35 @@
-/* 목업 :root와 동일한 이름 유지. 이 파일만 바꾸면 전체 팔레트가 교체된다. */
+/* 색·모양 토큰. 이 파일만 바꾸면 전체 팔레트가 교체된다. 컴포넌트에는 색 값을 직접 쓰지 않는다.
+   팔레트 출처: A안 web/css/base.css (어두운 화면). 이름은 B안 목업의 변수 이름을 그대로 쓴다. */
 :root {
-  --color-bg: #F4F3EF;
-  --color-surface: #FFFFFF;
-  --color-surface-2: #F7F6F2;
-  --color-border: #E3E1DA;
-  --color-border-strong: #C9C6BC;
-  --color-text: #22211E;
-  --color-text-muted: #6B6960;
-  --color-text-subtle: #9A978C;
-  --color-accent: #2F6FD0;
-  --color-accent-bg: #E6EFFB;
-  --color-accent-border: #9CC0EE;
-  --color-success: #3B7A1E;
-  --color-success-bg: #EAF3DE;
-  --color-success-border: #A9CF86;
-  --color-warning: #8A5A00;
-  --color-warning-bg: #FBF0D9;
-  --color-warning-border: #E6C277;
-  --color-danger: #B23A2B;
-  --color-danger-bg: #FBE7E3;
-  --color-danger-border: #E9A79C;
-  --color-off: #D9D7CF;
-  --color-video: #2C2C2A;
-  --topic-1: #85B7EB;
-  --topic-2: #9FE1CB;
-  --topic-3: #FAC775;
-  --topic-4: #F0997B;
+  color-scheme: dark;
+  --color-bg: #0F1318;                          /* A안 --bg */
+  --color-surface: #161B22;                     /* A안 --panel */
+  --color-surface-2: #1E252F;                   /* A안 --panel2 */
+  --color-border: #2A323E;                      /* A안 --border */
+  --color-border-strong: #3A4452;               /* A안에 없음: --border를 한 단계 밝게 */
+  --color-text: #E9EDF2;                        /* A안 --text */
+  --color-text-muted: #8C99A9;                  /* A안 --muted */
+  --color-text-subtle: #667280;                 /* A안에 없음: --muted를 한 단계 어둡게 */
+  --color-accent: #8B5CF6;                      /* A안 --accent (보라). 주요 버튼·선택 상태·포커스 테두리에만 쓴다 */
+  --color-accent-bg: rgba(139, 92, 246, .16);   /* A안 --accent-soft */
+  --color-accent-border: rgba(139, 92, 246, .5);
+  --color-success: #4CC38A;                     /* A안 --ok */
+  --color-success-bg: rgba(76, 195, 138, .14);
+  --color-success-border: rgba(76, 195, 138, .45);
+  --color-warning: #F5B94A;                     /* A안 --warn */
+  --color-warning-bg: rgba(245, 185, 74, .12);
+  --color-warning-border: rgba(245, 185, 74, .45);
+  --color-danger: #FF6464;                      /* A안 --cut */
+  --color-danger-bg: rgba(255, 100, 100, .16);  /* A안 --cut-soft */
+  --color-danger-border: rgba(255, 100, 100, .5);
+  --color-off: #3A4452;                         /* 꺼진 구간·점 */
+  --color-video: #0B0E12;                       /* A안 --panel3 */
+  --color-on-accent: #FFFFFF;                   /* 강조색 위 글자 */
+  --topic-1: #4DA3FF;                           /* A안 --keep */
+  --topic-2: #4CC38A;                           /* A안 --ok */
+  --topic-3: #F5B94A;                           /* A안 --warn */
+  --topic-4: #E87BB4;                           /* 분홍: A안 --analyzing(연보라)은 강조색과 겹쳐 바꿈 */
   --radius: 8px;
-  --radius-lg: 12px;
-  --font: "Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+  --radius-lg: 14px;                            /* A안 모달 모서리 */
+  --font: "Pretendard", "Malgun Gothic", "Apple SD Gothic Neo", "Noto Sans KR", -apple-system, "Segoe UI", sans-serif;
 }

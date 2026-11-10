@@ -32,7 +32,7 @@ export default function TopBar({ rightContent }) {
               {current
                 ? <b>{step.label}</b>
                 : done
-                  ? <span>{step.label} ✔</span>
+                  ? <span>{step.label} ✓</span>
                   : <span>{step.label}</span>
               }
             </span>

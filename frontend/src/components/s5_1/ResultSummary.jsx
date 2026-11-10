@@ -36,7 +36,7 @@ export default function ResultSummary({ result }) {
               <span>{name}</span><span>{Math.round(ratio * 100)}%</span>
             </div>
             <div className="bar">
-              <i style={{ width: `${ratio * 100}%`, background: TOPIC_COLORS_CSS[i] ?? 'var(--color-accent)' }} />
+              <i style={{ width: `${ratio * 100}%`, background: TOPIC_COLORS_CSS[i % TOPIC_COLORS_CSS.length] }} />
             </div>
           </div>
         ))}
@@ -51,7 +51,7 @@ export default function ResultSummary({ result }) {
             </span>
             {req.type === 'must_include' && (
               <span style={{ color: req.ok ? 'var(--color-success)' : 'var(--color-danger)' }}>
-                {req.ok ? '✔ 포함' : '✗ 미포함'}
+                {req.ok ? '포함' : '미포함'}
               </span>
             )}
             {req.type === 'minimize' && (

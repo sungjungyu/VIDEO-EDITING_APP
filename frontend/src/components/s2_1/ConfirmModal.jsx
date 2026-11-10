@@ -32,7 +32,7 @@ export default function ConfirmModal({ rules, onBack, onConfirm }) {
         <div style={{ padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
           <div className="row">
             <span className="lb" style={{ width: 64 }}>영상 성격</span>
-            <Chip>{local.purpose} ✎</Chip>
+            <Chip>{local.purpose}</Chip>
             <span className="lb" style={{ marginLeft: 'auto' }}>
               목표 {totalMin != null ? `${totalMin}:${String(totalSec).padStart(2,'0')}` : '—'}
             </span>
@@ -72,7 +72,7 @@ export default function ConfirmModal({ rules, onBack, onConfirm }) {
 
           {local.ambiguities?.length > 0 && (
             <div className="warn">
-              <b>⚠ 확인이 필요해요 ({local.ambiguities.length})</b>
+              <b>확인이 필요해요 ({local.ambiguities.length})</b>
               {local.ambiguities.map((amb, i) => (
                 <div key={amb.id}>
                   <div style={{ marginTop: 6 }}>{i + 1}. {amb.message}</div>

@@ -100,7 +100,7 @@ export default function RenderingScreen() {
             const detail = key === 'cut' && mockData?.current ? ` · ${mockData.current.label}` : '';
             return (
               <Chip key={key} variant={st === 'done' ? 'done' : st === 'running' ? 'on' : 'default'}>
-                {st === 'done' ? '✔ ' : ''}{label}{detail}
+                {st === 'done' ? '✓ ' : ''}{label}{detail}
               </Chip>
             );
           })}

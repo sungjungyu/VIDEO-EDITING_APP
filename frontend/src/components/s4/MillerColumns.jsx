@@ -142,17 +142,17 @@ export default function MillerColumns({ treeData, selectedPath, selectionNodes, 
           style={{ position: 'fixed', left: ctxMenu.x, top: ctxMenu.y, zIndex: 200 }}
         >
           <div className="ctx-item" onClick={() => { onToggle?.(ctxMenu.nodeId); setCtxMenu(null); }}>
-            ◉ 켜기 / 끄기 (Space)
+            켜기 / 끄기 (Space)
           </div>
           <div className="ctx-item" style={{ height: 1, padding: 0, background: 'var(--color-border)', margin: '2px 0' }} />
           <div className="ctx-item" onClick={() => { onLock?.(ctxMenu.nodeId, 'must_include'); setCtxMenu(null); }}>
-            📌 꼭 넣기
+            꼭 넣기
           </div>
           <div className="ctx-item" onClick={() => { onLock?.(ctxMenu.nodeId, 'must_exclude'); setCtxMenu(null); }}>
-            🚫 꼭 빼기
+            꼭 빼기
           </div>
           <div className="ctx-item" onClick={() => { onLock?.(ctxMenu.nodeId, null); setCtxMenu(null); }}>
-            🔓 잠금 해제
+            잠금 해제
           </div>
         </div>
       )}

@@ -110,7 +110,7 @@ export default function StructureEditor() {
   const breadcrumb = selectedPath.filter(Boolean);
 
   return (
-    <div className="app-shell" style={{ height: '100vh', maxHeight: '100vh' }}>
+    <div className="app-shell fill">
       <TopBar
         rightContent={
           <span style={{ color: warningColor }}>

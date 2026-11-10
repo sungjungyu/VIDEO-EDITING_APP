@@ -215,7 +215,7 @@ export default function AnalyzingScreen() {
         <div className="row" style={{ justifyContent: 'center', flexWrap: 'wrap' }}>
           {steps.map((s, i) => (
             <Chip key={i} variant={s.state === 'done' ? 'done' : s.state === 'running' ? 'on' : 'default'}>
-              {s.state === 'done' ? '✔ ' : ''}{s.label}
+              {s.state === 'done' ? '✓ ' : ''}{s.label}
             </Chip>
           ))}
         </div>

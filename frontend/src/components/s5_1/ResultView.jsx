@@ -61,7 +61,7 @@ export default function ResultView() {
       {styleOpen && (
         <>
           <div className="modal-dim" onClick={() => setStyleOpen(false)} />
-          <div className="modal" style={{ width: 'min(600px, 95vw)', maxHeight: '85vh', overflow: 'auto' }}>
+          <div className="modal" style={{ width: 'min(600px, 95vw)' }}>
             <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--color-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontWeight: 600, fontSize: 15 }}>스타일 변경 후 다시 렌더</span>
               <button onClick={() => setStyleOpen(false)}>✕</button>

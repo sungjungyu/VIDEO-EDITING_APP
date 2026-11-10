@@ -21,10 +21,10 @@ export default function ResultPlayer({ result, selectedSeg, onSelectSeg }) {
             {selectedSeg.scene_title}
           </span>
         )}
-        <div style={{ position: 'absolute', left: 8, right: 8, bottom: 10, display: 'flex', alignItems: 'center', gap: 6, color: '#fff', fontSize: 10 }}>
+        <div style={{ position: 'absolute', left: 8, right: 8, bottom: 10, display: 'flex', alignItems: 'center', gap: 6, color: 'var(--color-text)', fontSize: 10 }}>
           <span>▶</span>
-          <div style={{ flex: 1, height: 3, background: 'rgba(255,255,255,.3)', borderRadius: 2 }}>
-            <div style={{ width: `${selectedSeg?.pct_start ?? 0}%`, height: '100%', background: '#fff' }} />
+          <div style={{ flex: 1, height: 3, background: 'var(--color-border-strong)', borderRadius: 2 }}>
+            <div style={{ width: `${selectedSeg?.pct_start ?? 0}%`, height: '100%', background: 'var(--color-text)' }} />
           </div>
           <span>{fmtDuration(playPercent)}</span>
         </div>

@@ -21,12 +21,11 @@ export default class ErrorBoundary extends Component {
           display: 'flex', flexDirection: 'column', alignItems: 'center',
           justifyContent: 'center', height: '100vh', gap: 16, padding: 24,
         }}>
-          <div style={{ fontSize: 32 }}>⚠️</div>
-          <div style={{ fontWeight: 600, fontSize: 16 }}>화면을 표시하는 중 오류가 발생했어요</div>
+          <div style={{ fontWeight: 800, fontSize: 18, color: 'var(--color-danger)' }}>화면을 표시하는 중 오류가 발생했어요</div>
           <pre style={{
-            background: 'var(--color-surface-2, #f4f4f5)', borderRadius: 8,
+            background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius)',
             padding: '10px 14px', fontSize: 12, maxWidth: 560, overflowX: 'auto',
-            color: 'var(--color-danger, #e53e3e)', whiteSpace: 'pre-wrap', wordBreak: 'break-all',
+            color: 'var(--color-text-muted)', whiteSpace: 'pre-wrap', wordBreak: 'break-all',
           }}>
             {this.state.error.message}
           </pre>

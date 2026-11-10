@@ -19,7 +19,7 @@ export default function DetailPanel({ scene, sentences, selectionNodes }) {
     <div className="pane" style={{ display: 'flex', flexDirection: 'column', gap: 10, overflowY: 'auto' }}>
       <div className="row" style={{ justifyContent: 'space-between' }}>
         <div className="sec" style={{ margin: 0 }}>{scene.title}</div>
-        <button style={{ height: 28, fontSize: 11 }}>자막 대상 화자 ⚙</button>
+        <button style={{ height: 28, fontSize: 12 }}>자막 대상 화자</button>
       </div>
 
       {selState?.lock && (
@@ -29,7 +29,7 @@ export default function DetailPanel({ scene, sentences, selectionNodes }) {
           fontSize: 12,
           marginBottom: 4,
         }}>
-          {selState.lock === 'must_include' ? '📌 꼭 넣기 잠금' : '🚫 꼭 빼기 잠금'}
+          {selState.lock === 'must_include' ? '꼭 넣기로 잠금' : '꼭 빼기로 잠금'}
         </div>
       )}
 

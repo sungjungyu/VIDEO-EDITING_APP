@@ -7,30 +7,64 @@ body {
   color: var(--color-text);
   font-family: var(--font);
   font-size: 13px;
+  line-height: 1.5;
   min-height: 100vh;
 }
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--color-border); border-radius: 4px; }
 
 /* ── 버튼 ── */
+/* A안 .btn-secondary / .btn-primary 모양 */
 button {
   font-family: inherit;
-  font-size: 12px;
-  border: 1px solid var(--color-border-strong);
-  background: var(--color-surface);
+  font-size: 13px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-2);
   color: var(--color-text);
   border-radius: var(--radius);
   padding: 0 14px;
   height: 36px;
   cursor: pointer;
+  transition: border-color .15s, filter .15s;
 }
-button:disabled { opacity: .45; cursor: not-allowed; }
+button:hover:not(:disabled) { border-color: var(--color-text-muted); }
+button:disabled { opacity: .4; cursor: not-allowed; }
+button:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 1px; }
 .btn-primary {
   background: var(--color-accent);
   border-color: var(--color-accent);
-  color: #fff;
-  font-weight: 600;
+  color: var(--color-on-accent);
+  font-size: 14px;
+  font-weight: 700;
   height: 40px;
-  padding: 0 20px;
+  padding: 0 18px;
 }
+.btn-primary:hover:not(:disabled) { border-color: var(--color-accent); filter: brightness(1.1); }
+
+/* 켜기/끄기 스위치 (A안 .ss-toggle) — 체크박스에 입힌다 */
+input[type="checkbox"] {
+  appearance: none;
+  width: 38px; height: 22px;
+  border-radius: 11px;
+  background: var(--color-border);
+  position: relative;
+  vertical-align: middle;
+  cursor: pointer;
+  transition: background .18s;
+  flex-shrink: 0;
+}
+input[type="checkbox"]::after {
+  content: "";
+  position: absolute;
+  width: 16px; height: 16px;
+  border-radius: 50%;
+  background: var(--color-on-accent);
+  top: 3px; left: 3px;
+  transition: left .18s;
+}
+input[type="checkbox"]:checked { background: var(--color-accent); }
+input[type="checkbox"]:checked::after { left: 19px; }
 
 /* ── 앱 셸 ── */
 .app-shell {
@@ -44,6 +78,8 @@ button:disabled { opacity: .45; cursor: not-allowed; }
   display: flex;
   flex-direction: column;
 }
+/* 화면 높이를 꽉 채우는 셸 (S4). 위아래 여백 16px씩을 빼야 하단 바가 잘리지 않는다 */
+.app-shell.fill { height: calc(100vh - 32px); }
 
 /* ── 상단 바 ── */
 .top-bar {
@@ -96,47 +132,58 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 .num { font-size: 19px; font-weight: 600; }
 
 /* ── 칩 ── */
+/* A안 .seg-switch 단추처럼: 각진 모서리, 고른 것만 강조 */
 .chip {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 11px;
-  padding: 4px 10px;
-  border-radius: 999px;
-  border: 1px solid var(--color-border-strong);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 5px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--color-border);
   color: var(--color-text-muted);
   white-space: nowrap;
-  background: var(--color-surface);
+  background: var(--color-video);
   cursor: default;
 }
-.chip.on { background: var(--color-accent-bg); color: var(--color-accent); border-color: var(--color-accent-border); }
-.chip.done { background: var(--color-success-bg); color: var(--color-success); border-color: var(--color-success-border); }
+.chip.on { background: var(--color-accent-bg); color: var(--color-text); border-color: var(--color-accent); }
+.chip.done { color: var(--color-success); border-color: var(--color-success-border); }
 .chip.add { border-style: dashed; color: var(--color-text-subtle); cursor: pointer; }
 
 /* ── 배지 ── */
-.badge { font-size: 10px; padding: 1px 7px; border-radius: 999px; font-weight: 500; }
-.b-danger { background: var(--color-danger-bg); color: var(--color-danger); }
-.b-accent { background: var(--color-accent-bg); color: var(--color-accent); }
-.b-success { background: var(--color-success-bg); color: var(--color-success); }
-.b-warning { background: var(--color-warning-bg); color: var(--color-warning); }
+/* 배지는 배경 없이 글자색만 (과한 배지 줄임) */
+.badge { font-size: 11px; padding: 0 2px; font-weight: 600; }
+.b-danger { color: var(--color-danger); }
+.b-accent { color: var(--color-text-muted); }   /* 안내 배지: 보라는 버튼·선택·포커스에만 */
+.b-success { color: var(--color-success); }
+.b-warning { color: var(--color-warning); }
 
 /* ── 입력 필드 ── */
-.fld {
-  border: 1px solid var(--color-border-strong);
+/* A안 .field input 모양 */
+.fld, input:not([type]), input[type="text"], input[type="number"], textarea, select {
+  border: 1px solid var(--color-border);
   border-radius: var(--radius);
-  padding: 6px 9px;
-  font-size: 12px;
-  background: var(--color-surface-2);
+  padding: 8px 10px;
+  font-size: 13px;
+  background: var(--color-video);
+  color: var(--color-text);
   font-family: inherit;
+  outline: none;
 }
-.fld:focus { outline: 2px solid var(--color-accent); outline-offset: -1px; }
+.fld:focus, input:not([type]):focus, input[type="text"]:focus, input[type="number"]:focus,
+textarea:focus, select:focus { border-color: var(--color-accent); }
+/* 숫자 칸은 폭이 좁아(분·초) 안쪽 여백을 줄이고 위아래 화살표를 숨긴다 */
+input[type="number"] { padding: 8px 6px; text-align: center; -moz-appearance: textfield; }
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
 
 /* ── 카드 ── */
 .card {
   background: var(--color-surface-2);
   border: 1px solid var(--color-border);
   border-radius: var(--radius);
-  padding: 9px 11px;
+  padding: 10px 12px;
 }
 .box {
   border: 1px solid var(--color-border);
@@ -145,18 +192,19 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 }
 
 /* ── 진행 막대 ── */
+/* A안 .progress-bar-track */
 .bar {
   height: 8px;
   border-radius: 4px;
-  background: var(--color-surface-2);
+  background: var(--color-border);
   overflow: hidden;
-  border: 1px solid var(--color-border);
 }
 .bar > i {
   display: block;
   height: 100%;
-  background: var(--color-accent);
-  transition: width 0.3s ease;
+  background: var(--color-text-muted);   /* 진행 막대는 강조색을 쓰지 않는다 (보라는 버튼·선택·포커스에만) */
+  border-radius: 4px;
+  transition: width 0.4s;
 }
 
 /* ── 로그 줄 ── */
@@ -184,10 +232,10 @@ button:disabled { opacity: .45; cursor: not-allowed; }
   position: absolute;
   left: 0; right: 0; bottom: 0;
   height: 50%;
-  background: #5F5E5A;
+  background: var(--color-surface-2);
 }
-.video .p1 { position: absolute; border-radius: 50%; background: #B4B2A9; }
-.video .p2 { position: absolute; border-radius: 50%; background: #888780; }
+.video .p1 { position: absolute; border-radius: 50%; background: var(--color-border-strong); }
+.video .p2 { position: absolute; border-radius: 50%; background: var(--color-border); }
 .sub {
   position: absolute;
   left: 0; right: 0;
@@ -206,7 +254,7 @@ button:disabled { opacity: .45; cursor: not-allowed; }
   gap: 14px;
   flex: 1;
 }
-.progress-title { font-size: 19px; font-weight: 600; }
+.progress-title { font-size: 19px; font-weight: 800; }
 @keyframes blink { 50% { opacity: .35; } }
 .dots { animation: blink 1.4s infinite; }
 @keyframes pulse { 50% { opacity: .45; } }
@@ -215,7 +263,7 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 /* ── 타임라인 구간 ── */
 .seg {
   height: 100%;
-  border-right: 1px solid var(--color-surface);
+  border-right: 1px solid var(--color-video);
 }
 .legend { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
 .legend i {
@@ -258,8 +306,9 @@ button:disabled { opacity: .45; cursor: not-allowed; }
   left: 5px; top: 5px;
   width: 20px; height: 20px;
   border-radius: 50%;
-  background: var(--color-accent);
-  color: #fff;
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border-strong);
+  color: var(--color-text);
   font-size: 11px;
   font-weight: 600;
   display: flex;
@@ -290,7 +339,7 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 }
 .miller-item:hover { background: var(--color-surface-2); }
 .miller-item .d { margin-left: auto; font-size: 11px; color: var(--color-text-subtle); }
-.miller-item.sel { background: var(--color-accent-bg); }
+.miller-item.sel { background: var(--color-accent-bg); box-shadow: inset 2px 0 0 var(--color-accent); }
 .miller-item.off { color: var(--color-text-subtle); }
 
 /* 상태 점 래퍼 — 24px 최소 클릭 영역 */
@@ -319,7 +368,7 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 .modal-dim {
   position: absolute;
   inset: 38px 0 0 0;
-  background: rgba(0,0,0,.35);
+  background: rgba(0,0,0,.6);
   z-index: 10;
 }
 .modal {
@@ -331,10 +380,17 @@ button:disabled { opacity: .45; cursor: not-allowed; }
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
-  box-shadow: 0 10px 30px rgba(0,0,0,.18);
+  box-shadow: 0 8px 22px rgba(0,0,0,.45);
   z-index: 11;
   max-height: calc(100% - 70px);
   overflow-y: auto;
+}
+/* 창 내용이 길어 스크롤돼도 아래 버튼(취소·확정)은 늘 보이게 */
+.modal > .bottom-bar {
+  position: sticky;
+  bottom: 0;
+  background: var(--color-surface);
+  z-index: 1;
 }
 
 /* ── 테이블 ── */
@@ -353,6 +409,11 @@ details summary { cursor: pointer; font-size: 12px; color: var(--color-text-mute
 }
 
 /* Context menu */
-.ctx-menu { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius); box-shadow: 0 4px 12px rgba(0,0,0,.12); min-width: 140px; overflow: hidden; }
+.ctx-menu { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius); box-shadow: 0 8px 22px rgba(0,0,0,.45); min-width: 140px; overflow: hidden; }
 .ctx-item { padding: 7px 12px; font-size: 13px; cursor: pointer; }
 .ctx-item:hover { background: var(--color-surface-2); }
+
+/* 잠금 표시 (이모지 대신 글자) */
+.lock-tag { font-size: 10px; font-weight: 700; margin-left: 4px; white-space: nowrap; flex: none; }
+.lock-tag.in { color: var(--color-success); }
+.lock-tag.out { color: var(--color-danger); }
