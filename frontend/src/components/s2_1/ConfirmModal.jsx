@@ -75,8 +75,7 @@ export default function ConfirmModal({ rules, onBack, onConfirm }) {
               <b>확인이 필요해요 ({local.ambiguities.length})</b>
               {local.ambiguities.map((amb, i) => (
                 <div key={amb.id}>
-                  <div style={{ marginTop: 6 }}>{i + 1}. {amb.message}</div>
-                  <AmbiguityRow item={amb} onChange={updateAmb} />
+                  <AmbiguityRow item={amb} number={i + 1} onChange={updateAmb} />
                 </div>
               ))}
             </div>

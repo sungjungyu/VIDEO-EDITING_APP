@@ -3,7 +3,8 @@ import Chip from '../common/Chip.jsx';
 import SubtitlePreview from './SubtitlePreview.jsx';
 
 const PRESETS = ['기본', '강조', '깔끔'];
-const ASPECTS = ['16:9', '9:16', '1:1'];
+// auto: 서버 auto_aspect (클립 방향으로 정함, 기본값)
+const ASPECTS = [['auto', '자동'], ['16:9', '16:9'], ['9:16', '9:16'], ['1:1', '1:1']];
 const FITS    = ['가운데 자르기', '여백 채우기'];
 const POSITIONS = ['아래', '위'];
 
@@ -39,8 +40,8 @@ export default function StylePanel({ rules, onChange }) {
         <div>
           <div className="lb">화면 비율</div>
           <div className="row">
-            {ASPECTS.map(a => (
-              <Chip key={a} variant={output?.aspect === a ? 'on' : 'default'} onClick={() => set('output.aspect', a)}>{a}</Chip>
+            {ASPECTS.map(([value, label]) => (
+              <Chip key={value} variant={(output?.aspect ?? 'auto') === value ? 'on' : 'default'} onClick={() => set('output.aspect', value)}>{label}</Chip>
             ))}
           </div>
         </div>

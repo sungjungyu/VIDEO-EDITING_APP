@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { useProject } from '../../state/ProjectContext.jsx';
-import { getProgress, getSelection, startAnalysis, getJob, USE_MOCK } from '../../api/index.js';
+import { getProgress, getSelection, startAnalysis, getJob, getAnalysis, USE_MOCK } from '../../api/index.js';
+import { geminiCost, fmtKrw } from '../../utils/cost.js';
 import { fmtMinSec, fmtDuration } from '../../utils/format.js';
 import TopBar from '../common/TopBar.jsx';
 import BottomBar from '../common/BottomBar.jsx';
@@ -85,7 +86,14 @@ function useJobProgress(status, transition, jobId, setJobId) {
   const [job,   setJob]   = useState(null);
   const [now,   setNow]   = useState(Date.now());
   const [error, setError] = useState(null);   // 폴링 자체의 오류 (서버 연결 끊김 등)
+  const [analysis, setAnalysis] = useState(null);   // 끝난 뒤 하단 숫자용 서버 분석 결과
   const starting = useRef(false);
+
+  // 분석이 끝나면 서버 분석 결과를 한 번 읽어 하단 숫자(길이·장면·문장·화자)를 채운다
+  useEffect(() => {
+    if (job?.status !== 'done' || analysis) return;
+    getAnalysis().then(setAnalysis).catch(() => {});
+  }, [job?.status]);
 
   // 분석 시작: 작업 id가 없을 때 한 번 (다시 시도 시 RETRY_ANALYZE가 id를 비운다)
   useEffect(() => {
@@ -154,7 +162,42 @@ function useJobProgress(status, transition, jobId, setJobId) {
     message: error ?? (job?.status === 'queued' ? '다른 작업이 끝나기를 기다리는 중…' : job?.message || ''),
     remaining: '창을 닫아도 분석은 서버에서 계속돼요',
     job,
+    analysis,
   };
+}
+
+// ── 하단 숫자 ──
+function Stats({ items }) {
+  if (!items) return null;
+  return (
+    <div className="stats">
+      {items.map(([k, v, title]) => (
+        <div key={k} title={title}><div className="lb">{k}</div><div className="num">{v}</div></div>
+      ))}
+    </div>
+  );
+}
+
+function mockStats(mockData) {
+  const s = mockData?.stats;
+  if (!s) return null;
+  return [['전체 길이', '60:00'], ['장면', s.scenes], ['문장', s.sentences], ['화자', s.speakers], ['API 비용', fmtKrw(s.cost_krw)]];
+}
+
+/** 실제 모드: 서버 분석 결과(analysis)와 작업 기록(metrics.ai_usage)의 값. 끝나기 전에는 '–' */
+function realStats(analysis, job, clipSec) {
+  const usage = job?.metrics?.ai_usage;
+  const length = analysis ? analysis.clips.reduce((s, c) => s + c.duration, 0) : clipSec;
+  const speakers = analysis ? new Set(analysis.lines.map(l => l.speaker).filter(Boolean)).size : null;
+  const cost = usage ? geminiCost(usage.tokens_by_model) : null;
+  return [
+    ['전체 길이', fmtDuration(length)],
+    ['장면', analysis ? analysis.scenes.length : '–'],
+    ['문장', analysis ? analysis.lines.length : '–'],
+    ['화자', speakers ? speakers : '–', speakers === 0 ? '화자 구분을 하지 않았어요' : undefined],
+    ['API 비용', cost ? fmtKrw(cost.krw) : '–',
+      usage ? `Gemini 요청 ${usage.requests}회 · 캐시 ${usage.cache_hits}회${cost?.unknown.length ? ` · 단가 모름: ${cost.unknown.join(', ')}` : ''}` : undefined],
+  ];
 }
 
 export default function AnalyzingScreen() {
@@ -162,7 +205,7 @@ export default function AnalyzingScreen() {
   const progress = USE_MOCK
     ? useMockProgress(status, transition)                                  // eslint-disable-line react-hooks/rules-of-hooks
     : useJobProgress(status, transition, analyzeJobId, setAnalyzeJobId);   // eslint-disable-line react-hooks/rules-of-hooks
-  const { percent, elapsed, steps, message, remaining, mockData, job } = progress;
+  const { percent, elapsed, steps, message, remaining, mockData, job, analysis } = progress;
 
   const retry = () => {
     setAnalyzeJobId(null);
@@ -200,7 +243,6 @@ export default function AnalyzingScreen() {
   }
 
   const result = job?.result;
-  const usage  = job?.metrics?.ai_usage;
   const totalSec = clips.reduce((s, c) => s + c.duration, 0);
 
   return (
@@ -257,27 +299,7 @@ export default function AnalyzingScreen() {
       </div>
 
       <BottomBar
-        left={
-          USE_MOCK ? mockData?.stats && (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, minmax(0,1fr))', gap: 8 }}>
-              {[['전체 길이', '60:00'], ['장면', mockData.stats.scenes], ['문장', mockData.stats.sentences], ['화자', mockData.stats.speakers], ['API 비용', `₩${mockData.stats.cost_krw}`]].map(([k, v]) => (
-                <div key={k}><div className="lb">{k}</div><div className="num">{v}</div></div>
-              ))}
-            </div>
-          ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, minmax(0,1fr))', gap: 8 }}>
-              {[
-                ['전체 길이', fmtDuration(totalSec)],
-                ['장면', result?.scenes ?? '–'],
-                ['문장', result?.lines ?? '–'],
-                ['자름 제안', result?.cut_suggested ?? '–'],
-                ['AI 요청', usage ? `${usage.requests}회${usage.cache_hits ? ` (캐시 ${usage.cache_hits})` : ''}` : '–'],
-              ].map(([k, v]) => (
-                <div key={k}><div className="lb">{k}</div><div className="num">{v}</div></div>
-              ))}
-            </div>
-          )
-        }
+        left={<Stats items={USE_MOCK ? mockStats(mockData) : realStats(analysis, job, totalSec)} />}
         right={
           <button
             className="btn-primary"

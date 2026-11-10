@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useProject } from '../../state/ProjectContext.jsx';
-import { getResult } from '../../api/index.js';
+import { getResult, getExecutionRules } from '../../api/index.js';
 import TopBar from '../common/TopBar.jsx';
 import BottomBar from '../common/BottomBar.jsx';
 import ResultPlayer from './ResultPlayer.jsx';
@@ -21,8 +21,11 @@ export default function ResultView() {
     });
   }, []);
 
-  const openStyle = () => {
-    setLocalRules(executionRules ? JSON.parse(JSON.stringify(executionRules)) : null);
+  // 스타일은 S2에서 받지 않으므로 여기가 처음 바꾸는 곳이다. 아직 없으면(새로고침 등) 기본값을 불러온다
+  const openStyle = async () => {
+    const rules = executionRules ?? await getExecutionRules();
+    if (!executionRules) setExecutionRules(rules);
+    setLocalRules(JSON.parse(JSON.stringify(rules)));
     setStyleOpen(true);
   };
 

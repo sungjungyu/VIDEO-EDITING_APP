@@ -166,6 +166,11 @@ export async function getJob(jobId) {
   return request('GET', `/jobs/${jobId}`);
 }
 
+/** 분석 결과(Analysis): clips(offset·duration), lines(speaker), scenes, beats, engines, warnings */
+export async function getAnalysis() {
+  return request('GET', `/projects/${storedProjectId()}/analysis`);
+}
+
 // ── Phase 2·3에서 실제 API로 바꿀 것들: 지금은 mock 그대로 ──
 export const getJudgmentRules  = mock.getJudgmentRules;
 export const getExecutionRules = mock.getExecutionRules;

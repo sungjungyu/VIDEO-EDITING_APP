@@ -4,7 +4,6 @@ import { getJudgmentRules, getExecutionRules, USE_MOCK } from '../../api/index.j
 import { fmtDuration, fmtMinSec } from '../../utils/format.js';
 import TopBar from '../common/TopBar.jsx';
 import BottomBar from '../common/BottomBar.jsx';
-import StylePanel from './StylePanel.jsx';
 import ConfirmModal from '../s2_1/ConfirmModal.jsx';
 
 const MOCK_ONE_LINE = '친구랑 편의점 갔다가 집에서 먹방하는 밤 브이로그';
@@ -23,9 +22,10 @@ export default function RequestScreen() {
   const [showModal,  setShowModal]  = useState(false);
 
   useEffect(() => {
-    if (!USE_MOCK) return;   // 실제 API에는 아직 규칙 해석(S2-1)·스타일 API가 없다 (Phase 3)
+    // 스타일(자막·비율·인트로)은 S2에서 받지 않는다 (교수님 피드백). 기본값으로 렌더하고 S5-1 "스타일만 바꾸기"에서 바꾼다
+    if (!executionRules) getExecutionRules().then(setExecutionRules);
+    if (!USE_MOCK) return;   // 실제 API에는 아직 규칙 해석(S2-1) API가 없다 (Phase 3)
     getJudgmentRules().then(setJudgmentRules);
-    getExecutionRules().then(setExecutionRules);
   }, []);
 
   const canNext = oneLine.trim().length > 0 && (targetMin > 0 || targetSec > 0);
@@ -50,7 +50,7 @@ export default function RequestScreen() {
     <div className="app-shell" style={{ position: 'relative' }}>
       <TopBar rightContent={`클립 ${clips.length}개 · ${fmtDuration(totalSec)}`} />
 
-      <div className="split" style={{ gridTemplateColumns: USE_MOCK ? '52% 48%' : 'min(720px, 100%)', justifyContent: 'center', flex: 1, overflowY: 'auto' }}>
+      <div className="split" style={{ gridTemplateColumns: 'min(720px, 100%)', justifyContent: 'center', flex: 1, overflowY: 'auto' }}>
         {/* 왼쪽: 기획 */}
         <div className="pane" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           <div>
@@ -114,8 +114,6 @@ export default function RequestScreen() {
           </div>
         </div>
 
-        {/* 오른쪽: 스타일 (실제 API 모드에서는 결과 화면에서 바꾸도록 Phase 3에서 옮긴다) */}
-        {USE_MOCK && <StylePanel rules={executionRules} onChange={setExecutionRules} />}
       </div>
 
       {showModal && USE_MOCK && (

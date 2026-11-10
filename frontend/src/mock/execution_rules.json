@@ -12,6 +12,6 @@
   },
   "intro": null,
   "outro": { "file": "outro.mp4" },
-  "output": { "aspect": "9:16", "fit": "crop" },
+  "output": { "aspect": "auto", "fit": "crop" },
   "save_profile": false
 }

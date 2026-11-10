@@ -130,6 +130,10 @@ input[type="checkbox"]:checked::after { left: 19px; }
 .sec { font-weight: 600; font-size: 13px; margin-bottom: 6px; display: flex; align-items: center; gap: 6px; }
 .lb { font-size: 11px; color: var(--color-text-muted); }
 .num { font-size: 19px; font-weight: 600; }
+/* 하단 숫자 줄 (S3): 칸마다 넉넉히 띄우고 사이에 옅은 구분선 */
+.stats { display: flex; flex-wrap: wrap; gap: 0; }
+.stats > div { padding: 0 22px; border-left: 1px solid var(--color-border); min-width: 72px; }
+.stats > div:first-child { padding-left: 0; border-left: none; }
 
 /* ── 칩 ── */
 /* A안 .seg-switch 단추처럼: 각진 모서리, 고른 것만 강조 */

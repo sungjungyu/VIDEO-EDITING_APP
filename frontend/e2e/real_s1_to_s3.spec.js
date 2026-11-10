@@ -63,6 +63,14 @@ test('실제 API: 클립 2개 업로드 → 분석 완료, S3에 서버 단계�
   console.log('본 단계:', [...seen].join(' | '));
   console.log('하단 숫자:', (await page.locator('.bottom-bar').innerText()).replace(/\s+/g, ' '));
 
+  // 하단 숫자가 서버 분석 결과(analysis)의 실제 값인지
+  const pid = await page.evaluate(() => localStorage.getItem('vibecut_server_project_id'));
+  const analysis = await (await page.request.get(`${BASE}/api/projects/${pid}/analysis`)).json();
+  const stat = async (label) => (await page.locator('.stats > div', { hasText: label }).locator('.num').innerText()).trim();
+  await expect.poll(() => stat('장면')).toBe(String(analysis.scenes.length));
+  expect(await stat('문장')).toBe(String(analysis.lines.length));
+  expect(await stat('API 비용')).toMatch(/^₩[\d,]+$/);
+
   // 새로고침해도 분석 완료 상태가 유지된다
   await page.reload();
   await expect(page.locator('text=분석이 완료됐어요!')).toBeVisible();

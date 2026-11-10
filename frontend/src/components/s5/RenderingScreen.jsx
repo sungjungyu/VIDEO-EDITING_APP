@@ -140,7 +140,7 @@ export default function RenderingScreen() {
               </div>
               <div>
                 <div className="lb" style={{ marginBottom: 4 }}>적용 설정</div>
-                <div className="log">화면 9:16 · 가운데 자르기 (16:9 클립 4개)</div>
+                <div className="log">화면 비율 자동 (클립 방향에 맞춤) · 가운데 자르기</div>
                 <div className="log">자막 Pretendard 48pt · #FFFFFF · 외곽선 3 · 아래</div>
                 <div className="log">자막 대상: 민수, 경우 (화자 2명)</div>
                 <div className="log">인트로 없음 · 아웃트로 outro.mp4 (5초)</div>

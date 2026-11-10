@@ -27,6 +27,7 @@ export const removeClip        = (...a) => api.removeClip(...a);
 export const reorderClips      = (...a) => api.reorderClips(...a);
 export const startAnalysis     = (...a) => api.startAnalysis(...a);
 export const getJob            = (...a) => api.getJob(...a);
+export const getAnalysis       = (...a) => api.getAnalysis(...a);
 
 // 화면 상태(상태 머신)는 어느 모드든 브라우저에 저장한다
 const PROJECT_KEY = 'vibecut_project';
