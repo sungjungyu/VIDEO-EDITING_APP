@@ -248,7 +248,8 @@ export default function AnalyzingScreen() {
           </details>
         )}
         {!USE_MOCK && result?.warnings?.length > 0 && (
-          <details style={{ width: '100%', borderTop: '1px solid var(--color-border)', padding: '10px 0' }}>
+          <details open={result.warnings.some(w => w.startsWith('받아쓰기 실패'))}
+            style={{ width: '100%', borderTop: '1px solid var(--color-border)', padding: '10px 0' }}>
             <summary>분석 경고 {result.warnings.length}개</summary>
             <ul className="lb">{result.warnings.map((w, i) => <li key={i}>{w}</li>)}</ul>
           </details>

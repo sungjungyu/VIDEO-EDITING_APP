@@ -21,9 +21,11 @@ from pathlib import Path
 import httpx
 
 # 공식 가격표 https://ai.google.dev/gemini-api/docs/pricing (2026-11-10 확인, 유료 등급, USD / 1M 토큰)
-# gemini-3.5-flash 는 2026-12-31까지 값. 2027-01-01부터 입력 1.50 / 출력 7.50
+# gemini-3.5-flash 는 지원 중단되어 gemini-3.6-flash 로 자동 전달된다 (가격표에 3.5 Flash 항목 없음) → 3.6 Flash 단가.
+# 3.6 Flash 는 2026-12-31까지 값. 2027-01-01부터 입력 1.50 / 출력 7.50
 PRICES = {
-    "gemini-3.5-flash":       (0.75, 3.75),
+    "gemini-3.5-flash":       (0.75, 3.75),   # = gemini-3.6-flash
+    "gemini-3.6-flash":       (0.75, 3.75),
     "gemini-3.5-flash-lite":  (0.30, 2.50),
     "gemini-3.5-transcribe":  (2.00, 12.00),
 }

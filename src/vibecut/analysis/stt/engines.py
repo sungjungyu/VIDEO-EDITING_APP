@@ -171,6 +171,9 @@ def transcribe_gemini(wav: Path, client: GeminiClient, options: GeminiSttOptions
         try:
             resp = client.transcribe_audio(flac, model=options.model, language=options.language,
                                            diarize=options.diarize, vocab=options.vocab)
+        except Exception as error:
+            error.chunk = (i + 1, len(bounds) - 1)      # 몇 번째 조각에서 실패했는지 (경고 문구용)
+            raise
         finally:
             flac.unlink(missing_ok=True)
         segments += parse_gemini_response(resp, st, en)

@@ -13,7 +13,7 @@ import logging
 import threading
 from pathlib import Path
 
-from ...ai.client import GeminiClient, classify_error
+from ...ai.client import GeminiClient, classify_error, quota_summary
 from ...errors import Canceled
 from ...settings import Settings
 from ...storage.cache import JsonCache
@@ -54,6 +54,21 @@ def cache_name(sha1: str, engine: str, model: str, language: str, vocab: list[st
     """받아쓰기 캐시 파일 이름 (이 규칙을 바꾸면 저장해 둔 받아쓰기를 못 쓴다)."""
     vocab_key = hashlib.sha1(",".join(vocab).encode("utf-8")).hexdigest()[:8]
     return f"{sha1[:20]}_{engine}_{model}_{language}_{vocab_key}.json"
+
+
+def failure_warning(engine: str, error: BaseException) -> str:
+    """엔진 실패 경고. 한도 초과면 몇 번 기다렸는지·몇 번째 조각인지·어느 한도인지까지 적는다."""
+    chunk = getattr(error, "chunk", None)
+    where = f", 조각 {chunk[0]}/{chunk[1]}" if chunk else ""
+    if classify_error(error) == "quota":
+        used = getattr(error, "quota_retries_used", 0)
+        tried = (f"한도 대기 후 {used}번 다시 시도했지만 실패" if used
+                 else "기다려도 풀리지 않는 한도라 다시 시도하지 않음")
+        summary = quota_summary(getattr(error, "quota", None))
+        text = f"Gemini 한도 초과(429) — {tried}{f', {summary}' if summary else ''}"
+    else:
+        text = str(error)[:200]
+    return f"받아쓰기 실패 ({engine}{where}): {text}. 다음 방식으로 넘어갑니다."
 
 
 def _run_engine(engine: str, wav: Path, settings: Settings, client: GeminiClient | None, vocab: list[str],
@@ -98,11 +113,10 @@ def transcribe_clip(wav: Path, sha1: str, settings: Settings, cache_dir: Path, v
             try:
                 raw = _run_engine(engine, wav, settings, client, vocab, levels)
             except Exception as error:
-                text = str(error)
-                if classify_error(error) == "quota":
-                    text = "Gemini 받아쓰기 사용 한도를 다 썼습니다 (무료 키는 하루 25회)."
-                warnings.append(f"{engine} 받아쓰기 실패 → 다음 엔진 사용: {text[:200]}")
-                log.warning("받아쓰기 %s 실패: %s", engine, text[:300])
+                if cancel is not None and cancel.is_set():
+                    raise Canceled() from error
+                warnings.append(failure_warning(engine, error))
+                log.warning("받아쓰기 %s 실패: %s", engine, str(error)[:300])
                 continue
             cache.put(name, raw)
         segments = clean_segments(raw, duration)

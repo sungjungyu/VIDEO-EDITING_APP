@@ -138,3 +138,88 @@ def test_analyze_video_stops_on_cancel(make_settings, tmp_path):
     with pytest.raises(Canceled):                                        # AIError로 감싸지 않는다
         client.analyze_video(tmp_path / "v.mp4", "p", {}, model="m", cancel=cancel)
     assert sdk.deleted == ["files/v1"]
+
+
+# ---------------------------------------------------------------- 한도 초과(429): 기다렸다 다시 시도
+
+QUOTA_DETAILS = [
+    {"@type": "type.googleapis.com/google.rpc.QuotaFailure", "violations": [{
+        "quotaMetric": "generativelanguage.googleapis.com/generate_content_paid_tier_input_token_count",
+        "quotaId": "GenerateContentPaidTierInputTokensPerModelPerMinute",
+        "quotaDimensions": {"model": "gemini-3.5-transcribe", "location": "global"}, "quotaValue": "1000000"}]},
+    {"@type": "type.googleapis.com/google.rpc.RetryInfo", "retryDelay": "37s"},
+]
+
+
+def quota_error(details=QUOTA_DETAILS):
+    from vibecut.ai.client import quota_info
+    error = AIError("Gemini 오류 429: You exceeded your current quota")
+    error.status_code = 429
+    error.quota = quota_info(details)
+    return error
+
+
+def test_quota_info_reads_metric_and_retry_delay():
+    from vibecut.ai.client import quota_info, quota_summary
+    info = quota_info(QUOTA_DETAILS)
+    assert info["retry_delay"] == 37 and info["violations"][0]["id"].endswith("PerMinute")
+    assert "PerMinute" in quota_summary(info) and "retryDelay 37s" in quota_summary(info)
+    assert quota_info([], "Please retry in 12.5s.")["retry_delay"] == 12.5
+
+
+def attempts_client(make_settings, tmp_path, outcomes):
+    client = GeminiClient(make_settings(tmp_path), sleep=lambda s: None)
+    waits, calls = [], []
+    client.on_quota_wait = lambda sec, purpose, n, total: waits.append((sec, n, total))
+
+    def call():
+        calls.append(1)
+        out = outcomes.pop(0)
+        if isinstance(out, Exception):
+            raise out
+        return out
+    return client, call, waits, calls
+
+
+def test_quota_waits_retry_delay_then_succeeds(make_settings, tmp_path):
+    client, call, waits, calls = attempts_client(make_settings, tmp_path, [quota_error(), "ok"])
+    assert client._attempts(call, "받아쓰기", "m", quota_retries=3) == "ok"
+    assert waits == [(37, 1, 3)] and len(calls) == 2
+
+
+def test_quota_without_retry_delay_waits_60s(make_settings, tmp_path):
+    client, call, waits, _ = attempts_client(make_settings, tmp_path, [quota_error(details=[]), "ok"])
+    assert client._attempts(call, "받아쓰기", "m", quota_retries=3) == "ok"
+    assert waits == [(60.0, 1, 3)]
+
+
+def test_quota_gives_up_after_three_waits(make_settings, tmp_path):
+    client, call, waits, calls = attempts_client(make_settings, tmp_path, [quota_error() for _ in range(4)])
+    with pytest.raises(AIError) as raised:
+        client._attempts(call, "받아쓰기", "m", quota_retries=3)
+    assert [n for _, n, _ in waits] == [1, 2, 3] and len(calls) == 4
+    assert raised.value.quota_retries_used == 3
+
+
+def test_daily_quota_is_not_waited(make_settings, tmp_path):
+    daily = [{"@type": "type.googleapis.com/google.rpc.QuotaFailure",
+              "violations": [{"quotaId": "GenerateRequestsPerDayPerProjectPerModel"}]}]
+    client, call, waits, calls = attempts_client(make_settings, tmp_path, [quota_error(daily)])
+    with pytest.raises(AIError):
+        client._attempts(call, "받아쓰기", "m", quota_retries=3)
+    assert waits == [] and len(calls) == 1
+
+
+def test_text_judgment_still_moves_to_fallback_without_waiting(make_settings, tmp_path):
+    client = FakeClient(make_settings(tmp_path), [quota_error(), '{"ok": 1}'])
+    assert client.generate_json("p") == {"ok": 1} and client.sleeps == []
+
+
+def test_failure_keeps_quota_info_for_warning(make_settings, tmp_path):
+    from vibecut.analysis.stt.transcribe import failure_warning
+    error = quota_error()
+    error.quota_retries_used = 3
+    failure = GeminiClient._failure(error)
+    failure.chunk = (3, 12)
+    text = failure_warning("gemini", failure)
+    assert text.startswith("받아쓰기 실패 (gemini, 조각 3/12)") and "3번 다시 시도" in text and "PerMinute" in text

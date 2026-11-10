@@ -9,8 +9,10 @@
 from __future__ import annotations
 
 import logging
+import math
 import shutil
 import threading
+import time
 from pathlib import Path
 
 from ..ai.client import GeminiClient
@@ -129,11 +131,25 @@ def _analyze(ctx: RunContext, store: ProjectStore, settings: Settings, project_i
     done = {"stt": 0, "scenes": 0}
     errors: list[BaseException] = []
 
+    def percent() -> float:
+        return 8 + 67 * (done["stt"] + done["scenes"]) / (2 * len(clips))
+
     def tick(kind: str, label: str):
         with progress_lock:
             done[kind] += 1
-            total = 2 * len(clips)
-            ctx.progress(8 + 67 * (done["stt"] + done["scenes"]) / total, "받아쓰기·영상 분석", label)
+            ctx.progress(percent(), "받아쓰기·영상 분석", label)
+
+    def quota_wait(seconds: float, purpose: str, n: int, total: int):
+        """Gemini 한도(429) 대기: 1초마다 남은 시간을 진행 메시지로 알리고(S3 화면), 취소를 확인한다."""
+        end = time.monotonic() + seconds
+        while (left := end - time.monotonic()) > 0:
+            ctx.check()
+            with progress_lock:
+                ctx.progress(percent(), "받아쓰기·영상 분석",
+                             f"{purpose} 한도 대기 중 {math.ceil(left)}초 (다시 시도 {n}/{total})")
+            time.sleep(min(1.0, left))
+
+    client.on_quota_wait = quota_wait
 
     def do_stt():
         try:

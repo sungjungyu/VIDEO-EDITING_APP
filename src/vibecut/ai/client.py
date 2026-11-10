@@ -43,6 +43,10 @@ VIDEO_POLL_SEC = 3.0          # 올린 영상의 처리 상태를 묻는 간격
 VIDEO_WAIT_SEC = 600.0        # 처리(PROCESSING)가 이보다 오래 걸리면 포기 → 화면 변화 감지로 대신
 VIDEO_CALL_TIMEOUT = 600.0    # 장면 분석 호출 한 번의 HTTP 제한
 _HTTP_5XX = re.compile(r"\b(500|502|503|504)\b")
+QUOTA_RETRIES = 3             # 429(한도 초과)를 받으면 기다렸다 다시 보내는 최대 횟수 (받아쓰기)
+QUOTA_WAIT_SEC = 60.0         # 오류에 retryDelay가 없을 때 기다리는 시간
+QUOTA_WAIT_MAX = 300.0        # retryDelay가 이보다 길거나 하루 한도(PerDay)면 기다려도 소용없어 바로 실패
+_RETRY_IN = re.compile(r"retry in ([\d.]+)\s*s", re.IGNORECASE)
 
 
 @dataclass
@@ -92,6 +96,49 @@ def classify_error(error: BaseException) -> str:
             or any(t in text for t in transient):
         return "transient"
     return "fatal"
+
+
+def quota_info(details: list | None, message: str = "") -> dict:
+    """429 오류 본문의 error.details → {"violations": [{metric, id, value, dimensions}], "retry_delay": 초|None}.
+    QuotaFailure(어느 한도인지)·RetryInfo(얼마 뒤 다시)를 읽는다. RetryInfo가 없으면 메시지의 'retry in Ns'."""
+    info: dict = {"violations": [], "retry_delay": None}
+    for d in details or []:
+        kind = str(d.get("@type", "")) if isinstance(d, dict) else ""
+        if kind.endswith("QuotaFailure"):
+            for v in d.get("violations") or []:
+                info["violations"].append({"metric": v.get("quotaMetric", ""), "id": v.get("quotaId", ""),
+                                           "value": v.get("quotaValue", ""),
+                                           "dimensions": v.get("quotaDimensions") or {}})
+        elif kind.endswith("RetryInfo"):
+            try:
+                info["retry_delay"] = float(str(d.get("retryDelay", "")).rstrip("s"))
+            except ValueError:
+                pass
+    if info["retry_delay"] is None and (m := _RETRY_IN.search(message or "")):
+        info["retry_delay"] = float(m.group(1))
+    return info
+
+
+def quota_summary(info: dict | None) -> str:
+    """경고·로그용 한 줄: '한도 <quotaId>(<metric>) = <value>, retryDelay 37s'"""
+    if not info:
+        return ""
+    parts = [f"{v['id'] or '?'}({v['metric'] or '?'}) = {v['value'] or '?'}" for v in info["violations"]]
+    if info.get("retry_delay") is not None:
+        parts.append(f"retryDelay {info['retry_delay']:.0f}s")
+    return "한도 " + ", ".join(parts) if parts else ""
+
+
+def quota_wait_sec(error: BaseException) -> float | None:
+    """한도 초과 뒤 기다릴 시간. retryDelay가 있으면 그만큼, 없으면 60초.
+    하루 한도·너무 긴 대기는 None(기다리지 않음)."""
+    info = getattr(error, "quota", None) or {}
+    if any("perday" in str(v.get("id", "")).lower() for v in info.get("violations", [])):
+        return None
+    delay = info.get("retry_delay")
+    if delay is None:
+        return QUOTA_WAIT_SEC
+    return None if delay > QUOTA_WAIT_MAX else max(1.0, delay)
 
 
 def strip_fence(text: str) -> str:
@@ -164,6 +211,9 @@ class GeminiClient:
         self.cache = JsonCache(cache_dir)
         self.usage = usage or Usage()
         self._sleep = sleep
+        # 한도 대기를 대신 맡는 콜백 (seconds, purpose, n, total) — 작업이 진행 메시지를 띄우고 취소를 확인한다.
+        # 없으면 그냥 sleep. 작업마다 with_usage 사본에 따로 단다.
+        self.on_quota_wait: Callable[[float, str, int, int], None] | None = None
         self._clients: dict[float | None, Any] = {}
         self._client_lock = threading.Lock()
 
@@ -184,27 +234,47 @@ class GeminiClient:
 
     # ------------------------------------------------------------ 공통: 재시도
 
-    def _attempts(self, call: Callable[[], T], purpose: str, model: str) -> T:
-        """일시 오류는 잠시 쉬고 다시, 한도 초과·치명 오류는 바로 실패 (마지막 오류를 그대로 올린다)."""
+    def _attempts(self, call: Callable[[], T], purpose: str, model: str, quota_retries: int = 0) -> T:
+        """일시 오류는 잠시 쉬고 다시, 치명 오류는 바로 실패 (마지막 오류를 그대로 올린다).
+        한도 초과(429)는 quota_retries번까지 retryDelay(없으면 60초)만큼 기다렸다 다시 보내고, 그 밖에는 바로 실패
+        (글 판단은 0 → 대체 모델로 넘어간다)."""
         retries = self.settings.gemini_retries
-        for attempt in range(retries + 1):
+        attempt = waited = 0
+        while True:
             try:
                 return call()
             except Exception as error:  # SDK 예외 종류가 버전마다 달라 문자열로 분류한다
                 kind = classify_error(error)
                 log.warning("Gemini %s 실패 (%s, %s, %d회차): %s", purpose or "호출", model, kind,
-                            attempt + 1, str(error)[:200])
-                if kind == "quota" or (kind == "fatal" and not isinstance(error, ValueError)) or attempt >= retries:
+                            attempt + waited + 1, str(error)[:200])
+                if kind == "quota":
+                    wait = quota_wait_sec(error) if waited < quota_retries else None
+                    if wait is None:
+                        error.quota_retries_used = waited          # 경고 문구용: 몇 번 기다렸다 실패했는지
+                        raise
+                    waited += 1
+                    log.warning("Gemini %s 한도 대기 %.0f초 후 다시 시도 (%d/%d)", purpose or "호출", wait,
+                                waited, quota_retries)
+                    if self.on_quota_wait is not None:
+                        self.on_quota_wait(wait, purpose, waited, quota_retries)
+                    else:
+                        self._sleep(wait)
+                    continue
+                if (kind == "fatal" and not isinstance(error, ValueError)) or attempt >= retries:
                     raise
                 self._sleep(min(20.0, 1.5 * (2 ** attempt)) + random.uniform(0, 0.5))
-        raise AssertionError("unreachable")
+                attempt += 1
 
     @staticmethod
     def _failure(error: BaseException | None) -> AIError:
         message = str(error)[:300] if error else "알 수 없는 오류"
         if error is not None and classify_error(error) == "quota":
-            message = "Gemini 사용 한도를 다 썼습니다 (무료 키는 모델마다 하루 횟수 제한). " + message
-        return AIError(message)
+            message = "Gemini 사용 한도 초과 (429). " + message
+        failure = AIError(message)
+        for name in ("status_code", "quota", "quota_retries_used"):   # 한도 정보는 경고 문구까지 들고 간다
+            if hasattr(error, name):
+                setattr(failure, name, getattr(error, name))
+        return failure
 
     # ------------------------------------------------------------ SDK 연결
 
@@ -357,16 +427,28 @@ class GeminiClient:
                            json=body, timeout=600)
             if r.status_code != 200:
                 try:
-                    message = r.json().get("error", {}).get("message", "")
+                    err = r.json().get("error", {})
+                    message, details = err.get("message", ""), err.get("details") or []
                 except ValueError:
-                    message = r.text[:300]
-                raise AIError(f"Gemini 오류 {r.status_code}: {message}")
+                    message, details = r.text[:300], []
+                info = quota_info(details, message) if r.status_code == 429 else None
+                if info is not None:     # 어느 한도(quota metric)·얼마 뒤 다시(retryDelay)인지 본문 그대로 남긴다
+                    log.warning("Gemini 받아쓰기 429 본문: message=%s details=%s", message,
+                                json.dumps(details, ensure_ascii=False)[:3000])
+                summary = quota_summary(info)
+                error = AIError(f"Gemini 오류 {r.status_code}{f' [{summary}]' if summary else ''}: {message}")
+                error.status_code = r.status_code
+                if info is not None:
+                    error.quota = info
+                raise error
             data = r.json()
             meta = data.get("usageMetadata") or {}
             self.usage.add(model, _token_count(meta, "promptTokenCount"), _token_count(meta, "candidatesTokenCount"))
             return data
 
         try:
-            return self._attempts(call, "받아쓰기", model)
+            return self._attempts(call, "받아쓰기", model, quota_retries=QUOTA_RETRIES)
+        except Canceled:                 # 한도 대기 중 취소
+            raise
         except Exception as error:
             raise self._failure(error) from error
