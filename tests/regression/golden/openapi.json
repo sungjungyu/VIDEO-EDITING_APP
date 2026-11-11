@@ -17,6 +17,7 @@
   "GET /api/projects/{project_id}/music/file",
   "GET /api/projects/{project_id}/plan",
   "GET /api/projects/{project_id}/renders/{file_name}",
+  "GET /api/projects/{project_id}/tree",
   "PATCH /api/projects/{project_id}",
   "PATCH /api/projects/{project_id}/plan/lines",
   "POST /api/jobs/{job_id}/cancel",

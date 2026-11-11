@@ -75,5 +75,26 @@ test('실제 API: 클립 2개 업로드 → 분석 완료, S3에 서버 단계�
   await page.reload();
   await expect(page.locator('text=분석이 완료됐어요!')).toBeVisible();
 
+  // S4: 서버 4단 트리(GET /tree)가 밀러 컬럼에 뜬다. 모든 L1을 펼쳐 센 L4 수 = 서버 트리의 L4 수
+  const tree = await (await page.request.get(`${BASE}/api/projects/${pid}/tree`)).json();
+  await page.click('button:has-text("구조 편집 시작 →")');
+  await expect(page.locator('.miller-col').nth(0).locator('.miller-item').first()).toBeVisible();
+  let shown = 0;
+  const l1 = page.locator('.miller-col').nth(0).locator('.miller-item');
+  for (let a = 0; a < await l1.count(); a++) {
+    await l1.nth(a).click();
+    const l2 = page.locator('.miller-col').nth(1).locator('.miller-item');
+    for (let b = 0; b < await l2.count(); b++) {
+      await l2.nth(b).click();
+      const l3 = page.locator('.miller-col').nth(2).locator('.miller-item');
+      for (let c = 0; c < await l3.count(); c++) {
+        await l3.nth(c).click();
+        shown += await page.locator('.miller-col').nth(3).locator('.miller-item').count();
+      }
+    }
+  }
+  console.log('S4 트리:', JSON.stringify(tree.meta.counts), '화면 L4', shown);
+  expect(shown).toBe(tree.meta.counts.l4);
+
   expect(errors, `브라우저 오류: ${errors.join(' | ')}`).toHaveLength(0);
 });

@@ -1,6 +1,7 @@
 // 실제 API 어댑터 — FastAPI(src/vibecut) /api 에 연결한다 (VITE_USE_MOCK=false).
-// 함수 이름과 반환 모양은 mock.js와 같다. S4 이후(트리·선택·렌더)는 Phase 2·3에서 연결하고, 지금은 mock을 쓴다.
+// 함수 이름과 반환 모양은 mock.js와 같다. S4 트리는 서버 규칙 트리, 선택·렌더는 Phase 2·3에서 연결하고 지금은 화면·mock.
 import * as mock from './mock.js';
+import { adaptTree, defaultSelection } from '../utils/adaptTree.js';
 
 const BASE = '/api';
 const PROJECT_ID_KEY = 'vibecut_server_project_id';
@@ -171,12 +172,41 @@ export async function getAnalysis() {
   return request('GET', `/projects/${storedProjectId()}/analysis`);
 }
 
-// ── Phase 2·3에서 실제 API로 바꿀 것들: 지금은 mock 그대로 ──
+// ── 4단 트리 (S4): 서버가 분석 결과로 규칙 트리를 만들어 준다. 선택(켜기·끄기·잠금)은 아직 화면에서만 ──
+let treeCache = null;   // { pid, data } — S3 끝과 S4가 같은 트리를 두 번 받지 않게
+
+export async function getTree() {
+  const pid = storedProjectId();
+  if (treeCache?.pid === pid) return treeCache.data;
+  const data = adaptTree(await request('GET', `/projects/${pid}/tree`));
+  treeCache = { pid, data };
+  return data;
+}
+
+const selectionKey = () => `vibecut_selection_${storedProjectId()}`;
+
+/** 저장한 선택이 지금 트리와 맞으면 그것, 아니면 모든 장면 켜짐. 목표 분량은 S2 요청 값 */
+export async function getSelection() {
+  const tree = await getTree();
+  let target = null;
+  try { target = JSON.parse(localStorage.getItem('vibecut_project') ?? '{}').request?.target_sec ?? null; } catch { /* 없음 */ }
+  const fresh = defaultSelection(tree, target);
+  try {
+    const saved = JSON.parse(localStorage.getItem(selectionKey()) ?? 'null');
+    const ids = Object.keys(fresh.nodes);
+    if (saved?.nodes && ids.length && ids.every(id => saved.nodes[id])) return { ...saved, target_sec: target ?? saved.target_sec };
+  } catch { /* 새로 만든다 */ }
+  return fresh;
+}
+
+export async function saveSelection(data) {
+  try { localStorage.setItem(selectionKey(), JSON.stringify(data)); } catch { /* 저장 못 해도 화면은 계속 */ }
+}
+
+export const autoCompress      = mock.autoCompress;   // 화면 안 계산 (greedy). 서버 DP 선택은 다음 단계
+
+// ── Phase 3에서 실제 API로 바꿀 것들: 지금은 mock 그대로 ──
 export const getJudgmentRules  = mock.getJudgmentRules;
 export const getExecutionRules = mock.getExecutionRules;
-export const getTree           = mock.getTree;
 export const getResult         = mock.getResult;
 export const getProgress       = mock.getProgress;
-export const getSelection      = mock.getSelection;
-export const saveSelection     = mock.saveSelection;
-export const autoCompress      = mock.autoCompress;

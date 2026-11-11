@@ -9,6 +9,7 @@ from fastapi.concurrency import run_in_threadpool
 from ...errors import BadRequest, NotFound
 from ...services import bench as bench_service
 from ...services import editing as editing_service
+from ...services import tree as tree_service
 from ...services.analysis import run_analysis
 from ...storage.bench import BenchStore
 from ..deps import state
@@ -42,6 +43,12 @@ def get_analysis(request: Request, project_id: str) -> dict:
     if analysis is None:
         raise NotFound("아직 분석하지 않았습니다.")
     return analysis.model_dump()
+
+
+@router.get("/projects/{project_id}/tree")
+def get_tree(request: Request, project_id: str) -> dict:
+    """4단 트리 (장소·세션 → 행동 흐름 → 세부 행동 → 장면). 처음 요청할 때 만들어 저장한다 (AI 없음, 규칙만)."""
+    return tree_service.get_tree(state(request).store, project_id)
 
 
 # ---------------------------------------------------------------- 편집 계획

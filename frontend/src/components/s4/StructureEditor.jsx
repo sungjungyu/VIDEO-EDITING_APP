@@ -140,7 +140,7 @@ export default function StructureEditor() {
           selectionNodes={selNodes}
           selection={selection}
           selectedScene={selectedScene}
-          totalSec={3600}
+          totalSec={treeData?.duration || 3600}
           onSceneClick={handleTimelineSceneClick}
         />
       </div>
