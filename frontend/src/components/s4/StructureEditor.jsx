@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useProject } from '../../state/ProjectContext.jsx';
-import { getTree, getSelection, autoCompress, saveSelection } from '../../api/index.js';
+import { getTree, getSelection, autoCompress, saveSelection, USE_MOCK } from '../../api/index.js';
+import { RENDER_PLANNED } from '../common/NotConnected.jsx';
 import { toggle, setLock, getTotalSec, applyAISelection, findNodePath } from '../../logic/selection.js';
 import { fmtDuration } from '../../utils/format.js';
 import TopBar from '../common/TopBar.jsx';
@@ -16,6 +17,8 @@ export default function StructureEditor() {
   const [selectedScene, setSelectedScene] = useState(null);
   const [blockedMsg,   setBlockedMsg]   = useState('');
   const [aiLoading,    setAiLoading]    = useState(false);
+  const [compressNote, setCompressNote] = useState('');      // 자동 채우기 결과 문구 (화면 임시 계산임을 알린다)
+  const [renderNotice, setRenderNotice] = useState(false);   // 실제 모드: 렌더 연결 전 안내
 
   useEffect(() => {
     getTree().then(setTreeData);
@@ -45,6 +48,7 @@ export default function StructureEditor() {
   }, [selection, status, transition, setSelection]);
 
   const handleToggle = (nodeId) => {
+    setCompressNote('');
     const { nodes: newNodes, blocked, lock } = toggle(selNodes, nodeId, treeData ?? { tree: [] });
     if (blocked) {
       // Determine lock type from the current node's state
@@ -62,6 +66,7 @@ export default function StructureEditor() {
   };
 
   const handleLock = (nodeId, lockType) => {
+    setCompressNote('');
     const newNodes = setLock(selNodes, nodeId, lockType, treeData ?? { tree: [] });
     updateNodes(newNodes);
   };
@@ -102,6 +107,8 @@ export default function StructureEditor() {
       const result = await autoCompress(selection, treeData);
       const newNodes = applyAISelection(selNodes, result);
       updateNodes(newNodes);
+      const filled = getTotalSec(newNodes, treeData ?? { tree: [] });
+      setCompressNote(`임시 계산(화면 안에서 짧은 장면부터 채움): ${fmtDuration(filled)} / 목표 ${targetLabel} · 서버 계산 연결 예정`);
     } finally {
       setAiLoading(false);
     }
@@ -150,7 +157,9 @@ export default function StructureEditor() {
 
       <BottomBar
         left={
-          treeNote && breadcrumb.length === 0
+          compressNote
+            ? <span className="lb" style={{ color: 'var(--color-warning)' }}>{compressNote}</span>
+            : treeNote && breadcrumb.length === 0
             ? <span className="lb" style={{ color: 'var(--color-warning)' }}>{treeNote}</span>
             : breadcrumb.length > 0
             ? <span className="lb">선택: {breadcrumb.join(' › ')}</span>
@@ -161,10 +170,26 @@ export default function StructureEditor() {
             <button onClick={handleAICompress} disabled={aiLoading}>
               {aiLoading ? 'AI 분석 중…' : 'AI로 목표 분량 채우기'}
             </button>
-            <button className="btn-primary" onClick={() => transition('START_RENDER')}>렌더 →</button>
+            <button className="btn-primary" onClick={() => (USE_MOCK ? transition('START_RENDER') : setRenderNotice(true))}>렌더 →</button>
           </div>
         }
       />
+
+      {renderNotice && (
+        <>
+          <div className="modal-dim" onClick={() => setRenderNotice(false)} />
+          <div className="modal">
+            <div style={{ padding: '16px 16px 12px', fontWeight: 600 }}>{RENDER_PLANNED}</div>
+            <div className="lb" style={{ padding: '0 16px 16px', lineHeight: 1.7 }}>
+              지금은 구조 편집까지 실제 서버와 연결되어 있어요. 고른 장면으로 영상을 만드는 렌더는 서버 연결 뒤에 열려요.
+            </div>
+            <div className="bottom-bar">
+              <span />
+              <button className="btn-primary" onClick={() => setRenderNotice(false)}>확인</button>
+            </div>
+          </div>
+        </>
+      )}
 
       {blockedMsg && (
         <div style={{

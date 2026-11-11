@@ -105,5 +105,28 @@ test('실제 API: 클립 2개 업로드 → 분석 완료, S3에 서버 단계�
   expect(seen.has('6. 목차 정리') || tree.meta.source === 'ai').toBe(true);
   expect(tree.meta.source).toBe('ai');
 
+  // 실제 모드에는 렌더가 아직 없다: 안내만 뜨고 mock 렌더(S5)로 가지 않는다
+  await page.click('button:has-text("렌더 →")');
+  await expect(page.locator('.modal', { hasText: '렌더 연결은 11/22 예정' })).toBeVisible();
+  await page.click('.modal button:has-text("확인")');
+  await expect(page.locator('.miller')).toBeVisible();
+
+  // AI로 목표 분량 채우기: 화면 임시 계산임을 문구로 알린다
+  await page.click('button:has-text("AI로 목표 분량 채우기")');
+  await expect(page.locator('.bottom-bar', { hasText: '임시 계산' })).toBeVisible();
+
+  // 저장된 상태가 렌더 완료여도 S5·S5-1 예시 데이터(과자 언박싱, 민수·경우, outro.mp4)는 보이지 않는다
+  await page.evaluate(() => {
+    const p = JSON.parse(localStorage.getItem('vibecut_project'));
+    localStorage.setItem('vibecut_project', JSON.stringify({ ...p, status: 'rendered' }));
+  });
+  for (const screen of ['s51', 's5']) {
+    await page.goto(`${BASE}/?open=${screen}#${screen}`);     // 쿼리를 바꿔 새로 연다 (해시만 바꾸면 지금 상태로 되돌아감)
+    await expect(page.locator('text=렌더 연결은 11/22 예정이에요').first()).toBeVisible();
+    for (const mockText of ['과자', '민수', 'outro.mp4', '편집 완료']) {
+      await expect(page.locator(`text=${mockText}`)).toHaveCount(0);
+    }
+  }
+
   expect(errors, `브라우저 오류: ${errors.join(' | ')}`).toHaveLength(0);
 });
