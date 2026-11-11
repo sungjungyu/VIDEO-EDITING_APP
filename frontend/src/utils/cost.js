@@ -27,3 +27,22 @@ export function geminiCost(tokensByModel) {
 export function fmtKrw(krw) {
   return `₩${Math.round(krw).toLocaleString('ko-KR')}`;
 }
+
+/** 단계별 사용량을 합친 비용. parts: [[단계 이름, usage{requests, cache_hits, tokens_by_model} | null]]
+ *  → { krw(전체 합, 달러 합을 한 번에 원화로), usd, lines(단계별 한 줄 + 합계 줄) } */
+export function combinedCost(parts) {
+  let usd = 0, requests = 0, hits = 0;
+  const unknown = [];
+  const lines = parts.map(([name, usage]) => {
+    if (!usage) return `${name} ₩0 (AI를 쓰지 않음)`;
+    const c = geminiCost(usage.tokens_by_model);
+    usd += c.usd;
+    requests += usage.requests ?? 0;
+    hits += usage.cache_hits ?? 0;
+    unknown.push(...c.unknown);
+    return `${name} ${fmtKrw(c.krw)} (Gemini ${usage.requests ?? 0}회, 캐시 ${usage.cache_hits ?? 0}회)`;
+  });
+  lines.push(`합계 Gemini ${requests}회 · 캐시 ${hits}회`);
+  if (unknown.length) lines.push(`단가 모름: ${unknown.join(', ')}`);
+  return { usd, krw: Math.round(usd * KRW_PER_USD), lines };
+}

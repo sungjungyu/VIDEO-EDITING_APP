@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { useProject } from '../../state/ProjectContext.jsx';
 import { getProgress, getSelection, getTree, startAnalysis, getJob, getAnalysis, USE_MOCK } from '../../api/index.js';
-import { geminiCost, fmtKrw } from '../../utils/cost.js';
+import { geminiCost, fmtKrw, combinedCost } from '../../utils/cost.js';
 import { fmtMinSec, fmtDuration } from '../../utils/format.js';
 import TopBar from '../common/TopBar.jsx';
 import BottomBar from '../common/BottomBar.jsx';
@@ -91,6 +91,13 @@ function useJobProgress(status, transition, jobId, setJobId) {
   const [analysis, setAnalysis] = useState(null);   // 끝난 뒤 하단 숫자용 서버 분석 결과
   const [treeState, setTreeState]   = useState(status === 'analyzed' ? 'done' : 'waiting');   // 목차 정리 (AI 트리)
   const [treeNotice, setTreeNotice] = useState(null);
+  const [treeUsage, setTreeUsage]   = useState(undefined);   // 목차 정리 AI 사용량 (트리 meta.ai_usage). undefined = 아직 안 읽음
+
+  // 새로고침 등으로 목차 정리를 이 화면에서 하지 않았으면, 저장된 트리의 사용량을 읽어 비용에 넣는다
+  useEffect(() => {
+    if (job?.status !== 'done' || treeState !== 'done' || treeUsage !== undefined) return;
+    getTree().then(t => setTreeUsage(t.meta?.ai_usage ?? null)).catch(() => setTreeUsage(null));
+  }, [job?.status, treeState, treeUsage]);
   const starting = useRef(false);
 
   // 분석이 끝나면 서버 분석 결과를 한 번 읽어 하단 숫자(길이·장면·문장·화자)를 채운다
@@ -126,10 +133,12 @@ function useJobProgress(status, transition, jobId, setJobId) {
             setTreeState('running');
             try {
               const tree = await getTree({ ai: true });
+              setTreeUsage(tree.meta?.ai_usage ?? null);
               if (tree.meta?.source === 'rules') {
                 setTreeNotice(tree.notes?.[0] ?? 'AI 목차 정리에 실패해 규칙으로 묶었어요.');
               }
             } catch (e) {
+              setTreeUsage(null);
               setTreeNotice(`AI 목차 정리에 실패해 규칙 목차로 보여 드려요. (${e.message})`);
             }
             if (stopped) return;
@@ -179,6 +188,7 @@ function useJobProgress(status, transition, jobId, setJobId) {
       : treeRunning ? 'AI가 목차(장소 · 행동 흐름 · 세부 행동)를 정리하는 중… 1시간 영상은 1~2분 걸려요'
       : job?.message || ''),
     treeNotice,
+    treeUsage,
     remaining: '창을 닫아도 분석은 서버에서 계속돼요',
     job,
     analysis,
@@ -242,20 +252,25 @@ function cacheSaving(usage) {
   return { krw, detail };
 }
 
-/** 실제 모드: 서버 분석 결과(analysis)와 작업 기록(metrics.ai_usage)의 값. 끝나기 전에는 '–' */
-function realStats(analysis, job, clipSec) {
+/** 실제 모드: 서버 분석 결과(analysis)와 비용 = 분석 작업(metrics.ai_usage) + 목차 정리(트리 meta.ai_usage).
+ *  끝나기 전에는 '–' */
+function realStats(analysis, job, clipSec, treeUsage) {
   const usage = job?.metrics?.ai_usage;
   const length = analysis ? analysis.clips.reduce((s, c) => s + c.duration, 0) : clipSec;
   const speakers = analysis ? new Set(analysis.lines.map(l => l.speaker).filter(Boolean)).size : null;
-  const cost = usage ? geminiCost(usage.tokens_by_model) : null;
+  // 이번 실행 비용 = 분석 작업 + 목차 정리(AI 트리). 마우스를 올리면 단계별로 나뉘어 보인다
+  const run = usage ? combinedCost([['분석', usage], ['목차 정리', treeUsage]]) : null;
+  const costTitle = run
+    ? run.lines.join('\n').replace('목차 정리 ₩0 (AI를 쓰지 않음)',
+      treeUsage === undefined ? '목차 정리 확인 중' : '목차 정리 ₩0 (AI를 쓰지 않음)')
+    : undefined;
   const saving = cacheSaving(usage);
   const items = [
     ['전체 길이', fmtDuration(length)],
     ['장면', analysis ? analysis.scenes.length : '–'],
     ['문장', analysis ? analysis.lines.length : '–'],
     ['화자', speakers ? speakers : '–', speakers === 0 ? '화자 구분을 하지 않았어요' : undefined],
-    ['이번 실행 비용', cost ? fmtKrw(cost.krw) : '–',
-      usage ? `Gemini 요청 ${usage.requests}회 · 캐시 ${usage.cache_hits}회${cost?.unknown.length ? ` · 단가 모름: ${cost.unknown.join(', ')}` : ''}` : undefined],
+    ['이번 실행 비용', run ? fmtKrw(run.krw) : '–', costTitle],
   ];
   if (saving) items.push(['캐시 절약', fmtKrw(saving.krw), `캐시를 쓴 단계를 처음 실행했을 때 비용: ${saving.detail}`]);
   return items;
@@ -266,7 +281,7 @@ export default function AnalyzingScreen() {
   const progress = USE_MOCK
     ? useMockProgress(status, transition)                                  // eslint-disable-line react-hooks/rules-of-hooks
     : useJobProgress(status, transition, analyzeJobId, setAnalyzeJobId);   // eslint-disable-line react-hooks/rules-of-hooks
-  const { percent, elapsed, steps, message, remaining, mockData, job, analysis, treeNotice } = progress;
+  const { percent, elapsed, steps, message, remaining, mockData, job, analysis, treeNotice, treeUsage } = progress;
 
   const retry = () => {
     setAnalyzeJobId(null);
@@ -357,7 +372,7 @@ export default function AnalyzingScreen() {
       </div>
 
       <BottomBar
-        left={<Stats items={USE_MOCK ? mockStats(mockData) : realStats(analysis, job, totalSec)} />}
+        left={<Stats items={USE_MOCK ? mockStats(mockData) : realStats(analysis, job, totalSec, treeUsage)} />}
         right={
           <button
             className="btn-primary"
