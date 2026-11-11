@@ -58,3 +58,4 @@ export async function reorderClips(clips)             { return clips; }
 export async function startAnalysis()          { return { job_id: 'mock' }; }
 export async function getJob()                 { return { status: 'done', progress: 100 }; }
 export async function getAnalysis()            { return null; }   // mock S3는 progress 데이터의 stats를 쓴다
+export function clipProxyUrl()                 { return null; }   // mock S4 상세는 자리표시 그림

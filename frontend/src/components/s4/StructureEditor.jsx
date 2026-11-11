@@ -15,6 +15,7 @@ export default function StructureEditor() {
   const [treeData,     setTreeData]     = useState(null);
   const [selectedPath, setSelectedPath] = useState([null, null, null, null]);
   const [selectedScene, setSelectedScene] = useState(null);
+  const [selectedNode,  setSelectedNode]  = useState(null);   // 상세 패널: 고른 노드 (L1~L4)
   const [blockedMsg,   setBlockedMsg]   = useState('');
   const [aiLoading,    setAiLoading]    = useState(false);
   const [compressNote, setCompressNote] = useState('');      // 자동 채우기 결과 문구 (화면 임시 계산임을 알린다)
@@ -76,6 +77,7 @@ export default function StructureEditor() {
     newPath[colIdx] = node.id;
     for (let i = colIdx + 1; i < 4; i++) newPath[i] = null;
     setSelectedPath(newPath);
+    setSelectedNode(node);
     if (node.level === 'scene') setSelectedScene(node);
     else setSelectedScene(null);
   };
@@ -99,6 +101,7 @@ export default function StructureEditor() {
     }
     const sceneNode = findNode(treeData.tree ?? [], sceneId);
     setSelectedScene(sceneNode ?? null);
+    setSelectedNode(sceneNode ?? null);
   };
 
   const handleAICompress = async () => {
@@ -141,6 +144,7 @@ export default function StructureEditor() {
           />
           <DetailPanel
             scene={selectedScene}
+            node={selectedNode}
             sentences={sentences}
             selectionNodes={selNodes}
           />

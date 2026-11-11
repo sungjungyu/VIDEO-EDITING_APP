@@ -30,7 +30,10 @@ test('실제 API: 클립 2개 업로드 → 분석 완료, S3에 서버 단계�
 
   const errors = [];
   page.on('pageerror', e => errors.push(e.message));
-  page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
+  // proxy 404는 제외: 업로드 직후 미리보기 영상을 만드는 동안 S4가 3초마다 다시 시도한다 (의도한 동작)
+  page.on('console', m => {
+    if (m.type() === 'error' && !(m.location().url ?? '').includes('/proxy')) errors.push(m.text());
+  });
 
   await page.goto(BASE + '/');
   await page.evaluate(() => localStorage.clear());
@@ -113,6 +116,29 @@ test('실제 API: 클립 2개 업로드 → 분석 완료, S3에 서버 단계�
   console.log('트리 source:', tree.meta.source, '| AI 사용량:', JSON.stringify(tree.meta.ai_usage?.tokens_by_model ?? {}));
   expect(seen.has('6. 목차 정리') || tree.meta.source === 'ai').toBe(true);
   expect(tree.meta.source).toBe('ai');
+
+  // S4 상세 패널: L4를 고르면 그 장면 구간의 proxy 영상이 재생되고, 대사를 누르면 그 시각으로 간다
+  await l1.first().click();
+  await page.locator('.miller-col').nth(1).locator('.miller-item').first().click();
+  await page.locator('.miller-col').nth(2).locator('.miller-item').first().click();
+  await page.locator('.miller-col').nth(3).locator('.miller-item').first().click();
+  const video = page.locator('.pane video');
+  await expect(video).toHaveAttribute('src', new RegExp(`/api/projects/${pid}/clips/c0\\d/proxy`));
+  // 업로드 직후에는 proxy를 만드는 중이라 화면이 3초마다 다시 시도한다 (최대 2분)
+  await page.waitForFunction(() => { const v = document.querySelector(".pane video"); return v && v.readyState >= 2 && v.currentTime > 0.3; },
+    null, { timeout: 120_000 });
+  console.log('S4 영상(L4):', await video.evaluate(v => `${v.currentTime.toFixed(1)}초 / readyState ${v.readyState}`));
+
+  // 상위 노드(L3)를 고르면 그 구간 첫 장면부터, 대사를 누르면 그 시각으로 가고 그 문장이 강조된다
+  await page.locator('.miller-col').nth(2).locator('.miller-item').first().click();
+  const lines = page.locator('.pane .log[title="누르면 이 대사로 이동"]');
+  const lineCount = await lines.count();
+  if (lineCount > 1) {
+    const target = lines.nth(1);
+    await target.click();
+    await expect(target).toHaveAttribute('data-current', 'true', { timeout: 15_000 });
+  }
+  console.log('S4 영상(L3):', await video.evaluate(v => `${v.currentTime.toFixed(1)}초`), '| 누를 수 있는 대사', lineCount);
 
   // 실제 모드에는 렌더가 아직 없다: 안내만 뜨고 mock 렌더(S5)로 가지 않는다
   await page.click('button:has-text("렌더 →")');

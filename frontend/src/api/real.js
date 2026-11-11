@@ -167,6 +167,11 @@ export async function getJob(jobId) {
   return request('GET', `/jobs/${jobId}`);
 }
 
+/** 클립 미리보기 영상(proxy) 주소 — S4 상세 패널 재생용 (Range 요청 지원) */
+export function clipProxyUrl(clipId) {
+  return `${BASE}/projects/${storedProjectId()}/clips/${clipId}/proxy`;
+}
+
 /** 분석 결과(Analysis): clips(offset·duration), lines(speaker), scenes, beats, engines, warnings */
 export async function getAnalysis() {
   return request('GET', `/projects/${storedProjectId()}/analysis`);
