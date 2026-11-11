@@ -69,7 +69,7 @@ test('실제 API: 클립 2개 업로드 → 분석 완료, S3에 서버 단계�
   const stat = async (label) => (await page.locator('.stats > div', { hasText: label }).locator('.num').innerText()).trim();
   await expect.poll(() => stat('장면')).toBe(String(analysis.scenes.length));
   expect(await stat('문장')).toBe(String(analysis.lines.length));
-  expect(await stat('API 비용')).toMatch(/^₩[\d,]+$/);
+  expect(await stat('이번 실행 비용')).toMatch(/^₩[\d,]+$/);
 
   // 새로고침해도 분석 완료 상태가 유지된다
   await page.reload();

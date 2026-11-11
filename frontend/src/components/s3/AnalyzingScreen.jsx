@@ -166,6 +166,35 @@ function useJobProgress(status, transition, jobId, setJobId) {
   };
 }
 
+// ── 가운데 그림: 실제 모드는 서버 proxy 영상의 첫 장면, 없거나 못 읽으면 자리표시 ──
+function currentClip(clips, job) {
+  const named = clips.find(c => c.file && job?.message?.includes(c.file));
+  return named ?? clips.find(c => c.proxy_url) ?? null;
+}
+
+function ClipFrame({ clip }) {
+  const [failed, setFailed] = useState(false);
+  useEffect(() => setFailed(false), [clip?.proxy_url]);
+  const box = { width: 260, height: 146, marginTop: 4 };
+  if (!clip?.proxy_url || failed) {
+    return (
+      <div className="video" style={box}>
+        <div className="floor" />
+        <div className="p1" style={{ left: 66, top: 40, width: 40, height: 40 }} />
+        <div className="p2" style={{ left: 150, top: 46, width: 36, height: 36 }} />
+      </div>
+    );
+  }
+  return (
+    <div className="video" style={box} title={clip.file}>
+      {/* #t=0.5: 첫 장면(검은 화면을 피하려고 0.5초) 한 장만 보이게. 재생하지 않는다 */}
+      <video key={clip.proxy_url} src={`${clip.proxy_url}#t=0.5`} muted playsInline preload="metadata"
+             onError={() => setFailed(true)}
+             style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }} />
+    </div>
+  );
+}
+
 // ── 하단 숫자 ──
 function Stats({ items }) {
   if (!items) return null;
@@ -181,7 +210,17 @@ function Stats({ items }) {
 function mockStats(mockData) {
   const s = mockData?.stats;
   if (!s) return null;
-  return [['전체 길이', '60:00'], ['장면', s.scenes], ['문장', s.sentences], ['화자', s.speakers], ['API 비용', fmtKrw(s.cost_krw)]];
+  return [['전체 길이', '60:00'], ['장면', s.scenes], ['문장', s.sentences], ['화자', s.speakers], ['이번 실행 비용', fmtKrw(s.cost_krw)]];
+}
+
+/** 캐시를 쓴 단계들을 처음 실행했을 때의 비용. 서버가 saved_by_stage {단계: {모델: [입력, 출력]}}를 줄 때만 */
+function cacheSaving(usage) {
+  const stages = usage?.saved_by_stage;
+  if (!stages || !Object.keys(stages).length) return null;
+  const parts = Object.entries(stages).map(([stage, tokens]) => [stage, geminiCost(tokens)]);
+  const krw = parts.reduce((s, [, c]) => s + c.krw, 0);
+  const detail = parts.map(([stage, c]) => `${stage} ${fmtKrw(c.krw)}`).join(' · ');
+  return { krw, detail };
 }
 
 /** 실제 모드: 서버 분석 결과(analysis)와 작업 기록(metrics.ai_usage)의 값. 끝나기 전에는 '–' */
@@ -190,14 +229,17 @@ function realStats(analysis, job, clipSec) {
   const length = analysis ? analysis.clips.reduce((s, c) => s + c.duration, 0) : clipSec;
   const speakers = analysis ? new Set(analysis.lines.map(l => l.speaker).filter(Boolean)).size : null;
   const cost = usage ? geminiCost(usage.tokens_by_model) : null;
-  return [
+  const saving = cacheSaving(usage);
+  const items = [
     ['전체 길이', fmtDuration(length)],
     ['장면', analysis ? analysis.scenes.length : '–'],
     ['문장', analysis ? analysis.lines.length : '–'],
     ['화자', speakers ? speakers : '–', speakers === 0 ? '화자 구분을 하지 않았어요' : undefined],
-    ['API 비용', cost ? fmtKrw(cost.krw) : '–',
+    ['이번 실행 비용', cost ? fmtKrw(cost.krw) : '–',
       usage ? `Gemini 요청 ${usage.requests}회 · 캐시 ${usage.cache_hits}회${cost?.unknown.length ? ` · 단가 모름: ${cost.unknown.join(', ')}` : ''}` : undefined],
   ];
+  if (saving) items.push(['캐시 절약', fmtKrw(saving.krw), `캐시를 쓴 단계를 처음 실행했을 때 비용: ${saving.detail}`]);
+  return items;
 }
 
 export default function AnalyzingScreen() {
@@ -251,7 +293,7 @@ export default function AnalyzingScreen() {
 
       <div className="progress-wrap" style={{ flex: 1, overflowY: 'auto' }}>
         <div className="progress-title">
-          ③ 분석 중{status !== 'analyzed' && <span className="dots">…</span>}
+          {percent >= 100 ? '③ 분석 완료' : <>③ 분석 중<span className="dots">…</span></>}
         </div>
 
         <div className="row" style={{ justifyContent: 'center', flexWrap: 'wrap' }}>
@@ -262,11 +304,7 @@ export default function AnalyzingScreen() {
           ))}
         </div>
 
-        <div className="video" style={{ width: 260, height: 146, marginTop: 4 }}>
-          <div className="floor" />
-          <div className="p1" style={{ left: 66, top: 40, width: 40, height: 40 }} />
-          <div className="p2" style={{ left: 150, top: 46, width: 36, height: 36 }} />
-        </div>
+        <ClipFrame clip={USE_MOCK ? null : currentClip(clips, job)} />
         {message && status !== 'analyzed' && <div className="lb">{message}</div>}
 
         <div style={{ width: 'min(540px, 100%)' }}>
