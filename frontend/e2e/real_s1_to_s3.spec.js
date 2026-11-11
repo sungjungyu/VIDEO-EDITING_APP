@@ -42,6 +42,15 @@ test('실제 API: 클립 2개 업로드 → 분석 완료, S3에 서버 단계�
   await page.click('button:has-text("다음: 요청 →")');
 
   // S2: 한 줄 요청 → 확인 → 분석 시작
+  // 목표 분량 위에 클립 수·전체 길이, 목표가 전체보다 길면 경고
+  const info = page.locator('.card', { hasText: `클립 ${CLIPS.length}개 · 전체` });
+  await expect(info).toBeVisible();
+  const minutes = page.locator('input[type=number]').first();
+  await minutes.fill('99');
+  await expect(info).toContainText('전체 길이보다 길어요');
+  await minutes.fill('0');
+  await page.locator('input[type=number]').nth(1).fill('30');
+  await expect(info).not.toContainText('전체 길이보다 길어요');
   await page.locator('input.fld').last().fill('시험 영상 두 개로 짧은 브이로그');
   await page.click('button:has-text("다음: 요청 확인 →")');
   await page.click('button:has-text("확정하고 분석 시작 →")');

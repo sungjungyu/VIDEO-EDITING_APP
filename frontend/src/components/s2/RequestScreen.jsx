@@ -32,6 +32,7 @@ export default function RequestScreen() {
 
   const totalSec = clips.reduce((s, c) => s + c.duration, 0);
   const goalSec  = targetMin * 60 + targetSec;
+  const tooLong  = totalSec > 0 && goalSec > totalSec;   // 목표가 전체 길이보다 길면 경고 (다음으로 가는 것은 막지 않음)
 
   const handleConfirm = (confirmedRules) => {
     setShowModal(false);
@@ -56,6 +57,15 @@ export default function RequestScreen() {
           <div>
             <div className="sec">기획</div>
             <div className="lb">AI가 무엇을 남길지 고를 때 기준이 돼요</div>
+          </div>
+
+          <div className="card" style={{ display: 'flex', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
+            <span>클립 <b>{clips.length}개</b> · 전체 <b>{fmtMinSec(totalSec)}</b></span>
+            {tooLong && (
+              <span style={{ color: 'var(--color-warning)' }}>
+                목표 분량({fmtMinSec(goalSec)})이 전체 길이보다 길어요. 전체를 다 써도 {fmtMinSec(totalSec)}이에요.
+              </span>
+            )}
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '130px 1fr', gap: 8 }}>
