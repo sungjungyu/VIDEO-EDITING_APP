@@ -1,6 +1,8 @@
 import { fmtDuration } from '../../utils/format.js';
 
-const TOPIC_COLORS = ['--topic-1', '--topic-2', '--topic-3', '--topic-4', '--topic-1'];
+// 색은 L2(행동 흐름) 순서대로 4색을 돌려 쓴다 (L1이 하나뿐인 영상도 구간이 구분되게)
+const TOPIC_COLORS = ['--topic-1', '--topic-2', '--topic-3', '--topic-4'];
+const colorOf = (i) => `var(${TOPIC_COLORS[i % TOPIC_COLORS.length]})`;
 
 export default function EditorTimeline({ treeData, selectionNodes, selection, selectedScene, totalSec, onSceneClick }) {
   if (!treeData) return null;
@@ -8,16 +10,18 @@ export default function EditorTimeline({ treeData, selectionNodes, selection, se
   const topics = treeData.tree ?? [];
   const allSec = totalSec ?? topics.reduce((m, t) => Math.max(m, t.end), 0);
 
-  function collectScenes(node, topicIdx, acc) {
+  function collectScenes(node, groupIdx, acc) {
     if (node.level === 'scene') {
-      acc.push({ ...node, topicIdx });
+      acc.push({ ...node, groupIdx });
     } else {
-      (node.children ?? []).forEach(c => collectScenes(c, topicIdx, acc));
+      (node.children ?? []).forEach(c => collectScenes(c, groupIdx, acc));
     }
   }
 
+  // L2 묶음: L1 아래 자식들을 순서대로 이어 붙인 목록 (L1에 자식이 없으면 L1 자신)
+  const groups = topics.flatMap(t => (t.children?.length ? t.children : [t]));
   const allScenes = [];
-  topics.forEach((t, i) => collectScenes(t, i, allScenes));
+  groups.forEach((g, i) => collectScenes(g, i, allScenes));
 
   const selectedTotal = allScenes
     .filter(sc => selectionNodes?.[sc.id]?.state === 'on')
@@ -36,10 +40,10 @@ export default function EditorTimeline({ treeData, selectionNodes, selection, se
     <div style={{ borderTop: '1px solid var(--color-border)', padding: '10px 16px' }}>
       <div className="row lb" style={{ justifyContent: 'space-between', marginBottom: 4 }}>
         <div className="row" style={{ gap: 8 }}>
-          {topics.map((t, i) => (
-            <span key={t.id} className="legend">
-              <i style={{ background: `var(${TOPIC_COLORS[i] ?? '--topic-1'})` }} />
-              {t.title}
+          {groups.map((g, i) => (
+            <span key={g.id} className="legend">
+              <i style={{ background: colorOf(i) }} />
+              {g.title}
             </span>
           ))}
           <span className="legend"><i style={{ background: 'var(--color-off)' }} />꺼짐</span>
@@ -55,7 +59,7 @@ export default function EditorTimeline({ treeData, selectionNodes, selection, se
           const sel  = selectionNodes?.[sc.id];
           const on   = sel?.state === 'on';
           const isSelected = sc.id === selectedScene?.id;
-          const color = on ? `var(${TOPIC_COLORS[sc.topicIdx] ?? '--topic-1'})` : 'transparent';
+          const color = on ? colorOf(sc.groupIdx) : 'transparent';
           return (
             <div
               key={sc.id}
