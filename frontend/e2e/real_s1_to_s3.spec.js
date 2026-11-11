@@ -95,6 +95,10 @@ test('실제 API: 클립 2개 업로드 → 분석 완료, S3에 서버 단계�
   }
   console.log('S4 트리:', JSON.stringify(tree.meta.counts), '화면 L4', shown);
   expect(shown).toBe(tree.meta.counts.l4);
+  // 분석이 끝나면 S3가 AI 목차 정리(GET /tree?ai=true)를 하고, S4는 저장된 AI 트리를 받는다
+  console.log('트리 source:', tree.meta.source, '| AI 사용량:', JSON.stringify(tree.meta.ai_usage?.tokens_by_model ?? {}));
+  expect(seen.has('6. 목차 정리') || tree.meta.source === 'ai').toBe(true);
+  expect(tree.meta.source).toBe('ai');
 
   expect(errors, `브라우저 오류: ${errors.join(' | ')}`).toHaveLength(0);
 });

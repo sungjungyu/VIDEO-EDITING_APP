@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { useProject } from '../../state/ProjectContext.jsx';
-import { getProgress, getSelection, startAnalysis, getJob, getAnalysis, USE_MOCK } from '../../api/index.js';
+import { getProgress, getSelection, getTree, startAnalysis, getJob, getAnalysis, USE_MOCK } from '../../api/index.js';
 import { geminiCost, fmtKrw } from '../../utils/cost.js';
 import { fmtMinSec, fmtDuration } from '../../utils/format.js';
 import TopBar from '../common/TopBar.jsx';
@@ -28,7 +28,9 @@ const REAL_STEPS = [
   { stage: '컷 판단',            label: '3. 컷 판단' },
   { stage: '장면 나누기',        label: '4. 장면 나누기' },
   { stage: '편집 계획',          label: '5. 편집 계획' },
+  { stage: '목차 정리',          label: '6. 목차 정리' },   // 분석 작업이 끝난 뒤 화면이 부르는 AI 트리 (GET /tree?ai=true)
 ];
+const TREE_STEP = REAL_STEPS.length - 1;
 const REAL_START = [0, 8, 76, 91, 96];   // 각 단계가 시작하는 진행률 (stage 문구가 없을 때 대신 쓴다)
 const POLL_MS = 2000;
 
@@ -87,6 +89,8 @@ function useJobProgress(status, transition, jobId, setJobId) {
   const [now,   setNow]   = useState(Date.now());
   const [error, setError] = useState(null);   // 폴링 자체의 오류 (서버 연결 끊김 등)
   const [analysis, setAnalysis] = useState(null);   // 끝난 뒤 하단 숫자용 서버 분석 결과
+  const [treeState, setTreeState]   = useState(status === 'analyzed' ? 'done' : 'waiting');   // 목차 정리 (AI 트리)
+  const [treeNotice, setTreeNotice] = useState(null);
   const starting = useRef(false);
 
   // 분석이 끝나면 서버 분석 결과를 한 번 읽어 하단 숫자(길이·장면·문장·화자)를 채운다
@@ -118,7 +122,18 @@ function useJobProgress(status, transition, jobId, setJobId) {
         setError(null);
         if (j.status === 'done') {
           if (status === 'analyzing') {
-            // S4는 아직 mock 트리를 쓴다 (Phase 2에서 서버 트리로 교체)
+            // 목차 정리: 서버에 AI 트리를 만들게 한다. 실패하면 규칙 트리로 보이고 안내한다
+            setTreeState('running');
+            try {
+              const tree = await getTree({ ai: true });
+              if (tree.meta?.source === 'rules') {
+                setTreeNotice(tree.notes?.[0] ?? 'AI 목차 정리에 실패해 규칙으로 묶었어요.');
+              }
+            } catch (e) {
+              setTreeNotice(`AI 목차 정리에 실패해 규칙 목차로 보여 드려요. (${e.message})`);
+            }
+            if (stopped) return;
+            setTreeState('done');
             const sel = await getSelection();
             transition('ANALYZE_SUCCESS', { selection: sel });
           }
@@ -147,19 +162,23 @@ function useJobProgress(status, transition, jobId, setJobId) {
     return () => clearInterval(id);
   }, [status]);
 
-  const done = status === 'analyzed' || job?.status === 'done';
-  const percent = done ? 100 : Math.floor(job?.progress ?? 0);
+  const treeRunning = job?.status === 'done' && treeState !== 'done';
+  const done = status === 'analyzed' || (job?.status === 'done' && treeState === 'done');
+  const percent = done ? 100 : treeRunning ? 99 : Math.floor(job?.progress ?? 0);
   const started = job?.started_at ? Date.parse(job.started_at) : null;
   const finished = job?.finished_at ? Date.parse(job.finished_at) : null;
   const elapsed = job?.metrics?.elapsed_sec
     ?? (started ? Math.max(0, Math.floor(((finished ?? now) - started) / 1000)) : 0);
-  const cur = done ? REAL_STEPS.length : realStepIndex(job);
+  const cur = done ? REAL_STEPS.length : treeRunning ? TREE_STEP : realStepIndex(job);
 
   return {
     percent,
     elapsed,
     steps: REAL_STEPS.map((s, i) => ({ label: s.label, state: i < cur ? 'done' : i === cur ? 'running' : 'waiting' })),
-    message: error ?? (job?.status === 'queued' ? '다른 작업이 끝나기를 기다리는 중…' : job?.message || ''),
+    message: error ?? (job?.status === 'queued' ? '다른 작업이 끝나기를 기다리는 중…'
+      : treeRunning ? 'AI가 목차(장소 · 행동 흐름 · 세부 행동)를 정리하는 중… 1시간 영상은 1~2분 걸려요'
+      : job?.message || ''),
+    treeNotice,
     remaining: '창을 닫아도 분석은 서버에서 계속돼요',
     job,
     analysis,
@@ -247,7 +266,7 @@ export default function AnalyzingScreen() {
   const progress = USE_MOCK
     ? useMockProgress(status, transition)                                  // eslint-disable-line react-hooks/rules-of-hooks
     : useJobProgress(status, transition, analyzeJobId, setAnalyzeJobId);   // eslint-disable-line react-hooks/rules-of-hooks
-  const { percent, elapsed, steps, message, remaining, mockData, job, analysis } = progress;
+  const { percent, elapsed, steps, message, remaining, mockData, job, analysis, treeNotice } = progress;
 
   const retry = () => {
     setAnalyzeJobId(null);
@@ -306,6 +325,7 @@ export default function AnalyzingScreen() {
 
         <ClipFrame clip={USE_MOCK ? null : currentClip(clips, job)} />
         {message && status !== 'analyzed' && <div className="lb">{message}</div>}
+        {treeNotice && <div className="warn" style={{ width: 'min(540px, 100%)' }}>{treeNotice}</div>}
 
         <div style={{ width: 'min(540px, 100%)' }}>
           <div className="row lb" style={{ justifyContent: 'space-between' }}>

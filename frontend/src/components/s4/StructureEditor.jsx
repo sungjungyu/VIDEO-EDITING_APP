@@ -108,6 +108,9 @@ export default function StructureEditor() {
   };
 
   const breadcrumb = selectedPath.filter(Boolean);
+  // 실제 모드에서 규칙 트리를 받았으면 (AI 목차 정리 실패) 안내한다. mock 트리에는 meta가 없다
+  const treeNote = treeData?.notes?.[0]
+    ?? (treeData?.meta?.source === 'rules' ? 'AI 목차 정리에 실패해 규칙으로 묶은 목차예요. 장소·흐름 이름이 거칠 수 있어요.' : null);
 
   return (
     <div className="app-shell fill">
@@ -147,7 +150,9 @@ export default function StructureEditor() {
 
       <BottomBar
         left={
-          breadcrumb.length > 0
+          treeNote && breadcrumb.length === 0
+            ? <span className="lb" style={{ color: 'var(--color-warning)' }}>{treeNote}</span>
+            : breadcrumb.length > 0
             ? <span className="lb">선택: {breadcrumb.join(' › ')}</span>
             : <span className="lb">Space 켜기/끄기 · ↑↓←→ 이동 · 우클릭 꼭 넣기/빼기</span>
         }

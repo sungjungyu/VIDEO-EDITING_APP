@@ -175,10 +175,11 @@ export async function getAnalysis() {
 // ── 4단 트리 (S4): 서버가 분석 결과로 규칙 트리를 만들어 준다. 선택(켜기·끄기·잠금)은 아직 화면에서만 ──
 let treeCache = null;   // { pid, data } — S3 끝과 S4가 같은 트리를 두 번 받지 않게
 
-export async function getTree() {
+/** ai: true면 서버가 AI 트리를 만든다(유료, 1시간 영상 1~2분). 기본은 저장된 AI 트리 > 규칙 트리 */
+export async function getTree({ ai = false } = {}) {
   const pid = storedProjectId();
-  if (treeCache?.pid === pid) return treeCache.data;
-  const data = adaptTree(await request('GET', `/projects/${pid}/tree`));
+  if (treeCache?.pid === pid && (!ai || treeCache.data.meta?.source !== 'rules')) return treeCache.data;
+  const data = adaptTree(await request('GET', `/projects/${pid}/tree${ai ? '?ai=true' : ''}`));
   treeCache = { pid, data };
   return data;
 }
