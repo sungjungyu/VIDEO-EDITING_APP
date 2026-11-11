@@ -879,7 +879,7 @@ def ensure_nested(structure: dict) -> dict:
 
 def _unit_node(u: dict) -> dict:
     first = u["lines"][0]["text"] if u["lines"] else ""
-    title = _short(first, L4_TITLE_CHARS) if first else (u.get("desc") or "(화면 설명 없음)")
+    title = _short(first or u.get("desc") or "(화면 설명 없음)", L4_TITLE_CHARS)   # 말 없는 장면은 장면 설명 앞부분
     tags = ["대사" if u["lines"] else "말 없음"]
     if any(x.get("fixed") for x in u["lines"]):
         tags.append("AI 보정")

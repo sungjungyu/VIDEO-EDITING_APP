@@ -46,9 +46,11 @@ def get_analysis(request: Request, project_id: str) -> dict:
 
 
 @router.get("/projects/{project_id}/tree")
-def get_tree(request: Request, project_id: str) -> dict:
-    """4단 트리 (장소·세션 → 행동 흐름 → 세부 행동 → 장면). 처음 요청할 때 만들어 저장한다 (AI 없음, 규칙만)."""
-    return tree_service.get_tree(state(request).store, project_id)
+def get_tree(request: Request, project_id: str, ai: bool = False) -> dict:
+    """4단 트리 (장소·세션 → 행동 흐름 → 세부 행동 → 장면). 처음 요청할 때 만들어 저장한다.
+    기본: 저장된 AI 트리가 있으면 그것, 없으면 규칙 트리. ai=true: AI 트리를 만든다 (유료 Gemini, 몇 분)."""
+    app = state(request)
+    return tree_service.get_tree(app.store, project_id, app.ai, ai=ai)
 
 
 # ---------------------------------------------------------------- 편집 계획

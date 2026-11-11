@@ -98,3 +98,66 @@ def test_get_tree_saves_and_rebuilds_when_analysis_changes(tmp_path):
 
     store.save_analysis(pid, analysis.model_copy(update={"created_at": "2099-01-01T00:00:00"}))
     assert tree_service.get_tree(store, pid)["cached"] is False                # 다시 분석하면 다시 만든다
+
+
+# ---------------------------------------------------------------- AI 트리 (서버 AI 클라이언트를 ask로)
+
+class FakeAI:
+    """GeminiClient 흉내: generate_json만. replies가 비면 AIError (AI 실패)."""
+
+    def __init__(self, replies):
+        from vibecut.ai.client import Usage
+        self.replies, self.calls, self.usage = list(replies), [], Usage()
+
+    def with_usage(self, usage):
+        self.usage = usage
+        return self
+
+    def generate_json(self, prompt, schema=None, **kwargs):
+        from vibecut.errors import AIError
+        self.calls.append(kwargs.get("purpose"))
+        if not self.replies:
+            raise AIError("Gemini 사용 한도 초과 (429).")
+        self.usage.add("gemini-3.5-flash", 1000, 100)
+        return self.replies.pop(0)
+
+
+def one_session(first_id: str) -> dict:
+    return {"corrections": [], "sessions": [{"title": "카페 (1차 방문)", "summary": "", "flows": [
+        {"title": "주문하고 먹기", "summary": "", "steps": [{"start": first_id, "title": "주문", "summary": ""}]}]}]}
+
+
+def store_with_analysis(tmp_path):
+    analysis, clips = sample_analysis()
+    store = ProjectStore(tmp_path)
+    pid = store.create("트리").project_id
+
+    def add(p):
+        p.clips += clips
+        p.timeline += [c.clip_id for c in clips]
+
+    store.update(pid, add)
+    store.save_analysis(pid, analysis)
+    return store, pid
+
+
+def test_ai_failure_falls_back_to_rules_and_is_not_saved_as_ai(tmp_path):
+    store, pid = store_with_analysis(tmp_path)
+    ai = FakeAI([])
+    doc = tree_service.get_tree(store, pid, ai, ai=True)
+    assert doc["meta"]["source"] == "rules" and doc["notes"] and "규칙으로" in doc["notes"][0]
+    assert ai.calls and set(ai.calls) == {"트리 구조화"}
+    assert not (store.project_dir(pid) / "tree_ai.json").exists()
+
+
+def test_ai_tree_is_saved_and_reused_without_calling_again(tmp_path):
+    store, pid = store_with_analysis(tmp_path)
+    rules = tree_service.get_tree(store, pid)
+    first_l4 = next(walk(rules["tree"], 4))["id"]
+    ai = FakeAI([one_session(first_l4)] * 4)
+    doc = tree_service.get_tree(store, pid, ai, ai=True)
+    assert doc["meta"]["source"] == "ai", doc["warnings"]
+    assert doc["tree"][0]["title"] == "카페 (1차 방문)" and doc["meta"]["ai_usage"]["requests"] == len(ai.calls)
+    calls = len(ai.calls)
+    again = tree_service.get_tree(store, pid)                    # 기본 요청도 저장된 AI 트리를 준다
+    assert again["cached"] is True and again["meta"]["source"] == "ai" and len(ai.calls) == calls
