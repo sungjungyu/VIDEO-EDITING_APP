@@ -129,6 +129,11 @@ test('실제 API: 클립 2개 업로드 → 분석 완료, S3에 서버 단계�
     null, { timeout: 120_000 });
   console.log('S4 영상(L4):', await video.evaluate(v => `${v.currentTime.toFixed(1)}초 / readyState ${v.readyState}`));
 
+  // 미리보기 비율: 16:9를 누르면 영상 상자가 16:9 (가운데 기준 자르기), 원본으로 되돌림
+  await page.locator('.pane .chip', { hasText: '16:9' }).click();
+  await expect.poll(async () => { const b = await video.boundingBox(); return +(b.width / b.height).toFixed(2); }).toBe(1.78);
+  await page.locator('.pane .chip', { hasText: '원본' }).click();
+
   // 상위 노드(L3)를 고르면 그 구간 첫 장면부터, 대사를 누르면 그 시각으로 가고 그 문장이 강조된다
   await page.locator('.miller-col').nth(2).locator('.miller-item').first().click();
   const lines = page.locator('.pane .log[title="누르면 이 대사로 이동"]');

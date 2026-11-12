@@ -1,8 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { fmtGlobal, fmtDuration } from '../../utils/format.js';
 import { USE_MOCK, clipProxyUrl } from '../../api/index.js';
+import Chip from '../common/Chip.jsx';
 
 const LEVEL_NAMES = { topic: '장소·사건', task: '일', situation: '상황', scene: '장면' };
+// 미리보기 화면 비율 (렌더와 무관): 원본은 영상 그대로, 나머지는 가운데 기준으로 잘라 보여 준다
+const ASPECTS = [['original', '원본'], ['16:9', '16:9'], ['9:16', '9:16'], ['1:1', '1:1']];
+const PREVIEW_HEIGHT = 220;
 const PROXY_RETRIES = 40;        // 3초 × 40 = 2분까지 proxy가 만들어지기를 기다린다
 const PROXY_RETRY_MS = 3000;
 
@@ -23,7 +27,7 @@ export function playRange(node) {
 }
 
 /** 클립 proxy 영상을 [from, to] (클립 안 초) 구간만 재생한다. 끝에 닿으면 멈추고, 다시 누르면 구간 처음부터 */
-function ScenePlayer({ src, from, to, seekTo, onTime, onError }) {
+function ScenePlayer({ src, from, to, seekTo, onTime, onError, fit = 'contain' }) {
   const ref = useRef(null);
 
   useEffect(() => {
@@ -55,7 +59,7 @@ function ScenePlayer({ src, from, to, seekTo, onTime, onError }) {
         if (t >= to) e.currentTarget.pause();
         onTime(t);
       }}
-      style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block', background: 'var(--color-video)' }}
+      style={{ width: '100%', height: '100%', objectFit: fit, display: 'block', background: 'var(--color-video)' }}
     />
   );
 }
@@ -78,6 +82,7 @@ export default function DetailPanel({ scene, node, sentences, selectionNodes }) 
   const [now, setNow] = useState(null);          // 재생 위치 (전체 타임라인 초)
   const [seekTo, setSeekTo] = useState(null);    // 대사를 눌러 옮길 위치 (클립 안 초)
   const [videoFailed, setVideoFailed] = useState(false);
+  const [aspect, setAspect] = useState('original');   // 미리보기 비율 (장면을 바꿔도 유지)
   const [attempt, setAttempt] = useState(0);      // proxy가 아직 없으면(업로드 직후 만드는 중) 3초마다 다시 시도
   const retryTimer = useRef(null);
   const listRef = useRef(null);
@@ -130,9 +135,21 @@ export default function DetailPanel({ scene, node, sentences, selectionNodes }) 
         </div>
       )}
 
+      {range && !videoFailed && (
+        <div className="row" style={{ gap: 4 }}>
+          <span className="lb" style={{ marginRight: 2 }}>미리보기 비율</span>
+          {ASPECTS.map(([value, label]) => (
+            <Chip key={value} variant={aspect === value ? 'on' : 'default'} onClick={() => setAspect(value)}>{label}</Chip>
+          ))}
+        </div>
+      )}
       {range && !videoFailed ? (
-        <div className="video" style={{ height: 220 }}>
+        <div className="video" style={{ height: PREVIEW_HEIGHT, display: 'flex', justifyContent: 'center' }} data-aspect={aspect}>
+          <div style={aspect === 'original'
+            ? { width: '100%', height: '100%' }
+            : { height: '100%', aspectRatio: aspect.replace(':', ' / '), maxWidth: '100%', overflow: 'hidden' }}>
           <ScenePlayer
+            fit={aspect === 'original' ? 'contain' : 'cover'}
             key={attempt}
             src={clipProxyUrl(range.clipId) + (attempt ? `?try=${attempt}` : '')}
             from={range.start - range.offset}
@@ -141,6 +158,7 @@ export default function DetailPanel({ scene, node, sentences, selectionNodes }) 
             onTime={(t) => setNow(t + range.offset)}
             onError={onVideoError}
           />
+          </div>
         </div>
       ) : null}
       {range && !videoFailed ? (
