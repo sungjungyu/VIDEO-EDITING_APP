@@ -148,7 +148,7 @@ test('실제 API: 클립 2개 업로드 → 분석 완료, S3에 서버 단계�
 
   // AI로 목표 분량 채우기: 화면 임시 계산임을 문구로 알린다
   await page.click('button:has-text("AI로 목표 분량 채우기")');
-  await expect(page.locator('.bottom-bar', { hasText: '임시 계산' })).toBeVisible();
+  await expect(page.locator('text=임시 계산').first()).toBeVisible();
 
   // 저장된 상태가 렌더 완료여도 S5·S5-1 예시 데이터(과자 언박싱, 민수·경우, outro.mp4)는 보이지 않는다
   await page.evaluate(() => {

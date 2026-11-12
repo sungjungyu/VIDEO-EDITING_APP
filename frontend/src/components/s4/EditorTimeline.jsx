@@ -4,7 +4,8 @@ import { fmtDuration } from '../../utils/format.js';
 const TOPIC_COLORS = ['--topic-1', '--topic-2', '--topic-3', '--topic-4'];
 const colorOf = (i) => `var(${TOPIC_COLORS[i % TOPIC_COLORS.length]})`;
 
-export default function EditorTimeline({ treeData, selectionNodes, selection, selectedScene, totalSec, onSceneClick }) {
+// info: 왼쪽 위 (선택 경로·안내), actions: 오른쪽 위 선택 합계 옆 버튼 (S4 하단 바를 없애고 여기로 옮겼다)
+export default function EditorTimeline({ treeData, selectionNodes, selection, selectedScene, totalSec, onSceneClick, info, actions }) {
   if (!treeData) return null;
 
   const topics = treeData.tree ?? [];
@@ -37,8 +38,17 @@ export default function EditorTimeline({ treeData, selectionNodes, selection, se
   const totalColor = ratio > 0.1 ? 'var(--color-warning)' : undefined;
 
   return (
-    <div style={{ borderTop: '1px solid var(--color-border)', padding: '10px 16px' }}>
-      <div className="row lb" style={{ justifyContent: 'space-between', marginBottom: 4 }}>
+    <div style={{ borderTop: '1px solid var(--color-border)', padding: '8px 16px 10px' }}>
+      <div className="row" style={{ justifyContent: 'space-between', marginBottom: 6, flexWrap: 'nowrap' }}>
+        <div style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{info}</div>
+        <div className="row" style={{ flexWrap: 'nowrap', flexShrink: 0 }}>
+          <span className="lb" style={{ color: totalColor, whiteSpace: 'nowrap' }}>
+            선택 합계 {fmtDuration(selectedTotal)} / 목표 {targetLabel}
+          </span>
+          {actions}
+        </div>
+      </div>
+      <div className="row lb" style={{ marginBottom: 4 }}>
         <div className="row" style={{ gap: 8 }}>
           {groups.map((g, i) => (
             <span key={g.id} className="legend">
@@ -48,9 +58,6 @@ export default function EditorTimeline({ treeData, selectionNodes, selection, se
           ))}
           <span className="legend"><i style={{ background: 'var(--color-off)' }} />꺼짐</span>
         </div>
-        <span style={{ color: totalColor }}>
-          선택 합계 {fmtDuration(selectedTotal)} / 목표 {targetLabel}
-        </span>
       </div>
 
       <div style={{ display: 'flex', height: 30, borderRadius: 6, overflow: 'hidden', border: '1px solid var(--color-border)', background: 'var(--color-off)' }}>

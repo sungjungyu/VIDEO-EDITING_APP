@@ -5,7 +5,6 @@ import { RENDER_PLANNED } from '../common/NotConnected.jsx';
 import { toggle, setLock, getTotalSec, applyAISelection, findNodePath } from '../../logic/selection.js';
 import { fmtDuration } from '../../utils/format.js';
 import TopBar from '../common/TopBar.jsx';
-import BottomBar from '../common/BottomBar.jsx';
 import MillerColumns from './MillerColumns.jsx';
 import DetailPanel from './DetailPanel.jsx';
 import EditorTimeline from './EditorTimeline.jsx';
@@ -156,28 +155,26 @@ export default function StructureEditor() {
           selectedScene={selectedScene}
           totalSec={treeData?.duration || 3600}
           onSceneClick={handleTimelineSceneClick}
+          info={
+            compressNote
+              ? <span className="lb" style={{ color: 'var(--color-warning)' }}>{compressNote}</span>
+              : treeNote && breadcrumb.length === 0
+              ? <span className="lb" style={{ color: 'var(--color-warning)' }}>{treeNote}</span>
+              : breadcrumb.length > 0
+              ? <span className="lb">선택: {breadcrumb.join(' › ')}</span>
+              : <span className="lb">Space 켜기/끄기 · ↑↓←→ 이동 · 우클릭 꼭 넣기/빼기</span>
+          }
+          actions={
+            <>
+              <button onClick={handleAICompress} disabled={aiLoading}>
+                {aiLoading ? 'AI 분석 중…' : 'AI로 목표 분량 채우기'}
+              </button>
+              <button className="btn-primary" onClick={() => (USE_MOCK ? transition('START_RENDER') : setRenderNotice(true))}>렌더 →</button>
+            </>
+          }
         />
       </div>
 
-      <BottomBar
-        left={
-          compressNote
-            ? <span className="lb" style={{ color: 'var(--color-warning)' }}>{compressNote}</span>
-            : treeNote && breadcrumb.length === 0
-            ? <span className="lb" style={{ color: 'var(--color-warning)' }}>{treeNote}</span>
-            : breadcrumb.length > 0
-            ? <span className="lb">선택: {breadcrumb.join(' › ')}</span>
-            : <span className="lb">Space 켜기/끄기 · ↑↓←→ 이동 · 우클릭 꼭 넣기/빼기</span>
-        }
-        right={
-          <div className="row">
-            <button onClick={handleAICompress} disabled={aiLoading}>
-              {aiLoading ? 'AI 분석 중…' : 'AI로 목표 분량 채우기'}
-            </button>
-            <button className="btn-primary" onClick={() => (USE_MOCK ? transition('START_RENDER') : setRenderNotice(true))}>렌더 →</button>
-          </div>
-        }
-      />
 
       {renderNotice && (
         <>
