@@ -421,3 +421,6 @@ details summary { cursor: pointer; font-size: 12px; color: var(--color-text-mute
 .lock-tag { font-size: 10px; font-weight: 700; margin-left: 4px; white-space: nowrap; flex: none; }
 .lock-tag.in { color: var(--color-success); }
 .lock-tag.out { color: var(--color-danger); }
+
+/* 켜고 끄는 버튼이 켜진 상태 (S4 크게 보기): 선택 상태라 강조색 */
+.btn-toggle-on { border-color: var(--color-accent); background: var(--color-accent-bg); }

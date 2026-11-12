@@ -15,6 +15,7 @@ export default function StructureEditor() {
   const [selectedPath, setSelectedPath] = useState([null, null, null, null]);
   const [selectedScene, setSelectedScene] = useState(null);
   const [selectedNode,  setSelectedNode]  = useState(null);   // 상세 패널: 고른 노드 (L1~L4)
+  const [bigView,       setBigView]       = useState(false);  // 크게 보기: L1~L3 열을 접고 영상·대사를 크게
   const [blockedMsg,   setBlockedMsg]   = useState('');
   const [aiLoading,    setAiLoading]    = useState(false);
   const [compressNote, setCompressNote] = useState('');      // 자동 채우기 결과 문구 (화면 임시 계산임을 알린다)
@@ -132,7 +133,7 @@ export default function StructureEditor() {
       />
 
       <div style={{ flex: 1, display: 'grid', gridTemplateRows: '1fr auto', overflow: 'hidden' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '60% 40%', overflow: 'hidden' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: bigView ? '24% 76%' : '60% 40%', overflow: 'hidden' }}>
           <MillerColumns
             treeData={treeData}
             selectedPath={selectedPath}
@@ -140,12 +141,15 @@ export default function StructureEditor() {
             onSelectAt={handleSelectAt}
             onToggle={handleToggle}
             onLock={handleLock}
+            sceneOnly={bigView}
           />
           <DetailPanel
             scene={selectedScene}
             node={selectedNode}
             sentences={sentences}
             selectionNodes={selNodes}
+            big={bigView}
+            onToggleBig={() => setBigView(v => !v)}
           />
         </div>
         <EditorTimeline

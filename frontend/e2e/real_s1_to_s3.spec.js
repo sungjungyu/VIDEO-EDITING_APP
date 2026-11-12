@@ -134,6 +134,16 @@ test('실제 API: 클립 2개 업로드 → 분석 완료, S3에 서버 단계�
   await expect.poll(async () => { const b = await video.boundingBox(); return +(b.width / b.height).toFixed(2); }).toBe(1.78);
   await page.locator('.pane .chip', { hasText: '원본' }).click();
 
+  // 크게 보기: 장면 열만 남고, 같은 영상 요소가 그대로 재생된다(재생 위치 유지). 끄면 원래 4열
+  await video.evaluate(v => { v.dataset.mark = 'same'; });
+  await page.click('button:has-text("크게 보기")');
+  await expect(page.locator('.miller-col')).toHaveCount(1);
+  await expect(page.locator('.miller-col .miller-item.sel')).toHaveCount(1);
+  expect(await video.evaluate(v => v.dataset.mark)).toBe('same');
+  await page.click('button:has-text("작게 보기")');
+  await expect(page.locator('.miller-col')).toHaveCount(4);
+  expect(await video.evaluate(v => v.dataset.mark)).toBe('same');
+
   // 상위 노드(L3)를 고르면 그 구간 첫 장면부터, 대사를 누르면 그 시각으로 가고 그 문장이 강조된다
   await page.locator('.miller-col').nth(2).locator('.miller-item').first().click();
   const lines = page.locator('.pane .log[title="누르면 이 대사로 이동"]');

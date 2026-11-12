@@ -7,6 +7,7 @@ const LEVEL_NAMES = { topic: '장소·사건', task: '일', situation: '상황',
 // 미리보기 화면 비율 (렌더와 무관): 원본은 영상 그대로, 나머지는 가운데 기준으로 잘라 보여 준다
 const ASPECTS = [['original', '원본'], ['16:9', '16:9'], ['9:16', '9:16'], ['1:1', '1:1']];
 const PREVIEW_HEIGHT = 220;
+const BIG_PREVIEW_HEIGHT = 'min(52vh, 460px)';   // 크게 보기
 const PROXY_RETRIES = 40;        // 3초 × 40 = 2분까지 proxy가 만들어지기를 기다린다
 const PROXY_RETRY_MS = 3000;
 
@@ -75,7 +76,7 @@ function Placeholder({ caption }) {
   );
 }
 
-export default function DetailPanel({ scene, node, sentences, selectionNodes }) {
+export default function DetailPanel({ scene, node, sentences, selectionNodes, big = false, onToggleBig }) {
   // mock: 장면(L4)만 자리표시 그림으로 / 실제: 고른 노드(L1~L4) 구간의 영상
   const target = USE_MOCK ? scene : (node ?? scene);
   const range = !USE_MOCK && target ? playRange(target) : null;
@@ -121,7 +122,15 @@ export default function DetailPanel({ scene, node, sentences, selectionNodes }) 
           {target.level !== 'scene' && <span className="lb" style={{ marginRight: 6 }}>{LEVEL_NAMES[target.level]}</span>}
           {target.title}
         </div>
-        {USE_MOCK && <button style={{ height: 28, fontSize: 12 }}>자막 대상 화자</button>}
+        <div className="row" style={{ flexWrap: 'nowrap' }}>
+          {USE_MOCK && <button style={{ height: 28, fontSize: 12 }}>자막 대상 화자</button>}
+          {onToggleBig && (
+            <button style={{ height: 28, fontSize: 12 }} aria-pressed={big} onClick={onToggleBig}
+                    className={big ? 'btn-toggle-on' : undefined}>
+              {big ? '작게 보기' : '크게 보기'}
+            </button>
+          )}
+        </div>
       </div>
 
       {selState?.lock && (
@@ -144,7 +153,7 @@ export default function DetailPanel({ scene, node, sentences, selectionNodes }) 
         </div>
       )}
       {range && !videoFailed ? (
-        <div className="video" style={{ height: PREVIEW_HEIGHT, display: 'flex', justifyContent: 'center' }} data-aspect={aspect}>
+        <div className="video" style={{ height: big ? BIG_PREVIEW_HEIGHT : PREVIEW_HEIGHT, flexShrink: 0, display: 'flex', justifyContent: 'center' }} data-aspect={aspect}>
           <div style={aspect === 'original'
             ? { width: '100%', height: '100%' }
             : { height: '100%', aspectRatio: aspect.replace(':', ' / '), maxWidth: '100%', overflow: 'hidden' }}>

@@ -15,7 +15,12 @@ function childrenOf(nodes, parentId) {
   return find(nodes) ?? [];
 }
 
-export default function MillerColumns({ treeData, selectedPath, selectionNodes, onSelectAt, onToggle, onLock }) {
+function scenesUnder(nodes) {
+  return nodes.flatMap(n => (n.level === 'scene' ? [n] : scenesUnder(n.children ?? [])));
+}
+
+// sceneOnly: 크게 보기 — L1~L3 열을 접고 장면(L4) 열만 보인다 (L3를 안 골랐으면 고른 가장 깊은 노드 아래 장면 전부)
+export default function MillerColumns({ treeData, selectedPath, selectionNodes, onSelectAt, onToggle, onLock, sceneOnly = false }) {
   const [ctxMenu, setCtxMenu] = useState(null);
   const ctxRef = useRef(null);
 
@@ -43,6 +48,10 @@ export default function MillerColumns({ treeData, selectedPath, selectionNodes, 
     }
     return { level, nodes };
   });
+  if (sceneOnly && !selectedPath[2]) {
+    const deepest = [1, 0].map(i => selectedPath[i]).find(Boolean);
+    columns[3] = { level: 'scene', nodes: scenesUnder(deepest ? childrenOf(roots, deepest) : roots) };
+  }
 
   const handleContextMenu = (e, nodeId) => {
     e.preventDefault();
@@ -117,11 +126,11 @@ export default function MillerColumns({ treeData, selectedPath, selectionNodes, 
   return (
     <div
       className="miller"
-      style={{ height: '100%' }}
+      style={{ height: '100%', ...(sceneOnly ? { gridTemplateColumns: 'minmax(0, 1fr)' } : null) }}
       tabIndex={0}
       onKeyDown={handleKeyDown}
     >
-      {columns.map(({ level, nodes }, i) => (
+      {columns.map(({ level, nodes }, i) => (sceneOnly && i < 3) ? null : (
         <MillerColumn
           key={level}
           level={level}
